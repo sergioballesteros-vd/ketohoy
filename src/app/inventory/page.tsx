@@ -9,6 +9,7 @@ type Product = {
   category: string
   ketoScore: number
   source: string
+  mercadonaId: string | null
   unitPrice: number | null
   imageUrl: string | null
   tags: string
@@ -80,6 +81,33 @@ export default function InventoryPage() {
     const data = await res.json()
     setMercadonaResults(data.products ?? [])
     setMercadonaLoading(false)
+  }
+
+  // Save Mercadona product to DB then add to pantry
+  const handleAddMercadona = async (product: Product) => {
+    // 1. Save product to DB (upsert by mercadonaId)
+    const saved = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: product.name,
+        brand: product.brand,
+        source: 'mercadona',
+        mercadonaId: product.id.replace('mercadona_', ''),
+        category: product.category,
+        ketoScore: product.ketoScore,
+        unitPrice: product.unitPrice,
+        imageUrl: product.imageUrl,
+      }),
+    }).then(r => r.json())
+
+    // 2. Add to pantry using real DB id
+    await fetch('/api/pantry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: saved.id }),
+    })
+    await fetchAll()
   }
 
   const handleAddManual = async () => {
@@ -171,15 +199,38 @@ export default function InventoryPage() {
         </div>
         {mercadonaResults.length > 0 && (
           <div className="mt-3 space-y-2">
-            {mercadonaResults.map(p => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                inPantry={pantryProductIds.has(p.id)}
-                pantryItemId={pantryMap.get(p.id)}
-                onToggle={handleToggle}
-              />
-            ))}
+            {mercadonaResults.map(p => {
+              const mercadonaId = p.id.replace('mercadona_', '')
+              const alreadyAdded = products.some(prod => prod.mercadonaId === mercadonaId)
+              const inPantry = alreadyAdded && pantryProductIds.has(
+                products.find(prod => prod.mercadonaId === mercadonaId)?.id ?? ''
+              )
+              return (
+                <div key={p.id} className="flex items-center gap-3 bg-gray-800 rounded-xl p-3">
+                  {p.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{p.name}</div>
+                    <div className="text-xs text-gray-500 flex gap-2 mt-0.5">
+                      <span>keto {p.ketoScore}/5</span>
+                      {p.unitPrice && <span>{p.unitPrice.toFixed(2)}€</span>}
+                    </div>
+                  </div>
+                  {inPantry ? (
+                    <span className="text-green-400 text-sm flex-shrink-0">✓ En despensa</span>
+                  ) : (
+                    <button
+                      onClick={() => handleAddMercadona(p)}
+                      className="bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+                    >
+                      + Añadir
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
         {mercadonaResults.length === 0 && mercadonaQuery && !mercadonaLoading && (

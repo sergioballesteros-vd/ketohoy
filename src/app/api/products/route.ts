@@ -9,22 +9,32 @@ export async function GET() {
   return NextResponse.json(products)
 }
 
-// POST /api/products - create product manually
+// POST /api/products - create product (manual or from Mercadona)
 export async function POST(request: Request) {
   const body = await request.json()
-  const { name, category, ketoScore, brand, netCarbsPer100g, proteinPer100g, fatPer100g, caloriesPer100g, tags } = body
+  const { name, category, ketoScore, brand, source, mercadonaId, unitPrice, imageUrl,
+    netCarbsPer100g, proteinPer100g, fatPer100g, caloriesPer100g, tags } = body
 
   if (!name || !category) {
     return NextResponse.json({ error: 'name and category required' }, { status: 400 })
+  }
+
+  // Upsert by mercadonaId to avoid duplicates
+  if (mercadonaId) {
+    const existing = await db.product.findFirst({ where: { mercadonaId } })
+    if (existing) return NextResponse.json(existing)
   }
 
   const product = await db.product.create({
     data: {
       name,
       brand: brand ?? null,
-      source: 'manual',
+      source: source ?? 'manual',
+      mercadonaId: mercadonaId ?? null,
       category,
       ketoScore: ketoScore ?? 3,
+      unitPrice: unitPrice ?? null,
+      imageUrl: imageUrl ?? null,
       netCarbsPer100g: netCarbsPer100g ?? null,
       proteinPer100g: proteinPer100g ?? null,
       fatPer100g: fatPer100g ?? null,
