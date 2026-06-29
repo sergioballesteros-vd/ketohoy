@@ -9,8 +9,7 @@
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#project-structure">Project Structure</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#agents">Agent Guide</a>
+  <a href="#quick-start">Quick Start</a>
 </p>
 
 <p align="center">
@@ -57,5 +56,4 @@ npm run prisma:seed
 npm run dev
 ```
 
-## 🤖 Agents
-Este repositorio está estructurado para interactuar con agentes de IA autónomos (ej. Google Antigravity). Consulta el archivo [AGENTS.md](AGENTS.md) para comprender las convenciones y directivas específicas de los agentes en este entorno (Next.js y Tailwind v4).
+
