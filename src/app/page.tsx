@@ -28,9 +28,12 @@ export default async function HomePage() {
 
   return (
     <main className="p-4">
-      <div className="pt-8 pb-6">
-        <h1 className="text-3xl font-bold text-green-400">KetoHoy</h1>
-        <p className="text-gray-400 mt-1">¿Qué comes hoy?</p>
+      <div className="pt-8 pb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-green-400">KetoHoy</h1>
+          <p className="text-gray-400 mt-1">¿Qué comes hoy?</p>
+        </div>
+        <Link href="/preferences" className="text-gray-600 hover:text-gray-400 pt-2">⚙️</Link>
       </div>
 
       {/* Stats */}
