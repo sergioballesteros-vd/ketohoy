@@ -20,30 +20,29 @@ type ProductCardProps = {
 }
 
 const categoryEmoji: Record<string, string> = {
-  meat: '🥩',
-  fish: '🐟',
-  eggs: '🥚',
-  dairy: '🧀',
-  vegetables: '🥦',
-  fruit: '🍓',
-  nuts: '🌰',
-  oils: '🫒',
-  sauces: '🥫',
-  drinks: '🥤',
-  other: '🍽️',
+  meat: '🥩', fish: '🐟', eggs: '🥚', dairy: '🧀',
+  vegetables: '🥦', fruit: '🍓', nuts: '🌰', oils: '🫒',
+  sauces: '🥫', drinks: '🥤', other: '🍽️',
 }
 
-const ketoColors = ['bg-red-900', 'bg-orange-900', 'bg-yellow-900', 'bg-lime-900', 'bg-green-800', 'bg-green-600']
+const ketoScoreColor = [
+  '#ef4444', // 0 - no keto
+  '#f97316', // 1
+  '#f59e0b', // 2
+  '#eab308', // 3
+  '#a3e635', // 4
+  '#a3e635', // 5
+]
 
 export default function ProductCard({ product, inPantry, pantryItemId, onToggle }: ProductCardProps) {
   return (
     <button
       onClick={() => onToggle(product.id, pantryItemId)}
-      className={`w-full text-left rounded-xl p-3 border transition-all ${
-        inPantry
-          ? 'bg-green-900/30 border-green-700 ring-1 ring-green-600'
-          : 'bg-gray-900 border-gray-800 hover:border-gray-700'
-      }`}
+      className="w-full text-left rounded-xl p-3 transition-all"
+      style={inPantry
+        ? { background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.25)' }
+        : { background: '#142514', border: '1px solid #1c321d' }
+      }
     >
       <div className="flex items-start gap-2">
         {product.imageUrl ? (
@@ -53,25 +52,34 @@ export default function ProductCard({ product, inPantry, pantryItemId, onToggle 
             alt={product.name}
             width={48}
             height={48}
-            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-800"
+            className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+            style={{ background: '#1c321d' }}
           />
         ) : (
-          <span className="text-2xl w-12 h-12 flex items-center justify-center flex-shrink-0">
+          <span
+            className="w-12 h-12 flex items-center justify-center text-2xl flex-shrink-0 rounded-xl"
+            style={{ background: '#1c321d' }}
+          >
             {categoryEmoji[product.category] ?? '🍽️'}
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm truncate">{product.name}</div>
-          {product.brand && <div className="text-xs text-gray-500 truncate">{product.brand}</div>}
-          <div className="flex items-center gap-1 mt-1">
-            <div className={`w-2 h-2 rounded-full ${ketoColors[product.ketoScore] ?? 'bg-gray-600'}`} />
-            <span className="text-xs text-gray-500">keto {product.ketoScore}/5</span>
+          <div className="font-semibold text-sm truncate" style={{ color: '#ecf5e0' }}>{product.name}</div>
+          {product.brand && <div className="text-xs truncate" style={{ color: '#547856' }}>{product.brand}</div>}
+          <div className="flex items-center gap-1.5 mt-1">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ background: ketoScoreColor[product.ketoScore] ?? '#547856' }}
+            />
+            <span className="text-xs" style={{ color: '#547856' }}>keto {product.ketoScore}/5</span>
             {product.unitPrice && (
-              <span className="text-xs text-gray-500 ml-2">{product.unitPrice.toFixed(2)}€</span>
+              <span className="text-xs ml-1" style={{ color: '#f59e0b' }}>{product.unitPrice.toFixed(2)}€</span>
             )}
           </div>
         </div>
-        {inPantry && <span className="text-green-400 text-lg flex-shrink-0">✓</span>}
+        {inPantry && (
+          <span className="text-sm flex-shrink-0 font-bold" style={{ color: '#a3e635' }}>✓</span>
+        )}
       </div>
     </button>
   )

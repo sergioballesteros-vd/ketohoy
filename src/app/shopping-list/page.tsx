@@ -102,22 +102,27 @@ export default function ShoppingListPage() {
   const checked = items.filter(i => i.checked)
   const totalPrice = unchecked.reduce((sum, i) => sum + (i.product?.unitPrice ?? 0), 0)
 
-  if (loading) return <div className="p-4 text-gray-500">Cargando...</div>
+  if (loading) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
 
   return (
-    <main className="p-4">
-      <div className="flex items-center justify-between pt-4 pb-4">
+    <main className="px-4 pt-4 pb-4">
+      <div className="flex items-center justify-between pt-2 pb-4">
         <div>
-          <h1 className="text-xl font-bold">Lista de compra</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+            Lista de compra
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: '#547856' }}>
             {unchecked.length} {unchecked.length === 1 ? 'pendiente' : 'pendientes'}
-            {totalPrice > 0 && ` · ~${totalPrice.toFixed(2)}€`}
+            {totalPrice > 0 && <span style={{ color: '#f59e0b' }}> · ~{totalPrice.toFixed(2)}€</span>}
           </p>
         </div>
         {checked.length > 0 && (
           <button
             onClick={handleClearChecked}
-            className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            className="text-xs font-medium transition-colors"
+            style={{ color: '#3b5e3c' }}
+            onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
+            onMouseLeave={e => { (e.target as HTMLElement).style.color = '#3b5e3c' }}
           >
             Limpiar comprados
           </button>
@@ -125,11 +130,12 @@ export default function ShoppingListPage() {
       </div>
 
       {/* Mercadona search */}
-      <div className="bg-gray-900 rounded-xl p-4 mb-4">
-        <p className="text-sm font-medium mb-3">🔍 Buscar en Mercadona</p>
+      <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514', border: '1px solid #1c321d' }}>
+        <p className="text-sm font-semibold mb-3" style={{ color: '#ecf5e0' }}>🔍 Buscar en Mercadona</p>
         <div className="flex gap-2">
           <input
-            className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+            style={{ background: '#1c321d', color: '#ecf5e0' }}
             placeholder="ej: leche, pan, yogur..."
             value={mercadonaQuery}
             onChange={e => setMercadonaQuery(e.target.value)}
@@ -138,7 +144,8 @@ export default function ShoppingListPage() {
           <button
             onClick={handleMercadonaSearch}
             disabled={mercadonaLoading}
-            className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-lg px-4 text-sm font-medium"
+            className="rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
+            style={{ background: '#f97316', color: '#fff' }}
           >
             {mercadonaLoading ? '...' : 'Buscar'}
           </button>
@@ -147,22 +154,23 @@ export default function ShoppingListPage() {
         {mercadonaResults.length > 0 && (
           <div className="mt-3 space-y-2">
             {mercadonaResults.map(p => (
-              <div key={p.id} className="flex items-center gap-3 bg-gray-800 rounded-xl p-3">
+              <div key={p.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#1c321d' }}>
                 {p.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                  <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{p.name}</div>
+                  <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>
                   <div className="text-xs flex gap-2 mt-0.5">
-                    {p.unitPrice && <span className="text-green-400 font-medium">{p.unitPrice.toFixed(2)}€</span>}
-                    <span className="text-gray-500">keto {p.ketoScore}/5</span>
+                    {p.unitPrice && <span className="font-medium" style={{ color: '#f59e0b' }}>{p.unitPrice.toFixed(2)}€</span>}
+                    <span style={{ color: '#547856' }}>keto {p.ketoScore}/5</span>
                   </div>
                 </div>
                 <button
                   onClick={() => handleAddMercadonaToCart(p)}
                   disabled={addingId === p.id}
-                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+                  className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
+                  style={{ background: '#f97316', color: '#fff' }}
                 >
                   {addingId === p.id ? '...' : '+ Carrito'}
                 </button>
@@ -172,14 +180,15 @@ export default function ShoppingListPage() {
         )}
 
         {mercadonaSearched && mercadonaResults.length === 0 && !mercadonaLoading && (
-          <p className="text-xs text-gray-600 mt-3 text-center">Sin resultados</p>
+          <p className="text-xs mt-3 text-center" style={{ color: '#264227' }}>Sin resultados</p>
         )}
       </div>
 
       {/* Manual add */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-5">
         <input
-          className="flex-1 bg-gray-900 rounded-xl px-4 py-2.5 text-sm"
+          className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
+          style={{ background: '#142514', color: '#ecf5e0', border: '1px solid #1c321d' }}
           placeholder="Añadir producto manual..."
           value={newItemName}
           onChange={e => setNewItemName(e.target.value)}
@@ -187,7 +196,8 @@ export default function ShoppingListPage() {
         />
         <button
           onClick={handleAddManual}
-          className="bg-green-700 hover:bg-green-600 rounded-xl px-4 text-sm"
+          className="rounded-xl px-4 text-sm font-bold"
+          style={{ background: '#a3e635', color: '#060e07' }}
         >
           +
         </button>
@@ -195,10 +205,10 @@ export default function ShoppingListPage() {
 
       {/* List */}
       {items.length === 0 ? (
-        <div className="text-center py-10 text-gray-600">
-          <p className="text-3xl mb-2">🛒</p>
-          <p className="text-sm">Lista vacía</p>
-          <p className="text-xs mt-1">Busca en Mercadona o añade productos manualmente</p>
+        <div className="text-center py-14">
+          <p className="text-5xl mb-4">🛒</p>
+          <p className="font-semibold" style={{ color: '#547856' }}>Lista vacía</p>
+          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Busca en Mercadona o añade manualmente</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -206,8 +216,10 @@ export default function ShoppingListPage() {
             <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} />
           ))}
           {checked.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs text-gray-600 mb-2">Comprados → pasan a despensa</p>
+            <div className="mt-5">
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#264227' }}>
+                Ya en el carrito
+              </p>
               {checked.map(item => (
                 <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} />
               ))}

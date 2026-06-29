@@ -17,21 +17,24 @@ type MealTypeTabsProps = {
 
 export default function MealTypeTabs({ value, onChange }: MealTypeTabsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-      {TABS.map(tab => (
-        <button
-          key={tab.value}
-          onClick={() => onChange(tab.value)}
-          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-colors ${
-            value === tab.value
-              ? 'bg-green-700 text-white font-medium'
-              : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
-          }`}
-        >
-          <span>{tab.emoji}</span>
-          <span>{tab.label}</span>
-        </button>
-      ))}
+    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      {TABS.map(tab => {
+        const active = value === tab.value
+        return (
+          <button
+            key={tab.value}
+            onClick={() => onChange(tab.value)}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+            style={active
+              ? { background: '#a3e635', color: '#060e07' }
+              : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
+            }
+          >
+            <span>{tab.emoji}</span>
+            <span>{tab.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

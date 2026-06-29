@@ -3,6 +3,22 @@ import { db } from '@/lib/db'
 import { scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function extendedPool(ids: string[], size: number): string[] {
+  if (ids.length === 0) return []
+  const result: string[] = []
+  while (result.length < size) result.push(...shuffle([...ids]))
+  return result.slice(0, size)
+}
+
 function getMonday(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()
@@ -39,8 +55,8 @@ export async function POST() {
   const mealTypes = ['breakfast', 'lunch', 'dinner']
   const plan = await db.weeklyPlan.create({ data: { weekStart: monday } })
 
-  // Pre-compute sorted suggestions per meal type (40% threshold for more variety)
-  const suggestionsByType: Record<string, string[]> = {}
+  // Pre-compute shuffled pools per meal type (40% threshold for more variety)
+  const poolsByType: Record<string, string[]> = {}
   for (const mealType of mealTypes) {
     const opts: ScoringOptions = {
       pantryProductIds,
@@ -54,14 +70,13 @@ export async function POST() {
         .map(r => scoreRecipe(r as RecipeWithIngredients, opts))
         .filter((s): s is NonNullable<typeof s> => s !== null)
     )
-    suggestionsByType[mealType] = sorted.map(s => s.recipe.id)
+    // extend to 7 slots with shuffled repetitions if needed — no consecutive repeats
+    poolsByType[mealType] = extendedPool(sorted.map(s => s.recipe.id), 7)
   }
 
   for (let day = 0; day < 7; day++) {
     for (const mealType of mealTypes) {
-      const pool = suggestionsByType[mealType] ?? []
-      // Rotate through pool offsetting by day to spread variety
-      const recipeId = pool[day % Math.max(pool.length, 1)]
+      const recipeId = poolsByType[mealType]?.[day]
       if (recipeId) {
         await db.weeklyMeal.create({
           data: { planId: plan.id, recipeId, dayOfWeek: day, mealType },

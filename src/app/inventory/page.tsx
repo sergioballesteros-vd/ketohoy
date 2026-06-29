@@ -179,70 +179,100 @@ export default function InventoryPage() {
     }
   }
 
-  if (loading) return <div className="p-4 text-gray-500">Cargando...</div>
+  if (loading) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
 
   const ketoInfo = KETO_SCORE_LABEL[modal?.ketoScore ?? 3]
 
+  const ketoScoreColorMap: Record<number, string> = {
+    5: '#a3e635', 4: '#a3e635', 3: '#f59e0b', 2: '#f97316', 1: '#ef4444', 0: '#ef4444',
+  }
+
   return (
-    <main className="p-4">
+    <main className="px-4 pt-4 pb-4">
       {/* Nutrition modal */}
       {modal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => setModal(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(6,14,7,0.92)' }}
+          onClick={() => setModal(null)}
+        >
           <div
-            className="bg-gray-900 rounded-t-2xl w-full max-w-2xl p-5 max-h-[80vh] overflow-y-auto"
+            className="w-full max-w-2xl p-5 max-h-[80vh] overflow-y-auto"
+            style={{ background: '#0c1a0d', borderTop: '1px solid #1c321d', borderRadius: '1.25rem 1.25rem 0 0' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-start gap-4 mb-4">
+            <div className="flex items-start gap-4 mb-5">
               {modal.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={modal.imageUrl} alt={modal.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                <img src={modal.imageUrl} alt={modal.name} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
               )}
               <div className="flex-1">
-                <h2 className="font-bold text-lg leading-tight">{modal.name}</h2>
-                {modal.unitPrice && <p className="text-green-400 font-medium">{modal.unitPrice.toFixed(2)}€</p>}
+                <h2 className="font-bold text-lg leading-tight" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+                  {modal.name}
+                </h2>
+                {modal.unitPrice && (
+                  <p className="font-semibold mt-0.5" style={{ color: '#f59e0b' }}>{modal.unitPrice.toFixed(2)}€</p>
+                )}
               </div>
-              <button onClick={() => setModal(null)} className="text-gray-500 text-2xl leading-none">×</button>
+              <button onClick={() => setModal(null)} className="text-2xl leading-none" style={{ color: '#3b5e3c' }}>×</button>
             </div>
 
             {/* Keto score */}
-            <div className="bg-gray-800 rounded-xl p-4 mb-4">
+            <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514' }}>
               <div className="flex items-center gap-3 mb-1">
-                <span className={`text-2xl font-bold ${ketoInfo?.color}`}>{modal.ketoScore}/5</span>
-                <span className={`font-semibold ${ketoInfo?.color}`}>{ketoInfo?.label}</span>
-                <span className="text-xs text-gray-600 ml-auto">
+                <span className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: ketoScoreColorMap[modal.ketoScore] ?? '#a3e635' }}>
+                  {modal.ketoScore}/5
+                </span>
+                <span className="font-semibold" style={{ color: ketoScoreColorMap[modal.ketoScore] ?? '#a3e635' }}>
+                  {ketoInfo?.label}
+                </span>
+                <span className="text-xs ml-auto" style={{ color: '#3b5e3c' }}>
                   {modal.nutritionSource === 'openfoodfacts' ? '📊 Open Food Facts' : `${CATEGORY_EMOJI[modal.category]} categoría`}
                 </span>
               </div>
-              <p className="text-sm text-gray-400">{ketoInfo?.desc}</p>
+              <p className="text-sm" style={{ color: '#547856' }}>{ketoInfo?.desc}</p>
             </div>
 
             {/* Macros */}
             {(modal.carbs != null || modal.fat != null || modal.protein != null) && (
-              <div className="bg-gray-800 rounded-xl p-4 mb-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Valores por 100g</p>
+              <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514' }}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#3b5e3c' }}>
+                  por 100g
+                </p>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {modal.carbs != null && (
                     <div>
-                      <div className="text-lg font-bold text-orange-400">{modal.carbs.toFixed(1)}g</div>
-                      <div className="text-xs text-gray-500">Carbos</div>
+                      <div className="text-xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#f97316' }}>
+                        {modal.carbs.toFixed(1)}
+                        <span className="text-xs font-normal">g</span>
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: '#3b5e3c' }}>Carbos</div>
                     </div>
                   )}
                   {modal.fat != null && (
                     <div>
-                      <div className="text-lg font-bold text-yellow-400">{modal.fat.toFixed(1)}g</div>
-                      <div className="text-xs text-gray-500">Grasa</div>
+                      <div className="text-xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#f59e0b' }}>
+                        {modal.fat.toFixed(1)}
+                        <span className="text-xs font-normal">g</span>
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: '#3b5e3c' }}>Grasa</div>
                     </div>
                   )}
                   {modal.protein != null && (
                     <div>
-                      <div className="text-lg font-bold text-blue-400">{modal.protein.toFixed(1)}g</div>
-                      <div className="text-xs text-gray-500">Proteína</div>
+                      <div className="text-xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#60a5fa' }}>
+                        {modal.protein.toFixed(1)}
+                        <span className="text-xs font-normal">g</span>
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: '#3b5e3c' }}>Proteína</div>
                     </div>
                   )}
                   {modal.calories != null && (
                     <div>
-                      <div className="text-lg font-bold text-gray-300">{Math.round(modal.calories)}</div>
-                      <div className="text-xs text-gray-500">kcal</div>
+                      <div className="text-xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+                        {Math.round(modal.calories)}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: '#3b5e3c' }}>kcal</div>
                     </div>
                   )}
                 </div>
@@ -250,26 +280,26 @@ export default function InventoryPage() {
             )}
 
             {loadingNutrition ? (
-              <p className="text-gray-500 text-sm text-center py-4">Cargando info nutricional...</p>
+              <p className="text-sm text-center py-4" style={{ color: '#3b5e3c' }}>Cargando info nutricional...</p>
             ) : (
               <>
                 {modal.ingredients && (
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Ingredientes</p>
-                    <p className="text-sm text-gray-300 leading-relaxed">{modal.ingredients}</p>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#3b5e3c' }}>Ingredientes</p>
+                    <p className="text-sm leading-relaxed" style={{ color: '#7a9e7c' }}>{modal.ingredients}</p>
                   </div>
                 )}
                 {modal.allergens && (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold text-yellow-500 uppercase tracking-wide mb-1">⚠️ Alérgenos</p>
-                    <p className="text-sm text-yellow-200">{modal.allergens}</p>
+                  <div className="mb-4 rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: '#f59e0b' }}>⚠️ Alérgenos</p>
+                    <p className="text-sm" style={{ color: '#fbbf24' }}>{modal.allergens}</p>
                   </div>
                 )}
                 {!modal.ingredients && !modal.allergens && modal.mercadonaId && (
-                  <p className="text-gray-600 text-sm text-center py-2">Sin información nutricional disponible</p>
+                  <p className="text-sm text-center py-2" style={{ color: '#264227' }}>Sin información nutricional disponible</p>
                 )}
                 {!modal.mercadonaId && (
-                  <p className="text-gray-600 text-sm text-center py-2">Producto añadido manualmente — sin datos de Mercadona</p>
+                  <p className="text-sm text-center py-2" style={{ color: '#264227' }}>Producto añadido manualmente</p>
                 )}
               </>
             )}
@@ -277,41 +307,50 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-4 pb-4">
+      <div className="flex items-center justify-between pt-2 pb-4">
         <div>
-          <h1 className="text-xl font-bold">Mi despensa</h1>
-          <p className="text-sm text-gray-400">{pantryItems.length} productos</p>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+            Mi despensa
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: '#547856' }}>{pantryItems.length} productos</p>
         </div>
         <button
           onClick={() => setShowManual(!showManual)}
-          className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-sm"
+          className="text-sm font-medium px-3 py-1.5 rounded-xl transition-colors"
+          style={{ background: '#142514', color: '#7a9e7c', border: '1px solid #1c321d' }}
         >
           + Manual
         </button>
       </div>
 
       {showManual && (
-        <div className="bg-gray-900 rounded-xl p-4 mb-4 flex gap-2">
+        <div className="rounded-2xl p-4 mb-4 flex gap-2" style={{ background: '#142514', border: '1px solid #1c321d' }}>
           <input
-            className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+            style={{ background: '#1c321d', color: '#ecf5e0' }}
             placeholder="Nombre del producto"
             value={manualName}
             onChange={e => setManualName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddManual()}
             autoFocus
           />
-          <button onClick={handleAddManual} className="bg-green-700 hover:bg-green-600 rounded-lg px-4 text-sm">
+          <button
+            onClick={handleAddManual}
+            className="rounded-xl px-4 text-sm font-semibold"
+            style={{ background: '#a3e635', color: '#060e07' }}
+          >
             Añadir
           </button>
         </div>
       )}
 
       {/* Mercadona search */}
-      <div className="bg-gray-900 rounded-xl p-4 mb-6">
-        <p className="text-sm font-medium mb-3">🔍 Buscar en Mercadona</p>
+      <div className="rounded-2xl p-4 mb-6" style={{ background: '#142514', border: '1px solid #1c321d' }}>
+        <p className="text-sm font-semibold mb-3" style={{ color: '#ecf5e0' }}>🔍 Buscar en Mercadona</p>
         <div className="flex gap-2">
           <input
-            className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+            style={{ background: '#1c321d', color: '#ecf5e0' }}
             placeholder="ej: huevos, salmón, queso..."
             value={mercadonaQuery}
             onChange={e => setMercadonaQuery(e.target.value)}
@@ -320,7 +359,8 @@ export default function InventoryPage() {
           <button
             onClick={handleMercadonaSearch}
             disabled={mercadonaLoading}
-            className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-lg px-4 text-sm font-medium"
+            className="rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
+            style={{ background: '#f97316', color: '#fff' }}
           >
             {mercadonaLoading ? '...' : 'Buscar'}
           </button>
@@ -334,23 +374,26 @@ export default function InventoryPage() {
               const pantryItem = pantryItems.find(i => i.product.mercadonaId === mercId)
               const score = KETO_SCORE_LABEL[p.ketoScore]
               return (
-                <div key={p.id} className="flex items-center gap-3 bg-gray-800 rounded-xl p-3">
+                <div key={p.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#1c321d' }}>
                   {p.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{p.name}</div>
+                    <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>
                     <div className="text-xs flex gap-2 mt-0.5">
-                      {p.unitPrice && <span className="text-green-400 font-medium">{p.unitPrice.toFixed(2)}€</span>}
-                      <span className={score?.color ?? 'text-gray-500'}>keto {p.ketoScore}/5 · {score?.label}</span>
+                      {p.unitPrice && <span className="font-medium" style={{ color: '#f59e0b' }}>{p.unitPrice.toFixed(2)}€</span>}
+                      <span style={{ color: score?.color ? score.color.replace('text-', '') : '#547856' }}>
+                        {score?.label}
+                      </span>
                     </div>
                   </div>
                   {alreadyInPantry ? (
                     <button
                       onClick={() => pantryItem && handleRemoveFromPantry(pantryItem.id)}
                       disabled={removingId === pantryItem?.id}
-                      className="text-green-400 text-xs flex-shrink-0 hover:text-red-400 transition-colors"
+                      className="text-xs flex-shrink-0 font-semibold transition-colors"
+                      style={{ color: '#a3e635' }}
                     >
                       ✓ En despensa
                     </button>
@@ -358,7 +401,8 @@ export default function InventoryPage() {
                     <button
                       onClick={() => handleAddMercadona(p)}
                       disabled={addingId === p.id}
-                      className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+                      className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
+                      style={{ background: '#a3e635', color: '#060e07' }}
                     >
                       {addingId === p.id ? '...' : '+ Añadir'}
                     </button>
@@ -370,57 +414,85 @@ export default function InventoryPage() {
         )}
 
         {mercadonaSearched && mercadonaResults.length === 0 && !mercadonaLoading && (
-          <p className="text-xs text-gray-600 mt-3 text-center">Sin resultados</p>
+          <p className="text-xs mt-3 text-center" style={{ color: '#264227' }}>Sin resultados</p>
         )}
       </div>
 
-      {/* Pantry items */}
+      {/* Pantry items grouped by category */}
       <div>
-        <p className="text-sm font-medium text-gray-400 mb-3">En casa</p>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#3b5e3c' }}>En casa</p>
         {pantryItems.length === 0 ? (
-          <div className="text-center py-10 text-gray-600">
-            <p className="text-3xl mb-2">🧺</p>
-            <p className="text-sm">Despensa vacía</p>
-            <p className="text-xs mt-1">Busca productos en Mercadona para añadirlos</p>
+          <div className="text-center py-12">
+            <p className="text-4xl mb-3">🧺</p>
+            <p className="font-semibold" style={{ color: '#547856' }}>Despensa vacía</p>
+            <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Busca productos en Mercadona para añadirlos</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {pantryItems.map(item => {
-              const score = KETO_SCORE_LABEL[item.product.ketoScore]
-              return (
-                <div key={item.id} className="flex items-center gap-3 bg-gray-900 rounded-xl p-3">
-                  <button onClick={() => handleOpenNutrition(item)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    {item.product.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-lg flex-shrink-0">
-                        {CATEGORY_EMOJI[item.product.category] ?? '🍽️'}
+          <div className="space-y-5">
+            {Object.entries(
+              pantryItems.reduce<Record<string, PantryItem[]>>((acc, item) => {
+                const cat = item.product.category
+                ;(acc[cat] ??= []).push(item)
+                return acc
+              }, {})
+            ).map(([category, items]) => (
+              <div key={category}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: '#3b5e3c' }}>
+                  <span>{CATEGORY_EMOJI[category] ?? '🍽️'}</span>
+                  <span>{category}</span>
+                  <span style={{ color: '#264227' }}>({items.length})</span>
+                </p>
+                <div className="space-y-2">
+                  {items.map(item => {
+                    const ketoColor = ketoScoreColorMap[item.product.ketoScore] ?? '#547856'
+                    const score = KETO_SCORE_LABEL[item.product.ketoScore]
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 rounded-xl p-3"
+                        style={{ background: '#142514', border: '1px solid #1c321d' }}
+                      >
+                        <button onClick={() => handleOpenNutrition(item)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                          {item.product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                              style={{ background: '#1c321d' }}
+                            >
+                              {CATEGORY_EMOJI[item.product.category] ?? '🍽️'}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>
+                              {item.product.name}
+                            </div>
+                            <div className="text-xs flex gap-2 mt-0.5">
+                              {item.product.unitPrice && (
+                                <span style={{ color: '#f59e0b' }}>{item.product.unitPrice.toFixed(2)}€</span>
+                              )}
+                              <span style={{ color: ketoColor }}>{score?.label}</span>
+                            </div>
+                          </div>
+                          <span className="text-xs flex-shrink-0" style={{ color: '#264227' }}>›</span>
+                        </button>
+                        <button
+                          onClick={() => handleRemoveFromPantry(item.id)}
+                          disabled={removingId === item.id}
+                          className="text-xl flex-shrink-0 pl-2 leading-none transition-colors"
+                          style={{ color: '#264227' }}
+                          onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
+                          onMouseLeave={e => { (e.target as HTMLElement).style.color = '#264227' }}
+                        >
+                          ×
+                        </button>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{item.product.name}</div>
-                      <div className="text-xs flex gap-2 mt-0.5">
-                        {item.product.unitPrice && (
-                          <span className="text-green-400">{item.product.unitPrice.toFixed(2)}€</span>
-                        )}
-                        <span className={score?.color ?? 'text-gray-500'}>
-                          keto {item.product.ketoScore}/5 · {score?.label}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-gray-600 text-xs flex-shrink-0">ℹ️</span>
-                  </button>
-                  <button
-                    onClick={() => handleRemoveFromPantry(item.id)}
-                    disabled={removingId === item.id}
-                    className="text-gray-600 hover:text-red-400 transition-colors text-lg flex-shrink-0 pl-2"
-                  >
-                    ×
-                  </button>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
