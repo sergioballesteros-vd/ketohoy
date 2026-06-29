@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,109 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+}
+
+model UserPreferences {
+  id                String   @id @default(cuid())
+  ketoMode          String   @default("flexible") // strict, flexible, low_carb
+  avoidFish         Boolean  @default(false)
+  avoidPork         Boolean  @default(false)
+  avoidDairy        Boolean  @default(false)
+  maxCookingMinutes Int      @default(20)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  brand           String?
+  source          String   @default("manual") // manual, mercadona
+  mercadonaId     String?
+  category        String   // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
+  ketoScore       Int      @default(3) // 0-5
+  netCarbsPer100g Float?
+  proteinPer100g  Float?
+  fatPer100g      Float?
+  caloriesPer100g Float?
+  unitPrice       Float?
+  referencePrice  String?
+  imageUrl        String?
+  tags            String   @default("[]") // JSON array string
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pantryItems         PantryItem[]
+  recipeIngredients   RecipeIngredient[]
+  shoppingListItems   ShoppingListItem[]
+}
+
+model PantryItem {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Float?
+  unit      String?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Recipe {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  mealTypes       String   // JSON array: ["breakfast","lunch","dinner","snack"]
+  prepTimeMinutes Int
+  difficulty      String   // very_easy, easy, medium
+  ketoLevel       String   // strict, moderate, low_carb
+  tags            String   @default("[]") // JSON array
+  steps           String   // JSON array of strings
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ingredients     RecipeIngredient[]
+  weeklyMeals     WeeklyMeal[]
+}
+
+model RecipeIngredient {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  quantity  String?
+  optional  Boolean  @default(false)
+}
+
+model ShoppingListItem {
+  id        String   @id @default(cuid())
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  quantity  String?
+  checked   Boolean  @default(false)
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WeeklyPlan {
+  id        String       @id @default(cuid())
+  weekStart DateTime     // Monday of the week
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  meals     WeeklyMeal[]
+}
+
+model WeeklyMeal {
+  id         String     @id @default(cuid())
+  planId     String
+  plan       WeeklyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  recipeId   String?
+  recipe     Recipe?    @relation(fields: [recipeId], references: [id])
+  dayOfWeek  Int        // 0=Monday, 6=Sunday
+  mealType   String     // breakfast, lunch, dinner
+  createdAt  DateTime   @default(now())
 }
