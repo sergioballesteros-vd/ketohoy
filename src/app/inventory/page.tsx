@@ -12,6 +12,10 @@ type Product = {
   unitPrice: number | null
   imageUrl: string | null
   tags: string
+  netCarbsPer100g: number | null
+  fatPer100g: number | null
+  proteinPer100g: number | null
+  caloriesPer100g: number | null
 }
 
 type PantryItem = {
@@ -42,8 +46,13 @@ type NutritionModal = {
   category: string
   unitPrice: number | null
   mercadonaId: string | null
+  carbs: number | null
+  fat: number | null
+  protein: number | null
+  calories: number | null
   ingredients?: string
   allergens?: string
+  nutritionSource?: 'openfoodfacts' | 'category'
 }
 
 const KETO_SCORE_LABEL: Record<number, { label: string; color: string; desc: string }> = {
@@ -102,20 +111,13 @@ export default function InventoryPage() {
 
   const handleAddMercadona = async (p: MercadonaResult) => {
     setAddingId(p.id)
-    const saved = await fetch('/api/products', {
+    await fetch('/api/mercadona/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: p.name, brand: p.brand, source: 'mercadona',
         mercadonaId: p.id.replace('mercadona_', ''),
-        category: p.category, ketoScore: p.ketoScore,
-        unitPrice: p.unitPrice, imageUrl: p.imageUrl,
+        addToPantry: true,
       }),
-    }).then(r => r.json())
-    await fetch('/api/pantry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: saved.id }),
     })
     setAddingId(null)
     await fetchPantry()
@@ -147,21 +149,31 @@ export default function InventoryPage() {
 
   // Open nutrition modal — fetch full detail if Mercadona product
   const handleOpenNutrition = async (item: PantryItem) => {
+    const p = item.product
     const base: NutritionModal = {
-      name: item.product.name,
-      imageUrl: item.product.imageUrl,
-      ketoScore: item.product.ketoScore,
-      category: item.product.category,
-      unitPrice: item.product.unitPrice,
-      mercadonaId: item.product.mercadonaId,
+      name: p.name,
+      imageUrl: p.imageUrl,
+      ketoScore: p.ketoScore,
+      category: p.category,
+      unitPrice: p.unitPrice,
+      mercadonaId: p.mercadonaId,
+      carbs: p.netCarbsPer100g,
+      fat: p.fatPer100g,
+      protein: p.proteinPer100g,
+      calories: p.caloriesPer100g,
     }
     setModal(base)
-    if (item.product.mercadonaId) {
+    if (p.mercadonaId) {
       setLoadingNutrition(true)
-      const res = await fetch(`/api/mercadona/product/${item.product.mercadonaId}`)
+      const res = await fetch(`/api/mercadona/product/${p.mercadonaId}`)
       if (res.ok) {
         const detail = await res.json()
-        setModal({ ...base, ingredients: detail.ingredients, allergens: detail.allergens })
+        setModal({
+          ...base,
+          ingredients: detail.ingredients,
+          allergens: detail.allergens,
+          nutritionSource: base.carbs != null ? 'openfoodfacts' : 'category',
+        })
       }
       setLoadingNutrition(false)
     }
@@ -197,13 +209,45 @@ export default function InventoryPage() {
               <div className="flex items-center gap-3 mb-1">
                 <span className={`text-2xl font-bold ${ketoInfo?.color}`}>{modal.ketoScore}/5</span>
                 <span className={`font-semibold ${ketoInfo?.color}`}>{ketoInfo?.label}</span>
+                <span className="text-xs text-gray-600 ml-auto">
+                  {modal.nutritionSource === 'openfoodfacts' ? '📊 Open Food Facts' : `${CATEGORY_EMOJI[modal.category]} categoría`}
+                </span>
               </div>
               <p className="text-sm text-gray-400">{ketoInfo?.desc}</p>
-              <p className="text-xs text-gray-600 mt-2">
-                Calculado por categoría: <span className="text-gray-400">{CATEGORY_EMOJI[modal.category]} {modal.category}</span>.
-                El score keto viene de reglas por categoría de alimento, no de macros exactos.
-              </p>
             </div>
+
+            {/* Macros */}
+            {(modal.carbs != null || modal.fat != null || modal.protein != null) && (
+              <div className="bg-gray-800 rounded-xl p-4 mb-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Valores por 100g</p>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {modal.carbs != null && (
+                    <div>
+                      <div className="text-lg font-bold text-orange-400">{modal.carbs.toFixed(1)}g</div>
+                      <div className="text-xs text-gray-500">Carbos</div>
+                    </div>
+                  )}
+                  {modal.fat != null && (
+                    <div>
+                      <div className="text-lg font-bold text-yellow-400">{modal.fat.toFixed(1)}g</div>
+                      <div className="text-xs text-gray-500">Grasa</div>
+                    </div>
+                  )}
+                  {modal.protein != null && (
+                    <div>
+                      <div className="text-lg font-bold text-blue-400">{modal.protein.toFixed(1)}g</div>
+                      <div className="text-xs text-gray-500">Proteína</div>
+                    </div>
+                  )}
+                  {modal.calories != null && (
+                    <div>
+                      <div className="text-lg font-bold text-gray-300">{Math.round(modal.calories)}</div>
+                      <div className="text-xs text-gray-500">kcal</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {loadingNutrition ? (
               <p className="text-gray-500 text-sm text-center py-4">Cargando info nutricional...</p>

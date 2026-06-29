@@ -83,29 +83,12 @@ export default function ShoppingListPage() {
 
   const handleAddMercadonaToCart = async (p: MercadonaResult) => {
     setAddingId(p.id)
-    // Save product to DB first (upsert), then add to shopping list
-    const saved = await fetch('/api/products', {
+    await fetch('/api/mercadona/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: p.name,
-        brand: p.brand,
-        source: 'mercadona',
         mercadonaId: p.id.replace('mercadona_', ''),
-        category: p.category,
-        ketoScore: p.ketoScore,
-        unitPrice: p.unitPrice,
-        imageUrl: p.imageUrl,
-      }),
-    }).then(r => r.json())
-
-    await fetch('/api/shopping-list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: p.name,
-        productId: saved.id,
-        quantity: null,
+        addToShoppingList: true,
       }),
     })
     setAddingId(null)

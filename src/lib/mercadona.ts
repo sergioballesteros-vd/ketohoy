@@ -17,6 +17,7 @@ export type MercadonaProduct = {
   referencePrice: string | null
   imageUrl: string | null
   tags: string
+  ean?: string
   ingredients?: string
   allergens?: string
 }
@@ -69,6 +70,7 @@ export async function getMercadonaProduct(id: string): Promise<MercadonaProduct 
 
 type RawHit = {
   id?: string | number
+  ean?: string
   display_name?: string
   thumbnail?: string
   categories?: Array<{ name: string; categories?: Array<{ name: string }> }>
@@ -111,6 +113,7 @@ function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
         referencePrice: refPrice != null ? `${refPrice}€/${refFormat ?? 'u'}` : null,
         imageUrl: item.thumbnail ?? null,
         tags: '[]',
+        ean: item.ean ?? undefined,
         ingredients: stripHtml(item.nutrition_information?.ingredients),
         allergens: stripHtml(item.nutrition_information?.allergens),
       }
