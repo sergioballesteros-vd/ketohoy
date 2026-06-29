@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <img src="public/favicon.ico" width="100" alt="KetoHoy Logo">
+</p>
 
-## Getting Started
+<h1 align="center">KetoHoy (Mercadona)</h1>
 
-First, run the development server:
+<h3 align="center">Tu planificador de comidas keto y gestión de despensa inteligente.</h3>
+
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#project-structure">Project Structure</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#agents">Agent Guide</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.2-black.svg" alt="Next.js">
+  <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8.svg" alt="Tailwind">
+  <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status">
+</p>
+
+---
+
+## ⚡ Overview
+**KetoHoy** es una aplicación diseñada para facilitar el seguimiento de la dieta cetogénica (Keto) utilizando productos accesibles (enfocados en Mercadona). Integra gestión de despensa en tiempo real, generador de listas de la compra dinámico y recomendaciones de comidas basadas en los ingredientes que tienes en casa.
+
+**Core Features:**
+- **Control de Despensa:** Inventariado rápido de tus productos.
+- **Ideas de Comida:** Generación de recetas inteligentes sugeridas basadas en la cobertura de ingredientes de tu despensa, calculando instantáneamente qué falta.
+- **UX Premium:** Interfaz con animaciones fluidas (Framer Motion) adaptada para móviles con navegación Glassmorfismo.
+
+## 🛠️ Project Structure
+La estructura del proyecto está modularizada para escalabilidad y mantenimiento rápido:
+
+- **`src/app/`**: Router principal de Next.js (App Router).
+  - `/api`: Endpoints del backend (despensa, lista de compra, recetas).
+  - `/inventory`: Gestión visual de tu despensa.
+  - `/meals`: Sugerencias y visualización detallada de recetas.
+  - `/shopping-list`: Interfaz de carrito.
+  - `/weekly-plan`: Generador de menú semanal.
+- **`src/components/`**: Componentes reutilizables de UI (Navigación, Tarjetas animadas).
+- **`src/lib/`**: Lógica compartida.
+- **`prisma/`**: Esquema de la base de datos (SQLite / Prisma) y scripts de semillas (`seed.ts`).
+
+## 🚀 Quick Start
+Asegúrate de configurar las variables de entorno en `.env` antes de inicializar la aplicación.
 
 ```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Inicializar la base de datos
+npx prisma db push
+npm run prisma:seed
+
+# 3. Arrancar servidor de desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🤖 Agents
+Este repositorio está estructurado para interactuar con agentes de IA autónomos (ej. Google Antigravity). Consulta el archivo [AGENTS.md](AGENTS.md) para comprender las convenciones y directivas específicas de los agentes en este entorno (Next.js y Tailwind v4).
