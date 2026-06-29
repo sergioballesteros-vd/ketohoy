@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import AddMissingButton from './AddMissingButton'
 
 type RecipeIngredient = {

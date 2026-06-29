@@ -1,5 +1,5 @@
 'use client'
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { ClockIcon } from '@/components/icons'
 
 type RecipeCardProps = {

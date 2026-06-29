@@ -1,5 +1,5 @@
 'use client'
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { useEffect, useState, useCallback } from 'react'
 import { RefreshIcon, ClockIcon, CartIcon } from '@/components/icons'
 
