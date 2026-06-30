@@ -18,6 +18,10 @@
   <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status">
 </p>
 
+<p align="center">
+  <img src="public/screenshot.jpg" width="600" style="border-radius: 20px; box-shadow: 0px 4px 20px rgba(0,0,0,0.5)" alt="KetoHoy App Mockup">
+</p>
+
 ---
 
 ## ⚡ Overview
