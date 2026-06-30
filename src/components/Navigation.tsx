@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, PantryIcon, MealsIcon, CartIcon, CalendarIcon } from '@/components/icons'
+import { HomeIcon, PantryIcon, MealsIcon, CartIcon, CalendarIcon, ExploreIcon } from '@/components/icons'
 
 const navItems = [
   { href: '/', label: 'Inicio', Icon: HomeIcon },
-  { href: '/inventory', label: 'Despensa', Icon: PantryIcon },
   { href: '/meals', label: 'Comidas', Icon: MealsIcon },
+  { href: '/explore', label: 'Explorar', Icon: ExploreIcon },
+  { href: '/inventory', label: 'Despensa', Icon: PantryIcon },
   { href: '/shopping-list', label: 'Compra', Icon: CartIcon },
   { href: '/weekly-plan', label: 'Semana', Icon: CalendarIcon },
 ]

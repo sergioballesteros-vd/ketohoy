@@ -19,6 +19,7 @@ export default function ShoppingListPage() {
   const [error, setError] = useState<string | null>(null)
   const [newItemName, setNewItemName] = useState('')
   const [newItemQty, setNewItemQty] = useState('')
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
 
   // Mercadona search
   const [mercadonaQuery, setMercadonaQuery] = useState('')
@@ -45,8 +46,13 @@ export default function ShoppingListPage() {
   useEffect(() => { fetchItems() }, [fetchItems])
 
   const handleToggle = async (id: string) => {
+    const item = items.find(i => i.id === id)
     await fetch(`/api/shopping-list/${id}/check`, { method: 'PATCH' })
     await fetchItems()
+    if (item && !item.checked && item.product) {
+      setToastMsg('✓ Añadido a tu despensa')
+      setTimeout(() => setToastMsg(null), 2000)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -66,6 +72,23 @@ export default function ShoppingListPage() {
     })
     setNewItemName('')
     setNewItemQty('')
+    await fetchItems()
+  }
+
+  const handleMoveAllToPantry = async () => {
+    const checkedIds = items.filter(i => i.checked).map(i => i.id)
+    await fetch('/api/shopping-list/mark-bought', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: checkedIds }),
+    })
+    await fetch('/api/shopping-list', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: checkedIds }),
+    })
+    setToastMsg(`✓ ${checkedIds.length} productos en despensa`)
+    setTimeout(() => setToastMsg(null), 2500)
     await fetchItems()
   }
 
@@ -126,15 +149,24 @@ export default function ShoppingListPage() {
           </p>
         </div>
         {checked.length > 0 && (
-          <button
-            onClick={handleClearChecked}
-            className="text-xs font-medium transition-colors"
-            style={{ color: '#3b5e3c' }}
-            onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
-            onMouseLeave={e => { (e.target as HTMLElement).style.color = '#3b5e3c' }}
-          >
-            Limpiar comprados
-          </button>
+          <div className="flex gap-3 items-center">
+            <button
+              onClick={handleMoveAllToPantry}
+              className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+              style={{ background: '#a3e635', color: '#060e07' }}
+            >
+              → Despensa ({checked.length})
+            </button>
+            <button
+              onClick={handleClearChecked}
+              className="text-xs font-medium transition-colors"
+              style={{ color: '#3b5e3c' }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.color = '#3b5e3c' }}
+            >
+              Limpiar
+            </button>
+          </div>
         )}
       </div>
 
@@ -259,6 +291,15 @@ export default function ShoppingListPage() {
         onClose={() => setDetailProduct(null)}
         onAddToShoppingList={detailProduct ? async () => { await handleAddMercadonaToCart(detailProduct) } : undefined}
       />
+
+      {toastMsg && (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-semibold z-40"
+          style={{ background: '#a3e635', color: '#060e07' }}
+        >
+          {toastMsg}
+        </div>
+      )}
     </main>
   )
 }

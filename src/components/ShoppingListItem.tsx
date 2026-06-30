@@ -56,6 +56,9 @@ export default function ShoppingListItem({ item, onToggle, onDelete }: ShoppingL
             <span style={{ color: '#f59e0b' }}>{item.product.unitPrice.toFixed(2)}€</span>
           )}
           {item.reason && <span className="truncate">{item.reason}</span>}
+          {item.checked && item.product && (
+            <span className="font-semibold" style={{ color: '#a3e635' }}>En despensa</span>
+          )}
         </div>
       </div>
 
