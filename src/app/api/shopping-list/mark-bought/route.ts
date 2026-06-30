@@ -27,12 +27,11 @@ export async function POST(request: Request) {
       select: { productId: true },
     })
     const alreadyInPantry = new Set(existingPantry.map(p => p.productId))
-    const toAdd = productIds.filter(id => !alreadyInPantry.has(id))
+    const toAdd = [...new Set(productIds)].filter(id => !alreadyInPantry.has(id))
 
     if (toAdd.length > 0) {
       await db.pantryItem.createMany({
         data: toAdd.map(productId => ({ productId })),
-        skipDuplicates: true,
       })
     }
   }
