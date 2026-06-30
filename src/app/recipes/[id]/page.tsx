@@ -21,6 +21,7 @@ type Recipe = {
   tags: string
   steps: string
   ingredients: RecipeIngredient[]
+  imageUrl?: string | null
 }
 
 async function getRecipe(id: string): Promise<Recipe | null> {
@@ -68,6 +69,14 @@ export default async function RecipeDetailPage({
         </Link>
 
         <h1 className="text-2xl font-bold mt-2 mb-2">{recipe.title}</h1>
+        {recipe.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={recipe.imageUrl}
+            alt={recipe.title}
+            className="w-full h-48 object-cover rounded-2xl mb-4"
+          />
+        )}
         <p className="text-gray-400 mb-4">{recipe.description}</p>
 
         {/* Meta */}

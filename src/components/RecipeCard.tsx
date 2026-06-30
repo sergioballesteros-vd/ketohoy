@@ -10,6 +10,7 @@ type RecipeCardProps = {
     difficulty: string
     ketoLevel: string
     mealTypes: string
+    imageUrl?: string | null
   }
   score: number
   availableIngredients: string[]
@@ -40,6 +41,15 @@ export default function RecipeCard({
       className="rounded-2xl overflow-hidden relative group bg-forest-800 border border-forest-700"
     >
       <Link href={`/recipes/${recipe.id}`} className="absolute inset-0 z-0" aria-label={recipe.title} />
+
+      {recipe.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={recipe.imageUrl}
+          alt={recipe.title}
+          className="w-full h-32 object-cover rounded-t-2xl"
+        />
+      )}
 
       <div className="p-4">
         {/* Header */}

@@ -63,6 +63,7 @@ model Recipe {
   ketoLevel       String   // strict, moderate, low_carb
   tags            String   @default("[]") // JSON array
   steps           String   // JSON array of strings
+  imageUrl        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

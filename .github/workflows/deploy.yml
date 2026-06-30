@@ -17,6 +17,8 @@ jobs:
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin main
+            echo "UNSPLASH_ACCESS_KEY=${{ secrets.UNSPLASH_ACCESS_KEY }}" >> .env.local
             npm ci --omit=dev
+            npx prisma migrate deploy
             npm run build
             pm2 restart ${{ secrets.PM2_APP_NAME }}
