@@ -53,5 +53,9 @@ export async function GET(request: Request) {
     sorted = sorted.filter(s => s.missingIngredients.length === 0)
   }
 
-  return NextResponse.json(sorted.slice(0, limit))
+  return NextResponse.json({
+    items: sorted.slice(0, limit),
+    total: sorted.length,
+    hasMore: sorted.length > limit,
+  })
 }

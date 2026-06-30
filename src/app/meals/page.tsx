@@ -19,13 +19,23 @@ type Suggestion = {
   reason: string
 }
 
+type SuggestionsResponse =
+  | Suggestion[]
+  | {
+      items: Suggestion[]
+      total: number
+      hasMore: boolean
+    }
+
 export default function MealsPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mealType, setMealType] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [quickOnly, setQuickOnly] = useState(false)
-  const [limit, setLimit] = useState(20)
+  const [limit, setLimit] = useState(40)
 
   const fetchSuggestions = useCallback(async () => {
     setLoading(true)
@@ -35,8 +45,16 @@ export default function MealsPage() {
     if (quickOnly) params.set('maxTime', '15')
     params.set('limit', String(limit))
     const res = await fetch(`/api/recipes/suggestions?${params}`)
-    const data = await res.json()
-    setSuggestions(Array.isArray(data) ? data : [])
+    const data: SuggestionsResponse = await res.json()
+    if (Array.isArray(data)) {
+      setSuggestions(data)
+      setTotal(data.length)
+      setHasMore(false)
+    } else {
+      setSuggestions(data.items)
+      setTotal(data.total)
+      setHasMore(data.hasMore)
+    }
     setLoading(false)
   }, [mealType, onlyAvailable, quickOnly, limit])
 
@@ -54,7 +72,7 @@ export default function MealsPage() {
         </h1>
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className="text-sm" style={{ color: '#547856' }}>
-            {loading ? 'Buscando...' : `${suggestions.length} recetas visibles`}
+            {loading ? 'Buscando...' : `${suggestions.length} de ${total} recetas`}
           </p>
           {!loading && suggestions.length > 0 && (
             <button
@@ -100,7 +118,7 @@ export default function MealsPage() {
               setMealType('')
               setOnlyAvailable(false)
               setQuickOnly(false)
-              setLimit(20)
+              setLimit(40)
             }}
             className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
             style={{ background: '#0f1a10', color: '#86a888', border: '1px solid #1c321d' }}
@@ -148,7 +166,7 @@ export default function MealsPage() {
               }
             />
           ))}
-          {suggestions.length >= limit && limit < 100 && (
+          {hasMore && limit < 100 && (
             <button
               onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
               className="w-full rounded-2xl border border-forest-700 bg-forest-800/70 py-3 text-sm font-semibold text-forest-200 transition-colors"
