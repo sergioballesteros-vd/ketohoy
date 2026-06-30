@@ -22,14 +22,22 @@ export async function PATCH(
     avoidFish: prefs?.avoidFish ?? false,
     avoidPork: prefs?.avoidPork ?? false,
     avoidDairy: prefs?.avoidDairy ?? false,
-    maxCookingMinutes: 30,
+    maxCookingMinutes: prefs?.maxCookingMinutes ?? 30,
   }
+
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  const recentMeals = await db.weeklyMeal.findMany({
+    where: { createdAt: { gte: threeDaysAgo }, recipeId: { not: null } },
+    select: { recipeId: true },
+  })
+  const recentRecipeIds = recentMeals.map(m => m.recipeId).filter((id): id is string => id !== null)
 
   const opts: ScoringOptions = {
     pantryProductIds: new Set(pantryItems.map(i => i.productId)),
     pantryProductNames: pantryItems.map(i => i.product.name.toLowerCase()),
     preferences,
     mealType: meal.mealType,
+    recentRecipeIds,
   }
 
   const suggestions = recipes

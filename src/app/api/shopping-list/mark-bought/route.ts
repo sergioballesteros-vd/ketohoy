@@ -19,12 +19,21 @@ export async function POST(request: Request) {
     where: { id: { in: ids }, productId: { not: null } },
   })
 
-  for (const item of items) {
-    if (item.productId) {
-      const exists = await db.pantryItem.findFirst({ where: { productId: item.productId } })
-      if (!exists) {
-        await db.pantryItem.create({ data: { productId: item.productId } })
-      }
+  const productIds = items.map(i => i.productId).filter((id): id is string => id !== null)
+
+  if (productIds.length > 0) {
+    const existingPantry = await db.pantryItem.findMany({
+      where: { productId: { in: productIds } },
+      select: { productId: true },
+    })
+    const alreadyInPantry = new Set(existingPantry.map(p => p.productId))
+    const toAdd = productIds.filter(id => !alreadyInPantry.has(id))
+
+    if (toAdd.length > 0) {
+      await db.pantryItem.createMany({
+        data: toAdd.map(productId => ({ productId })),
+        skipDuplicates: true,
+      })
     }
   }
 

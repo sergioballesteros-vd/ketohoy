@@ -1,22 +1,34 @@
 import HomePageClient from '@/components/HomePageClient'
+import { db } from '@/lib/db'
+import { scoreRecipe } from '@/lib/recipeScoring'
+import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
 async function getStats() {
   try {
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-    const [pantryRes, suggestionsRes, shoppingRes] = await Promise.all([
-      fetch(`${base}/api/pantry`, { cache: 'no-store' }),
-      fetch(`${base}/api/recipes/suggestions`, { cache: 'no-store' }),
-      fetch(`${base}/api/shopping-list`, { cache: 'no-store' }),
+    const [pantryItems, allRecipes, shoppingItems, prefs] = await Promise.all([
+      db.pantryItem.findMany({ include: { product: true } }),
+      db.recipe.findMany({ include: { ingredients: true } }),
+      db.shoppingListItem.findMany({ where: { checked: false } }),
+      db.userPreferences.findFirst(),
     ])
-    const [pantry, suggestions, shopping] = await Promise.all([
-      pantryRes.json(),
-      suggestionsRes.json(),
-      shoppingRes.json(),
-    ])
+
+    const pantryProductIds = new Set(pantryItems.map(i => i.productId))
+    const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
+    const preferences = {
+      avoidFish: prefs?.avoidFish ?? false,
+      avoidPork: prefs?.avoidPork ?? false,
+      avoidDairy: prefs?.avoidDairy ?? false,
+      maxCookingMinutes: prefs?.maxCookingMinutes ?? 30,
+    }
+
+    const recipesAvailable = allRecipes
+      .map(r => scoreRecipe(r as RecipeWithIngredients, { pantryProductIds, pantryProductNames, preferences }))
+      .filter(Boolean).length
+
     return {
-      pantryCount: Array.isArray(pantry) ? pantry.length : 0,
-      recipesAvailable: Array.isArray(suggestions) ? suggestions.length : 0,
-      shoppingCount: Array.isArray(shopping) ? shopping.filter((i: { checked: boolean }) => !i.checked).length : 0,
+      pantryCount: pantryItems.length,
+      recipesAvailable,
+      shoppingCount: shoppingItems.length,
     }
   } catch {
     return { pantryCount: 0, recipesAvailable: 0, shoppingCount: 0 }

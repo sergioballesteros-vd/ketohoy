@@ -104,7 +104,7 @@ function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
       return {
         id: `mercadona_${item.id}`,
         name: item.display_name ?? '',
-        brand: 'Hacendado',
+        brand: 'Mercadona',
         source: 'mercadona' as const,
         mercadonaId: String(item.id ?? ''),
         category: mappedCategory,

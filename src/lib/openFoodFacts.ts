@@ -31,12 +31,12 @@ export async function fetchNutritionByEan(ean: string): Promise<NutritionalData 
   }
 }
 
-// Net carbs = carbs - fiber (conservative: use carbs if no fiber)
-export function ketoScoreFromCarbs(carbsPer100g: number): number {
-  if (carbsPer100g < 5)  return 5  // muy keto
-  if (carbsPer100g < 10) return 4  // keto
-  if (carbsPer100g < 20) return 3  // low carb
-  if (carbsPer100g < 35) return 2  // dudoso
-  if (carbsPer100g < 50) return 1  // poco keto
-  return 0                          // no keto
+// Net carbs = carbs - fiber (fiber subtracted in caller)
+export function ketoScoreFromCarbs(netCarbsPer100g: number): number {
+  if (netCarbsPer100g < 5)  return 5  // muy keto
+  if (netCarbsPer100g < 10) return 4  // keto
+  if (netCarbsPer100g < 20) return 3  // low carb
+  if (netCarbsPer100g < 35) return 2  // dudoso
+  if (netCarbsPer100g < 50) return 1  // poco keto
+  return 0                             // no keto
 }

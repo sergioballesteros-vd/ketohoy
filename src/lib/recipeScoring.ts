@@ -97,7 +97,10 @@ export function scoreRecipe(
   if (recipe.prepTimeMinutes <= 15) score += 15
   if (missing.length <= 1) score += 10
   if (missing.length === 0) score += 5 // bonus for full availability
-  if (opts.mercadonaProductIds && missing.length > 0) score += 10 // mercadona available
+  if (opts.mercadonaProductIds && missing.some(name => {
+    const ing = required.find(i => i.name === name)
+    return ing?.productId != null && opts.mercadonaProductIds!.has(ing.productId)
+  })) score += 10 // mercadona available for at least one missing ingredient
   if (opts.favoriteRecipeIds?.includes(recipe.id)) score += 5
   if (opts.recentRecipeIds?.includes(recipe.id)) score -= 15
 

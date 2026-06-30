@@ -32,6 +32,8 @@ export async function POST(request: Request) {
   let protein: number | null = null
   let calories: number | null = null
 
+  let fiber: number | null = null
+
   if (merc.ean) {
     const nutrition = await fetchNutritionByEan(merc.ean)
     if (nutrition) {
@@ -39,12 +41,16 @@ export async function POST(request: Request) {
       fat      = nutrition.fat
       protein  = nutrition.protein
       calories = nutrition.calories
+      fiber    = nutrition.fiber
     }
   }
 
-  // 3. Score: real carbs if available, else category-based
-  const ketoScore = carbs != null
-    ? ketoScoreFromCarbs(carbs)
+  // 3. Score: real net carbs (carbs - fiber) if available, else category-based
+  const netCarbs = carbs != null
+    ? Math.max(0, carbs - (fiber ?? 0))
+    : null
+  const ketoScore = netCarbs != null
+    ? ketoScoreFromCarbs(netCarbs)
     : ketoScoreByCategory(merc.category as ProductCategory)
 
   // 4. Upsert product

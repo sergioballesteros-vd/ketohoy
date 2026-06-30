@@ -47,7 +47,7 @@ export async function POST() {
     avoidFish: prefs?.avoidFish ?? false,
     avoidPork: prefs?.avoidPork ?? false,
     avoidDairy: prefs?.avoidDairy ?? false,
-    maxCookingMinutes: 30,
+    maxCookingMinutes: prefs?.maxCookingMinutes ?? 30,
   }
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())

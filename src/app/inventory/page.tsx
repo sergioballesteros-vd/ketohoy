@@ -383,7 +383,7 @@ export default function InventoryPage() {
                     <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>
                     <div className="text-xs flex gap-2 mt-0.5">
                       {p.unitPrice && <span className="font-medium" style={{ color: '#f59e0b' }}>{p.unitPrice.toFixed(2)}€</span>}
-                      <span style={{ color: score?.color ? score.color.replace('text-', '') : '#547856' }}>
+                      <span style={{ color: ketoScoreColorMap[p.ketoScore] ?? '#547856' }}>
                         {score?.label}
                       </span>
                     </div>
