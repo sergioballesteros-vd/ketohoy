@@ -33,7 +33,8 @@ jobs:
               "$TMP_DIR"/ "$DEPLOY_PATH"/
             cd "$DEPLOY_PATH"
             printf '%s\n' "$DEPLOY_SHA" > .deploy-sha
-            printf 'UNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
+            printf 'DATABASE_URL=file:./dev.db\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
+            export DATABASE_URL="file:./dev.db"
             npm ci --include=dev --no-audit --no-fund
             npx prisma db push
             npm run build
