@@ -25,6 +25,7 @@ export default function MealsPage() {
   const [mealType, setMealType] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [quickOnly, setQuickOnly] = useState(false)
+  const [limit, setLimit] = useState(20)
 
   const fetchSuggestions = useCallback(async () => {
     setLoading(true)
@@ -32,11 +33,12 @@ export default function MealsPage() {
     if (mealType) params.set('mealType', mealType)
     if (onlyAvailable) params.set('onlyAvailable', 'true')
     if (quickOnly) params.set('maxTime', '15')
+    params.set('limit', String(limit))
     const res = await fetch(`/api/recipes/suggestions?${params}`)
     const data = await res.json()
     setSuggestions(Array.isArray(data) ? data : [])
     setLoading(false)
-  }, [mealType, onlyAvailable, quickOnly])
+  }, [mealType, onlyAvailable, quickOnly, limit])
 
   useEffect(() => { fetchSuggestions() }, [fetchSuggestions])
 
@@ -45,14 +47,25 @@ export default function MealsPage() {
   }
 
   return (
-    <main className="px-4 pt-4 pb-4">
+    <main className="px-4 pt-4 pb-28">
       <div className="pt-2 pb-4">
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
           Ideas de comida
         </h1>
-        <p className="text-sm mt-0.5" style={{ color: '#547856' }}>
-          {loading ? 'Buscando...' : `${suggestions.length} recetas disponibles`}
-        </p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-sm" style={{ color: '#547856' }}>
+            {loading ? 'Buscando...' : `${suggestions.length} recetas visibles`}
+          </p>
+          {!loading && suggestions.length > 0 && (
+            <button
+              onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+              style={{ background: '#142514', color: '#a3e635', border: '1px solid #1c321d' }}
+            >
+              Ver más
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">
@@ -60,27 +73,41 @@ export default function MealsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 mb-5">
-        <button
-          onClick={() => setQuickOnly(!quickOnly)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-          style={quickOnly
-            ? { background: '#a3e635', color: '#060e07' }
-            : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
-          }
-        >
-          <ZapIcon size={13} /> &lt;15 min
-        </button>
-        <button
-          onClick={() => setOnlyAvailable(!onlyAvailable)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-          style={onlyAvailable
-            ? { background: '#a3e635', color: '#060e07' }
-            : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
-          }
-        >
-          <CheckIcon size={13} /> Solo con lo que tengo
-        </button>
+      <div className="mb-5 rounded-2xl border border-forest-700 bg-forest-800/80 p-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setQuickOnly(!quickOnly)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+            style={quickOnly
+              ? { background: '#a3e635', color: '#060e07' }
+              : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
+            }
+          >
+            <ZapIcon size={13} /> &lt;15 min
+          </button>
+          <button
+            onClick={() => setOnlyAvailable(!onlyAvailable)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+            style={onlyAvailable
+              ? { background: '#a3e635', color: '#060e07' }
+              : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
+            }
+          >
+            <CheckIcon size={13} /> Solo con lo que tengo
+          </button>
+          <button
+            onClick={() => {
+              setMealType('')
+              setOnlyAvailable(false)
+              setQuickOnly(false)
+              setLimit(20)
+            }}
+            className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
+            style={{ background: '#0f1a10', color: '#86a888', border: '1px solid #1c321d' }}
+          >
+            Limpiar filtros
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -94,7 +121,7 @@ export default function MealsPage() {
           ))}
         </div>
       ) : suggestions.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="rounded-2xl border border-forest-700 bg-forest-800/70 text-center py-16">
           <p className="text-5xl mb-4">🥗</p>
           {onlyAvailable ? (
             <>
@@ -121,6 +148,14 @@ export default function MealsPage() {
               }
             />
           ))}
+          {suggestions.length >= limit && limit < 100 && (
+            <button
+              onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
+              className="w-full rounded-2xl border border-forest-700 bg-forest-800/70 py-3 text-sm font-semibold text-forest-200 transition-colors"
+            >
+              Cargar 20 más
+            </button>
+          )}
         </div>
       )}
     </main>

@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const mealType = searchParams.get('mealType') ?? undefined
   const maxTime = searchParams.get('maxTime') ? parseInt(searchParams.get('maxTime')!) : undefined
   const onlyAvailable = searchParams.get('onlyAvailable') === 'true'
+  const limitParam = searchParams.get('limit')
+  const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 20, 1), 100) : 20
 
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
@@ -51,5 +53,5 @@ export async function GET(request: Request) {
     sorted = sorted.filter(s => s.missingIngredients.length === 0)
   }
 
-  return NextResponse.json(sorted.slice(0, 20))
+  return NextResponse.json(sorted.slice(0, limit))
 }

@@ -17,26 +17,26 @@ export default function Navigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 max-w-2xl mx-auto bg-forest-900/95 backdrop-blur-md border-t border-forest-700"
+      className="fixed bottom-0 left-0 right-0 z-40 max-w-2xl mx-auto bg-forest-900/95 backdrop-blur-md border-t border-forest-700 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
     >
-      <div className="flex">
+      <div className="flex px-1 pt-1">
         {navItems.map(({ href, label, Icon }) => {
           const active = pathname === href
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center pt-2 pb-3 transition-all relative ${
+              className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all relative ${
                 active ? 'text-[#a3e635]' : 'text-forest-500'
               }`}
             >
               {active && (
                 <span
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-b-full bg-[#a3e635]"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-[#a3e635]"
                 />
               )}
-              <Icon size={20} />
-              <span className="text-xs font-medium mt-1 tracking-tight">{label}</span>
+              <Icon size={19} />
+              <span className="hidden text-[11px] font-medium tracking-tight sm:block">{label}</span>
             </Link>
           )
         })}
