@@ -28,3 +28,13 @@ export async function POST(request: Request) {
   })
   return NextResponse.json(item, { status: 201 })
 }
+
+export async function DELETE(request: Request) {
+  const body = await request.json()
+  const { ids }: { ids: string[] } = body
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return NextResponse.json({ error: 'ids array required' }, { status: 400 })
+  }
+  await db.shoppingListItem.deleteMany({ where: { id: { in: ids } } })
+  return NextResponse.json({ deleted: ids.length })
+}

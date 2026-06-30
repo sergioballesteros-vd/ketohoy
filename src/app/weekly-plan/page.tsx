@@ -29,12 +29,21 @@ export default function WeeklyPlanPage() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [regeneratingMeal, setRegeneratingMeal] = useState<string | null>(null)
+  const [cartAdded, setCartAdded] = useState<Record<string, number>>({})
+  const [error, setError] = useState<string | null>(null)
 
   const fetchPlan = useCallback(async () => {
-    const res = await fetch('/api/weekly-plan')
-    const data = await res.json()
-    setPlan(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/weekly-plan')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setPlan(data)
+      setError(null)
+    } catch {
+      setError('Error cargando el plan semanal')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
@@ -54,7 +63,11 @@ export default function WeeklyPlanPage() {
   }
 
   const handleAddMissingToCart = async (recipeId: string) => {
-    await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+    const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+    const data = await res.json()
+    const count = data.added ?? 0
+    setCartAdded(prev => ({ ...prev, [recipeId]: count }))
+    setTimeout(() => setCartAdded(prev => { const n = { ...prev }; delete n[recipeId]; return n }), 2000)
   }
 
   const getMeal = (day: number, mealType: string) =>
@@ -64,6 +77,7 @@ export default function WeeklyPlanPage() {
 
   return (
     <main className="px-4 pt-4 pb-4">
+      {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
       <div className="flex items-center justify-between pt-2 pb-5">
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
           Plan semanal
@@ -126,8 +140,8 @@ export default function WeeklyPlanPage() {
                         <button
                           onClick={() => handleAddMissingToCart(meal.recipe!.id)}
                           className="flex-shrink-0 transition-colors"
-                          style={{ color: '#3b5e3c' }}
-                          title="Añadir faltantes a compra"
+                          style={{ color: cartAdded[meal.recipe!.id] !== undefined ? '#a3e635' : '#3b5e3c' }}
+                          title={cartAdded[meal.recipe!.id] !== undefined ? `+${cartAdded[meal.recipe!.id]} añadidos` : 'Añadir faltantes a compra'}
                           aria-label="Añadir faltantes a compra"
                         >
                           <CartIcon size={14} />

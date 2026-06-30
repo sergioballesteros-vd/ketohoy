@@ -22,8 +22,18 @@ export async function POST(
     ing => !ing.optional && (!ing.productId || !pantryProductIds.has(ing.productId))
   )
 
+  // Filter already-in-list (by name, unchecked only)
+  const existingNames = new Set(
+    (await db.shoppingListItem.findMany({
+      where: { checked: false },
+      select: { name: true },
+    })).map(i => i.name)
+  )
+
+  const toCreate = missingIngredients.filter(ing => !existingNames.has(ing.name))
+
   const created = await Promise.all(
-    missingIngredients.map(ing =>
+    toCreate.map(ing =>
       db.shoppingListItem.create({
         data: {
           name: ing.name,
@@ -35,5 +45,5 @@ export async function POST(
     )
   )
 
-  return NextResponse.json({ added: created.length, items: created })
+  return NextResponse.json({ added: created.length, items: created, skipped: missingIngredients.length - created.length })
 }

@@ -336,7 +336,7 @@ export default function InventoryPage() {
             placeholder="ej: huevos, salmón, queso..."
             value={mercadonaQuery}
             onChange={e => setMercadonaQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleMercadonaSearch()}
+            onKeyDown={e => e.key === 'Enter' && !mercadonaLoading && handleMercadonaSearch()}
           />
           <button
             onClick={handleMercadonaSearch}

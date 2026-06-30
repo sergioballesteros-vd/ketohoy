@@ -15,6 +15,7 @@ type ShoppingItem = {
 export default function ShoppingListPage() {
   const [items, setItems] = useState<ShoppingItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [newItemName, setNewItemName] = useState('')
 
   // Mercadona search
@@ -25,10 +26,17 @@ export default function ShoppingListPage() {
   const [addingId, setAddingId] = useState<string | null>(null)
 
   const fetchItems = useCallback(async () => {
-    const res = await fetch('/api/shopping-list')
-    const data = await res.json()
-    setItems(Array.isArray(data) ? data : [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/shopping-list')
+      if (!res.ok) throw new Error('Error cargando lista')
+      const data = await res.json()
+      setItems(Array.isArray(data) ? data : [])
+      setError(null)
+    } catch {
+      setError('Error cargando la lista de compra')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchItems() }, [fetchItems])
@@ -56,7 +64,12 @@ export default function ShoppingListPage() {
 
   const handleClearChecked = async () => {
     const checkedIds = items.filter(i => i.checked).map(i => i.id)
-    await Promise.all(checkedIds.map(id => fetch(`/api/shopping-list/${id}`, { method: 'DELETE' })))
+    if (checkedIds.length === 0) return
+    await fetch('/api/shopping-list', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: checkedIds }),
+    })
     await fetchItems()
   }
 
@@ -128,7 +141,7 @@ export default function ShoppingListPage() {
             placeholder="ej: leche, pan, yogur..."
             value={mercadonaQuery}
             onChange={e => setMercadonaQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleMercadonaSearch()}
+            onKeyDown={e => e.key === 'Enter' && !mercadonaLoading && handleMercadonaSearch()}
           />
           <button
             onClick={handleMercadonaSearch}
@@ -191,6 +204,8 @@ export default function ShoppingListPage() {
           +
         </button>
       </div>
+
+      {error && <p className="text-sm text-center py-4" style={{ color: '#ef4444' }}>{error}</p>}
 
       {/* List */}
       {items.length === 0 ? (
