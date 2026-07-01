@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useCallback, useEffect } from 'react'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import ProductDetailModal from '@/components/ProductDetailModal'
