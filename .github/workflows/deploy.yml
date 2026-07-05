@@ -38,6 +38,9 @@ jobs:
             npm ci --include=dev --no-audit --no-fund
             npx prisma db push
             npm run build
+            pwd
+            ls -la
+            pm2 describe ${{ secrets.PM2_APP_NAME }} || true
             pm2 restart ${{ secrets.PM2_APP_NAME }} --update-env
             sleep 5
             test "$(cat .deploy-sha)" = "$DEPLOY_SHA"
