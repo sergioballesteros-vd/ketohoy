@@ -6,7 +6,7 @@ type Props = {
   product: MercadonaResult | null
   onClose: () => void
   onAddToPantry?: () => Promise<void>
-  onAddToShoppingList?: () => Promise<void>
+  onAddToShoppingList?: (quantity: number) => Promise<void>
 }
 
 const KETO_SCORE_LABEL: Record<number, { label: string; hex: string; desc: string }> = {
@@ -23,17 +23,28 @@ export default function ProductDetailModal({ product, onClose, onAddToPantry, on
   const [loadingDetail, setLoadingDetail] = React.useState(false)
   const [addingPantry, setAddingPantry] = React.useState(false)
   const [addingCart, setAddingCart] = React.useState(false)
+  const [quantity, setQuantity] = React.useState(1)
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const previousFocusRef = React.useRef<HTMLElement | null>(null)
 
   React.useEffect(() => {
     if (!product?.mercadonaId) return
-    setDetail(null)
-    setLoadingDetail(true)
-    fetch(`/api/mercadona/product/${product.mercadonaId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => setDetail(data))
-      .finally(() => setLoadingDetail(false))
+    let cancelled = false
+    void (async () => {
+      setDetail(null)
+      setLoadingDetail(true)
+      setQuantity(1)
+      try {
+        const r = await fetch(`/api/mercadona/product/${product.mercadonaId}`)
+        const data = r.ok ? await r.json() : null
+        if (!cancelled) setDetail(data)
+      } finally {
+        if (!cancelled) setLoadingDetail(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [product?.mercadonaId])
 
   React.useEffect(() => {
@@ -120,6 +131,35 @@ export default function ProductDetailModal({ product, onClose, onAddToPantry, on
         )}
 
         {/* Action buttons */}
+        {onAddToShoppingList && (
+          <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514', border: '1px solid #1c321d' }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#3b5e3c' }}>
+              Cantidad
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                className="w-10 h-10 rounded-xl font-bold text-lg"
+                style={{ background: '#1c321d', color: '#ecf5e0' }}
+                aria-label="Reducir cantidad"
+              >
+                −
+              </button>
+              <div className="flex-1 text-center">
+                <div className="text-2xl font-bold" style={{ color: '#ecf5e0' }}>{quantity}</div>
+                <div className="text-xs" style={{ color: '#547856' }}>unidad{quantity === 1 ? '' : 'es'}</div>
+              </div>
+              <button
+                onClick={() => setQuantity(q => q + 1)}
+                className="w-10 h-10 rounded-xl font-bold text-lg"
+                style={{ background: '#a3e635', color: '#060e07' }}
+                aria-label="Aumentar cantidad"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-3 mt-5">
           {onAddToPantry && (
             <button
@@ -133,12 +173,12 @@ export default function ProductDetailModal({ product, onClose, onAddToPantry, on
           )}
           {onAddToShoppingList && (
             <button
-              onClick={async () => { setAddingCart(true); await onAddToShoppingList(); setAddingCart(false); onClose() }}
+              onClick={async () => { setAddingCart(true); await onAddToShoppingList(quantity); setAddingCart(false); onClose() }}
               disabled={addingCart}
               className="flex-1 py-3 rounded-2xl font-bold text-sm disabled:opacity-50"
               style={{ background: '#1c321d', color: '#ecf5e0', border: '1px solid #264227' }}
             >
-              {addingCart ? '...' : '+ Lista'}
+              {addingCart ? '...' : `+ Lista x${quantity}`}
             </button>
           )}
         </div>

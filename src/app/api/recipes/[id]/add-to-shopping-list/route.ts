@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
 export async function POST(
   _request: Request,
@@ -22,28 +23,35 @@ export async function POST(
     ing => !ing.optional && (!ing.productId || !pantryProductIds.has(ing.productId))
   )
 
-  // Filter already-in-list (by name, unchecked only)
-  const existingNames = new Set(
-    (await db.shoppingListItem.findMany({
-      where: { checked: false },
-      select: { name: true },
-    })).map(i => i.name)
-  )
+  const created = []
+  for (const ing of missingIngredients) {
+    const quantityValue = parseShoppingQuantity(ing.quantity, 1)
+    const existing = await db.shoppingListItem.findFirst({
+      where: ing.productId ? { productId: ing.productId, checked: false } : { name: ing.name, checked: false },
+    })
 
-  const toCreate = missingIngredients.filter(ing => !existingNames.has(ing.name))
-
-  const created = await Promise.all(
-    toCreate.map(ing =>
-      db.shoppingListItem.create({
+    if (existing) {
+      const item = await db.shoppingListItem.update({
+        where: { id: existing.id },
         data: {
-          name: ing.name,
-          quantity: ing.quantity,
-          productId: ing.productId ?? null,
-          reason: `Para: ${recipe.title}`,
+          quantity: mergeShoppingQuantity(existing.quantity, quantityValue),
+          reason: existing.reason ?? `Para: ${recipe.title}`,
         },
       })
-    )
-  )
+      created.push(item)
+      continue
+    }
 
-  return NextResponse.json({ added: created.length, items: created, skipped: missingIngredients.length - created.length })
+    const item = await db.shoppingListItem.create({
+      data: {
+        name: ing.name,
+        quantity: formatShoppingQuantity(quantityValue),
+        productId: ing.productId ?? null,
+        reason: `Para: ${recipe.title}`,
+      },
+    })
+    created.push(item)
+  }
+
+  return NextResponse.json({ added: created.length, items: created, skipped: 0 })
 }

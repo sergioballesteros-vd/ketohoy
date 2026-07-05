@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { searchMercadonaProducts } from '@/lib/mercadona'
+import { productMatchesMercadonaCategory, searchMercadonaProducts, type ProductCategory } from '@/lib/mercadona'
 
 const CATEGORY_QUERIES: Record<string, string[]> = {
   meat:       ['pollo', 'ternera', 'pavo'],
@@ -23,6 +23,7 @@ export async function GET(
   const results = await Promise.all(queries.map(q => searchMercadonaProducts(q)))
   const seen = new Set<string>()
   const products = results.flat().filter(p => {
+    if (!productMatchesMercadonaCategory(p, name as ProductCategory)) return false
     if (seen.has(p.mercadonaId)) return false
     seen.add(p.mercadonaId)
     return true

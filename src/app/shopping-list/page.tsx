@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import ShoppingListItem from '@/components/ShoppingListItem'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import ProductDetailModal from '@/components/ProductDetailModal'
+import { parseShoppingQuantity } from '@/lib/shoppingList'
 
 type ShoppingItem = {
   id: string
@@ -43,7 +44,26 @@ export default function ShoppingListPage() {
     }
   }, [])
 
-  useEffect(() => { fetchItems() }, [fetchItems])
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/shopping-list')
+        if (!res.ok) throw new Error('Error cargando lista')
+        const data = await res.json()
+        if (cancelled) return
+        setItems(Array.isArray(data) ? data : [])
+        setError(null)
+      } catch {
+        if (!cancelled) setError('Error cargando la lista de compra')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleToggle = async (id: string) => {
     const item = items.find(i => i.id === id)
@@ -60,6 +80,15 @@ export default function ShoppingListPage() {
     await fetchItems()
   }
 
+  const handleQuantityChange = async (id: string, delta: number) => {
+    await fetch(`/api/shopping-list/${id}/quantity`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delta }),
+    })
+    await fetchItems()
+  }
+
   const handleAddManual = async () => {
     if (!newItemName.trim()) return
     await fetch('/api/shopping-list', {
@@ -67,7 +96,7 @@ export default function ShoppingListPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: newItemName,
-        quantity: newItemQty ? newItemQty : null,
+        quantity: newItemQty ? parseShoppingQuantity(newItemQty, 1) : 1,
       }),
     })
     setNewItemName('')
@@ -121,6 +150,7 @@ export default function ShoppingListPage() {
       body: JSON.stringify({
         mercadonaId: p.id.replace('mercadona_', ''),
         addToShoppingList: true,
+        quantity: 1,
       }),
     })
     setAddingId(null)
@@ -212,10 +242,10 @@ export default function ShoppingListPage() {
                     </div>
                   </div>
                 </button>
-                <button
-                  onClick={() => handleAddMercadonaToCart(p)}
-                  disabled={addingId === p.id}
-                  className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
+              <button
+                onClick={() => handleAddMercadonaToCart(p)}
+                disabled={addingId === p.id}
+                className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
                   style={{ background: '#f97316', color: '#fff' }}
                 >
                   {addingId === p.id ? '...' : '+ Carrito'}
@@ -274,7 +304,7 @@ export default function ShoppingListPage() {
       ) : (
         <div className="space-y-2">
           {unchecked.map(item => (
-            <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} />
+            <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} onQuantityChange={handleQuantityChange} />
           ))}
           {checked.length > 0 && (
             <div className="mt-5">
@@ -282,7 +312,7 @@ export default function ShoppingListPage() {
                 Ya en el carrito
               </p>
               {checked.map(item => (
-                <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} />
+                <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} onQuantityChange={handleQuantityChange} />
               ))}
             </div>
           )}
@@ -292,7 +322,18 @@ export default function ShoppingListPage() {
       <ProductDetailModal
         product={detailProduct}
         onClose={() => setDetailProduct(null)}
-        onAddToShoppingList={detailProduct ? async () => { await handleAddMercadonaToCart(detailProduct) } : undefined}
+        onAddToShoppingList={detailProduct ? async (quantity) => {
+          await fetch('/api/mercadona/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mercadonaId: detailProduct.mercadonaId,
+              addToShoppingList: true,
+              quantity,
+            }),
+          })
+          await fetchItems()
+        } : undefined}
       />
 
       {toastMsg && (

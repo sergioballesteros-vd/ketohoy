@@ -4,6 +4,7 @@ import { getMercadonaProduct } from '@/lib/mercadona'
 import { fetchNutritionByEan, ketoScoreFromCarbs } from '@/lib/openFoodFacts'
 import { ketoScoreByCategory } from '@/lib/ketoRules'
 import type { ProductCategory } from '@/lib/ketoRules'
+import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
 // POST /api/mercadona/add
 // Body: { mercadonaId: string, addToPantry?: boolean, addToShoppingList?: boolean }
@@ -14,7 +15,7 @@ import type { ProductCategory } from '@/lib/ketoRules'
 // 5. Optionally add to pantry or shopping list
 export async function POST(request: Request) {
   const body = await request.json()
-  const { mercadonaId, addToPantry = false, addToShoppingList = false } = body
+  const { mercadonaId, addToPantry = false, addToShoppingList = false, quantity } = body
 
   if (!mercadonaId) {
     return NextResponse.json({ error: 'mercadonaId required' }, { status: 400 })
@@ -106,13 +107,29 @@ export async function POST(request: Request) {
 
   // 5b. Add to shopping list
   if (addToShoppingList) {
-    shoppingItem = await db.shoppingListItem.create({
-      data: {
-        name: product.name,
-        productId: product.id,
-      },
+    const quantityValue = parseShoppingQuantity(quantity, 1)
+    const existing = await db.shoppingListItem.findFirst({
+      where: { productId: product.id },
       include: { product: true },
     })
+    if (existing) {
+      shoppingItem = await db.shoppingListItem.update({
+        where: { id: existing.id },
+        data: {
+          quantity: mergeShoppingQuantity(existing.quantity, quantityValue),
+        },
+        include: { product: true },
+      })
+    } else {
+      shoppingItem = await db.shoppingListItem.create({
+        data: {
+          name: product.name,
+          productId: product.id,
+          quantity: formatShoppingQuantity(quantityValue),
+        },
+        include: { product: true },
+      })
+    }
   }
 
   return NextResponse.json({

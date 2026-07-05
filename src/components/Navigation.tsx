@@ -1,14 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, PantryIcon, MealsIcon, CartIcon, CalendarIcon, ExploreIcon } from '@/components/icons'
+import { HomeIcon, PantryIcon, CalendarIcon, ExploreIcon } from '@/components/icons'
 
 const navItems = [
   { href: '/', label: 'Inicio', Icon: HomeIcon },
-  { href: '/meals', label: 'Comidas', Icon: MealsIcon },
-  { href: '/explore', label: 'Explorar', Icon: ExploreIcon },
+  { href: '/explore', label: 'Descubrir', Icon: ExploreIcon },
   { href: '/inventory', label: 'Despensa', Icon: PantryIcon },
-  { href: '/shopping-list', label: 'Compra', Icon: CartIcon },
   { href: '/weekly-plan', label: 'Semana', Icon: CalendarIcon },
 ]
 
@@ -27,7 +25,7 @@ export default function Navigation() {
               key={href}
               href={href}
               className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all relative ${
-                active ? 'text-[#a3e635]' : 'text-forest-500'
+                active ? 'text-[#c7f23a]' : 'text-forest-500'
               }`}
             >
               {active && (
@@ -36,7 +34,7 @@ export default function Navigation() {
                 />
               )}
               <Icon size={19} />
-              <span className={`${active ? 'block' : 'hidden'} text-[10px] font-medium tracking-tight sm:block`}>
+              <span className={`text-[10px] font-medium tracking-tight sm:block ${active ? 'opacity-100' : 'opacity-75'}`}>
                 {label}
               </span>
             </Link>

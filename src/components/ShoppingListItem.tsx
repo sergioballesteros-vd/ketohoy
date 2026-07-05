@@ -13,9 +13,13 @@ type ShoppingListItemProps = {
   item: ShoppingItem
   onToggle: (id: string) => void
   onDelete: (id: string) => void
+  onQuantityChange?: (id: string, delta: number) => void
 }
 
-export default function ShoppingListItem({ item, onToggle, onDelete }: ShoppingListItemProps) {
+export default function ShoppingListItem({ item, onToggle, onDelete, onQuantityChange }: ShoppingListItemProps) {
+  const numericQuantity = item.quantity ? Number(item.quantity) : null
+  const canStep = onQuantityChange && numericQuantity != null && Number.isFinite(numericQuantity)
+
   return (
     <div
       className="flex items-center gap-3 p-3 rounded-xl transition-all"
@@ -50,7 +54,7 @@ export default function ShoppingListItem({ item, onToggle, onDelete }: ShoppingL
         >
           {item.name}
         </div>
-        <div className="text-xs flex gap-2 mt-0.5" style={{ color: '#3b5e3c' }}>
+        <div className="text-xs flex flex-wrap gap-2 mt-0.5" style={{ color: '#3b5e3c' }}>
           {item.quantity && <span>{item.quantity}</span>}
           {item.product?.unitPrice && (
             <span style={{ color: '#f59e0b' }}>{item.product.unitPrice.toFixed(2)}€</span>
@@ -61,6 +65,30 @@ export default function ShoppingListItem({ item, onToggle, onDelete }: ShoppingL
           )}
         </div>
       </div>
+
+      {canStep && (
+        <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: '#1c321d' }}>
+          <button
+            onClick={() => onQuantityChange(item.id, -1)}
+            className="w-8 h-8 rounded-lg font-bold"
+            style={{ color: '#ecf5e0' }}
+            aria-label="Reducir cantidad"
+          >
+            −
+          </button>
+          <span className="min-w-6 text-center text-sm font-semibold" style={{ color: '#ecf5e0' }}>
+            {item.quantity}
+          </span>
+          <button
+            onClick={() => onQuantityChange(item.id, 1)}
+            className="w-8 h-8 rounded-lg font-bold"
+            style={{ color: '#a3e635' }}
+            aria-label="Aumentar cantidad"
+          >
+            +
+          </button>
+        </div>
+      )}
 
       <button
         onClick={() => onDelete(item.id)}
