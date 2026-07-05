@@ -2,7 +2,7 @@
   <img src="public/logo.jpg" width="150" style="border-radius: 20px" alt="KetoHoy Logo">
 </p>
 
-<h1 align="center">KetoHoy (Mercadona)</h1>
+<h1 align="center">KetoHoy</h1>
 
 <h3 align="center">Tu planificador de comidas keto y gestión de despensa inteligente.</h3>
 
