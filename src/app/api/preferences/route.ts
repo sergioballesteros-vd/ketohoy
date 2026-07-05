@@ -7,6 +7,8 @@ async function getOrCreatePreferences() {
   return db.userPreferences.create({ data: {} })
 }
 
+const allowedKetoModes = new Set(['strict', 'flexible', 'low_carb'])
+
 // GET /api/preferences
 export async function GET() {
   const prefs = await getOrCreatePreferences()
@@ -17,6 +19,9 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const body = await request.json()
   const prefs = await getOrCreatePreferences()
+  if (body.ketoMode !== undefined && !allowedKetoModes.has(body.ketoMode)) {
+    return NextResponse.json({ error: 'Invalid ketoMode' }, { status: 400 })
+  }
 
   const updated = await db.userPreferences.update({
     where: { id: prefs.id },

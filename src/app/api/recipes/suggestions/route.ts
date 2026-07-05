@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     pantryProductNames,
     preferences,
     mealType,
-    minAvailability: 0,
+    minAvailability: 0.6,
   }
 
   const suggestions = recipes

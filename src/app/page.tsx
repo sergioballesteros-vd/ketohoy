@@ -1,9 +1,11 @@
 import HomePageClient from '@/components/HomePageClient'
 import { db } from '@/lib/db'
+import { unstable_cache } from 'next/cache'
 import { scoreRecipe } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
-async function getStats() {
+const getStats = unstable_cache(
+  async () => {
   try {
     const [pantryItems, allRecipes, shoppingItems, prefs] = await Promise.all([
       db.pantryItem.findMany({ include: { product: true } }),
@@ -33,7 +35,10 @@ async function getStats() {
   } catch {
     return { pantryCount: 0, recipesAvailable: 0, shoppingCount: 0 }
   }
-}
+  },
+  ['home-stats'],
+  { revalidate: 60 }
+)
 
 function getGreeting() {
   const hour = new Date().getHours()

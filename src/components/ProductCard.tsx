@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 
 type Product = {
   id: string
@@ -46,8 +47,7 @@ export default function ProductCard({ product, inPantry, pantryItemId, onToggle 
     >
       <div className="flex items-start gap-2">
         {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={product.imageUrl}
             alt={product.name}
             width={48}

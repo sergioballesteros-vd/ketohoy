@@ -92,10 +92,8 @@ export default function ShoppingListItem({ item, onToggle, onDelete, onQuantityC
 
       <button
         onClick={() => onDelete(item.id)}
-        className="text-lg flex-shrink-0 transition-colors pl-1"
+        className="text-lg flex-shrink-0 transition-colors pl-1 hover:text-red-500"
         style={{ color: '#264227' }}
-        onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
-        onMouseLeave={e => { (e.target as HTMLElement).style.color = '#264227' }}
       >
         ×
       </button>

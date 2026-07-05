@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { db } from '@/lib/db'
 import { fetchRecipeImage } from '@/lib/unsplash'
 import AddMissingButton from './AddMissingButton'
@@ -84,10 +85,11 @@ export default async function RecipeDetailPage({
           {recipe.title}
         </h1>
         {recipe.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={recipe.imageUrl}
             alt={recipe.title}
+            width={960}
+            height={336}
             className="w-full h-56 object-cover rounded-3xl mb-4 border border-forest-700"
           />
         )}

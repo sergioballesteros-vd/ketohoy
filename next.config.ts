@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'prod-mercadona.imgix.net' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
 };

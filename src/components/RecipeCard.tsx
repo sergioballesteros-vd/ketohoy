@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import Link from 'next/link'
 import { ClockIcon } from '@/components/icons'
 
@@ -43,10 +44,11 @@ export default function RecipeCard({
       <Link href={`/recipes/${recipe.id}`} className="absolute inset-0 z-0" aria-label={recipe.title} />
 
       {recipe.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={recipe.imageUrl}
           alt={recipe.title}
+          width={800}
+          height={256}
           className="w-full h-32 object-cover rounded-t-2xl"
         />
       )}

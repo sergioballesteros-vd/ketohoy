@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import ProductDetailModal from '@/components/ProductDetailModal'
@@ -42,6 +43,12 @@ type NutritionModal = {
   nutritionSource?: 'openfoodfacts' | 'category'
 }
 
+async function loadPantryItems() {
+  const res = await fetch('/api/pantry')
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
+}
+
 const KETO_SCORE_LABEL: Record<number, { label: string; color: string; hex: string; desc: string }> = {
   5: { label: 'Muy keto', color: 'text-green-400', hex: '#a3e635', desc: 'Carne, pescado, huevos, aceites — base de la dieta keto' },
   4: { label: 'Keto', color: 'text-lime-400', hex: '#a3e635', desc: 'Lácteos, verduras bajas en carbos, frutos secos' },
@@ -79,13 +86,18 @@ export default function InventoryPage() {
   const [manualUnit, setManualUnit] = useState('ud')
 
   const fetchPantry = useCallback(async () => {
-    const res = await fetch('/api/pantry')
-    const data = await res.json()
-    setPantryItems(Array.isArray(data) ? data : [])
+    const data = await loadPantryItems()
+    setPantryItems(data)
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchPantry() }, [fetchPantry])
+  useEffect(() => {
+    void (async () => {
+      const data = await loadPantryItems()
+      setPantryItems(data)
+      setLoading(false)
+    })()
+  }, [])
 
   useEffect(() => {
     if (!modal) return
@@ -126,6 +138,8 @@ export default function InventoryPage() {
       }),
     })
     setAddingId(null)
+    setMercadonaResults([])
+    setMercadonaSearched(false)
     await fetchPantry()
   }
 
@@ -214,8 +228,7 @@ export default function InventoryPage() {
           >
             <div className="flex items-start gap-4 mb-5">
               {modal.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={modal.imageUrl} alt={modal.name} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
+                <Image src={modal.imageUrl} alt={modal.name} width={64} height={64} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
               )}
               <div className="flex-1">
                 <h2 id="inventory-nutrition-title" className="font-bold text-lg leading-tight" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
@@ -424,8 +437,7 @@ export default function InventoryPage() {
                     onClick={() => setDetailProduct(p)}
                   >
                   {p.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                    <Image src={p.imageUrl} alt={p.name} width={48} height={48} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>
@@ -441,7 +453,7 @@ export default function InventoryPage() {
                     <button
                       onClick={() => pantryItem && handleRemoveFromPantry(pantryItem.id)}
                       disabled={removingId === pantryItem?.id}
-                      className="text-xs flex-shrink-0 font-semibold transition-colors"
+                      className="text-xs flex-shrink-0 font-semibold transition-colors hover:text-red-500"
                       style={{ color: '#a3e635' }}
                     >
                       ✓ En despensa
@@ -503,8 +515,7 @@ export default function InventoryPage() {
                       >
                         <button onClick={() => handleOpenNutrition(item)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                           {item.product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={item.product.imageUrl} alt={item.product.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                            <Image src={item.product.imageUrl} alt={item.product.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                           ) : (
                             <div
                               className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
@@ -529,10 +540,8 @@ export default function InventoryPage() {
                         <button
                           onClick={() => handleRemoveFromPantry(item.id)}
                           disabled={removingId === item.id}
-                          className="text-xl flex-shrink-0 pl-2 leading-none transition-colors"
+                          className="text-xl flex-shrink-0 pl-2 leading-none transition-colors hover:text-red-500"
                           style={{ color: '#264227' }}
-                          onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
-                          onMouseLeave={e => { (e.target as HTMLElement).style.color = '#264227' }}
                         >
                           ×
                         </button>

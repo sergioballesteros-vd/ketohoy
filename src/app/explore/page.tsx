@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 import { Beef, Carrot, ChevronRight, Egg, Fish, Heart, Milk, Minus, Nut, Plus, Search, Sparkles, UtensilsCrossed, Droplets, X } from 'lucide-react'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
@@ -367,8 +368,7 @@ export default function ExplorePage() {
                     </button>
                     <div className="aspect-[1.1] p-3">
                       {product.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-[24px]" />
+                        <Image src={product.imageUrl} alt={product.name} width={400} height={400} className="w-full h-full object-cover rounded-[24px]" />
                       ) : (
                         <div className="w-full h-full rounded-[24px]" style={{ background: '#1c321d' }} />
                       )}
@@ -462,8 +462,7 @@ export default function ExplorePage() {
             <div className="flex gap-4">
               <div className="w-36 shrink-0">
                 {selectedProduct.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="w-full aspect-square object-cover rounded-[24px]" />
+                  <Image src={selectedProduct.imageUrl} alt={selectedProduct.name} width={640} height={640} className="w-full aspect-square object-cover rounded-[24px]" />
                 ) : (
                   <div className="w-full aspect-square rounded-[24px]" style={{ background: '#111c12' }} />
                 )}
@@ -619,8 +618,7 @@ export default function ExplorePage() {
                 <div key={item.id} className="flex items-center gap-3 p-3 border-b border-[#223722] last:border-b-0">
                   <div className="w-10 h-10 rounded-xl bg-[#142514] flex items-center justify-center shrink-0" style={{ border: '1px solid #223722' }}>
                     {item.product?.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.product.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-xl" />
+                      <Image src={item.product.imageUrl} alt={item.name} width={64} height={64} className="w-full h-full object-cover rounded-xl" />
                     ) : (
                       <span className="text-lg">🛒</span>
                     )}

@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import ShoppingListItem from '@/components/ShoppingListItem'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
@@ -12,6 +13,13 @@ type ShoppingItem = {
   checked: boolean
   reason: string | null
   product: { unitPrice: number | null; category: string } | null
+}
+
+async function loadShoppingListItems() {
+  const res = await fetch('/api/shopping-list')
+  if (!res.ok) throw new Error('Error cargando lista')
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
 }
 
 export default function ShoppingListPage() {
@@ -32,10 +40,8 @@ export default function ShoppingListPage() {
 
   const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch('/api/shopping-list')
-      if (!res.ok) throw new Error('Error cargando lista')
-      const data = await res.json()
-      setItems(Array.isArray(data) ? data : [])
+      const data = await loadShoppingListItems()
+      setItems(data)
       setError(null)
     } catch {
       setError('Error cargando la lista de compra')
@@ -45,48 +51,56 @@ export default function ShoppingListPage() {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
     void (async () => {
       try {
-        const res = await fetch('/api/shopping-list')
-        if (!res.ok) throw new Error('Error cargando lista')
-        const data = await res.json()
-        if (cancelled) return
-        setItems(Array.isArray(data) ? data : [])
+        const data = await loadShoppingListItems()
+        setItems(data)
         setError(null)
       } catch {
-        if (!cancelled) setError('Error cargando la lista de compra')
+        setError('Error cargando la lista de compra')
       } finally {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
       }
     })()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   const handleToggle = async (id: string) => {
-    const item = items.find(i => i.id === id)
-    await fetch(`/api/shopping-list/${id}/check`, { method: 'PATCH' })
-    await fetchItems()
-    if (item && !item.checked && item.product) {
-      setToastMsg('✓ Añadido a tu despensa')
-      setTimeout(() => setToastMsg(null), 2000)
+    try {
+      const item = items.find(i => i.id === id)
+      const res = await fetch(`/api/shopping-list/${id}/check`, { method: 'PATCH' })
+      if (!res.ok) throw new Error()
+      await fetchItems()
+      if (item && !item.checked && item.product) {
+        setToastMsg('✓ Añadido a tu despensa')
+        setTimeout(() => setToastMsg(null), 2000)
+      }
+    } catch {
+      setError('No se pudo actualizar el producto')
     }
   }
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/shopping-list/${id}`, { method: 'DELETE' })
-    await fetchItems()
+    try {
+      const res = await fetch(`/api/shopping-list/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      await fetchItems()
+    } catch {
+      setError('No se pudo borrar el producto')
+    }
   }
 
   const handleQuantityChange = async (id: string, delta: number) => {
-    await fetch(`/api/shopping-list/${id}/quantity`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ delta }),
-    })
-    await fetchItems()
+    try {
+      const res = await fetch(`/api/shopping-list/${id}/quantity`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta }),
+      })
+      if (!res.ok) throw new Error()
+      await fetchItems()
+    } catch {
+      setError('No se pudo cambiar la cantidad')
+    }
   }
 
   const handleAddManual = async () => {
@@ -162,7 +176,10 @@ export default function ShoppingListPage() {
 
   const unchecked = items.filter(i => !i.checked)
   const checked = items.filter(i => i.checked)
-  const totalPrice = unchecked.reduce((sum, i) => sum + (i.product?.unitPrice ?? 0), 0)
+  const totalPrice = unchecked.reduce(
+    (sum, i) => sum + (i.product?.unitPrice ?? 0) * parseShoppingQuantity(i.quantity, 1),
+    0
+  )
 
   if (loading) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
 
@@ -189,10 +206,8 @@ export default function ShoppingListPage() {
             </button>
             <button
               onClick={handleClearChecked}
-              className="text-xs font-medium transition-colors"
+              className="text-xs font-medium transition-colors hover:text-red-500"
               style={{ color: '#3b5e3c' }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ef4444' }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.color = '#3b5e3c' }}
             >
               Limpiar
             </button>
@@ -231,8 +246,7 @@ export default function ShoppingListPage() {
                   onClick={() => setDetailProduct(p)}
                 >
                   {p.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                    <Image src={p.imageUrl} alt={p.name} width={48} height={48} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>

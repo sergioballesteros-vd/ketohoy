@@ -44,11 +44,17 @@ export async function POST() {
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
 
-  const mealTypes = ['breakfast', 'lunch', 'dinner']
+  const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner']
   const plan = await db.weeklyPlan.create({ data: { weekStart: monday } })
 
   // Pre-compute shuffled pools per meal type (40% threshold for more variety)
   const poolsByType: Record<string, string[]> = {}
+  const mealsToCreate: Array<{
+    planId: string
+    recipeId: string
+    dayOfWeek: number
+    mealType: string
+  }> = []
   for (const mealType of mealTypes) {
     const opts: ScoringOptions = {
       pantryProductIds,
@@ -70,11 +76,13 @@ export async function POST() {
     for (const mealType of mealTypes) {
       const recipeId = poolsByType[mealType]?.[day]
       if (recipeId) {
-        await db.weeklyMeal.create({
-          data: { planId: plan.id, recipeId, dayOfWeek: day, mealType },
-        })
+        mealsToCreate.push({ planId: plan.id, recipeId, dayOfWeek: day, mealType })
       }
     }
+  }
+
+  if (mealsToCreate.length > 0) {
+    await db.weeklyMeal.createMany({ data: mealsToCreate })
   }
 
   const fullPlan = await db.weeklyPlan.findUnique({

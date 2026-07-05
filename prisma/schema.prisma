@@ -23,7 +23,7 @@ model Product {
   name            String
   brand           String?
   source          String   @default("manual") // manual, mercadona
-  mercadonaId     String?
+  mercadonaId     String?  @unique
   category        String   // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
   ketoScore       Int      @default(3) // 0-5
   netCarbsPer100g Float?

@@ -16,11 +16,18 @@ type WeeklyPlan = {
   meals: WeeklyMeal[]
 }
 
+async function loadWeeklyPlan() {
+  const res = await fetch('/api/weekly-plan')
+  if (!res.ok) throw new Error()
+  return res.json()
+}
+
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner']
+const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner']
 const MEAL_LABELS: Record<string, { emoji: string; label: string }> = {
   breakfast: { emoji: '☀️', label: 'Desayuno' },
   lunch: { emoji: '🌤️', label: 'Comida' },
+  snack: { emoji: '🥪', label: 'Snack' },
   dinner: { emoji: '🌙', label: 'Cena' },
 }
 
@@ -34,9 +41,7 @@ export default function WeeklyPlanPage() {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const res = await fetch('/api/weekly-plan')
-      if (!res.ok) throw new Error()
-      const data = await res.json()
+      const data = await loadWeeklyPlan()
       setPlan(data)
       setError(null)
     } catch {
@@ -46,20 +51,44 @@ export default function WeeklyPlanPage() {
     }
   }, [])
 
-  useEffect(() => { fetchPlan() }, [fetchPlan])
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await loadWeeklyPlan()
+        setPlan(data)
+        setError(null)
+      } catch {
+        setError('Error cargando el plan semanal')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
   const handleGenerate = async () => {
-    setGenerating(true)
-    await fetch('/api/weekly-plan/generate', { method: 'POST' })
-    await fetchPlan()
-    setGenerating(false)
+    try {
+      setGenerating(true)
+      const res = await fetch('/api/weekly-plan/generate', { method: 'POST' })
+      if (!res.ok) throw new Error()
+      await fetchPlan()
+    } catch {
+      setError('No se pudo generar el plan semanal')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const handleRegenerateMeal = async (mealId: string) => {
-    setRegeneratingMeal(mealId)
-    await fetch(`/api/weekly-plan/${mealId}`, { method: 'PATCH' })
-    await fetchPlan()
-    setRegeneratingMeal(null)
+    try {
+      setRegeneratingMeal(mealId)
+      const res = await fetch(`/api/weekly-plan/${mealId}`, { method: 'PATCH' })
+      if (!res.ok) throw new Error()
+      await fetchPlan()
+    } catch {
+      setError('No se pudo cambiar la receta')
+    } finally {
+      setRegeneratingMeal(null)
+    }
   }
 
   const handleAddMissingToCart = async (recipeId: string) => {
@@ -96,7 +125,7 @@ export default function WeeklyPlanPage() {
         <div className="text-center py-16">
           <p className="text-5xl mb-4">📅</p>
           <p className="font-semibold" style={{ color: '#7a9e7c' }}>Sin plan generado</p>
-          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Pulsa "Generar" para crear el menú de la semana</p>
+          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Pulsa &quot;Generar&quot; para crear el menú de la semana</p>
         </div>
       )}
 
@@ -118,10 +147,8 @@ export default function WeeklyPlanPage() {
                         <div className="flex items-center gap-2 min-w-0">
                           <Link
                             href={`/recipes/${meal.recipe.id}`}
-                            className="text-sm truncate flex-1 transition-colors"
+                            className="text-sm truncate flex-1 transition-colors hover:text-lime-400"
                             style={{ color: '#ecf5e0' }}
-                            onMouseEnter={e => { (e.target as HTMLElement).style.color = '#a3e635' }}
-                            onMouseLeave={e => { (e.target as HTMLElement).style.color = '#ecf5e0' }}
                           >
                             {meal.recipe.title}
                           </Link>

@@ -144,6 +144,20 @@ describe('scoreRecipe', () => {
     expect(result).not.toBeNull()
     expect(result!.reason).toContain('aguacate')
   })
+
+  it('counts pantry matches by name when productId is missing', () => {
+    const recipe = makeRecipe({
+      ingredients: [
+        { name: 'pollo', quantity: '200g', optional: false, productId: undefined },
+        { name: 'lechuga', quantity: '1 ud', optional: false, productId: 'p2' },
+      ],
+    })
+    const opts = makeOpts({
+      pantryProductIds: new Set(['p2']),
+      pantryProductNames: ['pechuga de pollo', 'lechuga'],
+    })
+    expect(scoreRecipe(recipe, opts)).not.toBeNull()
+  })
 })
 
 describe('sortSuggestions', () => {

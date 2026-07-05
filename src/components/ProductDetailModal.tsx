@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import Image from 'next/image'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 
 type Props = {
@@ -82,8 +83,7 @@ export default function ProductDetailModal({ product, onClose, onAddToPantry, on
         {/* Header */}
         <div className="flex items-start gap-4 mb-5">
           {product.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
+            <Image src={product.imageUrl} alt={product.name} width={64} height={64} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
           )}
           <div className="flex-1">
             <h2 id="product-detail-title" className="font-bold text-lg leading-tight" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>{product.name}</h2>

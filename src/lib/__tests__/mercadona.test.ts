@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { productMatchesMercadonaCategory } from '../mercadona'
+import { DEMO_MERCADONA_PRODUCTS, productMatchesMercadonaCategory } from '../mercadona'
 
 describe('productMatchesMercadonaCategory', () => {
   it('keeps salmon in fish', () => {
@@ -42,5 +42,9 @@ describe('productMatchesMercadonaCategory', () => {
         'fish'
       )
     ).toBe(false)
+  })
+
+  it('keeps demo keto scores within the 0-5 scale', () => {
+    expect(DEMO_MERCADONA_PRODUCTS.every(product => product.ketoScore >= 0 && product.ketoScore <= 5)).toBe(true)
   })
 })
