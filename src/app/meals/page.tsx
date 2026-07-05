@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import MealTypeTabs from '@/components/MealTypeTabs'
 import RecipeCard from '@/components/RecipeCard'
 import { ZapIcon, CheckIcon } from '@/components/icons'
@@ -37,28 +37,42 @@ export default function MealsPage() {
   const [quickOnly, setQuickOnly] = useState(false)
   const [limit, setLimit] = useState(40)
 
-  const fetchSuggestions = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (mealType) params.set('mealType', mealType)
-    if (onlyAvailable) params.set('onlyAvailable', 'true')
-    if (quickOnly) params.set('maxTime', '15')
-    params.set('limit', String(limit))
-    const res = await fetch(`/api/recipes/suggestions?${params}`)
-    const data: SuggestionsResponse = await res.json()
-    if (Array.isArray(data)) {
-      setSuggestions(data)
-      setTotal(data.length)
-      setHasMore(false)
-    } else {
-      setSuggestions(data.items)
-      setTotal(data.total)
-      setHasMore(data.hasMore)
-    }
-    setLoading(false)
-  }, [mealType, onlyAvailable, quickOnly, limit])
+  useEffect(() => {
+    let cancelled = false
 
-  useEffect(() => { fetchSuggestions() }, [fetchSuggestions])
+    const run = async () => {
+      setLoading(true)
+      try {
+        const params = new URLSearchParams()
+        if (mealType) params.set('mealType', mealType)
+        if (onlyAvailable) params.set('onlyAvailable', 'true')
+        if (quickOnly) params.set('maxTime', '15')
+        params.set('limit', String(limit))
+
+        const res = await fetch(`/api/recipes/suggestions?${params}`)
+        const data: SuggestionsResponse = await res.json()
+        if (cancelled) return
+
+        if (Array.isArray(data)) {
+          setSuggestions(data)
+          setTotal(data.length)
+          setHasMore(false)
+        } else {
+          setSuggestions(data.items)
+          setTotal(data.total)
+          setHasMore(data.hasMore)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [mealType, onlyAvailable, quickOnly, limit])
 
   const handleAddMissingToCart = async (recipeId: string) => {
     await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })

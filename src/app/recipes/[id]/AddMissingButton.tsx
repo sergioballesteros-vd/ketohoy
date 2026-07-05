@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 
 export default function AddMissingButton({ recipeId }: { recipeId: string }) {
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
+  const [doneMessage, setDoneMessage] = useState<string | null>(null)
   const router = useRouter()
 
   const handleClick = async () => {
@@ -13,16 +13,16 @@ export default function AddMissingButton({ recipeId }: { recipeId: string }) {
     const data = await res.json()
     setLoading(false)
     if (data.added > 0) {
-      setDone(true)
+      setDoneMessage('✓ Ingredientes añadidos a la lista de compra')
       setTimeout(() => router.push('/shopping-list'), 1000)
     } else {
-      setDone(true) // nothing missing
+      setDoneMessage('✓ Ya tienes todos los ingredientes')
     }
   }
 
-  if (done) return (
+  if (doneMessage) return (
     <div className="text-center text-green-400 py-4">
-      ✓ Ingredientes añadidos a la lista de compra
+      {doneMessage}
     </div>
   )
 

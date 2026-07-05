@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   // Upsert by mercadonaId to avoid duplicates
   if (mercadonaId) {
-    const existing = await db.product.findFirst({ where: { mercadonaId } })
+    const existing = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
     if (existing) return NextResponse.json(existing)
   }
 

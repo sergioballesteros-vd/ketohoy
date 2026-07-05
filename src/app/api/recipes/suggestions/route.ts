@@ -17,14 +17,16 @@ export async function GET(request: Request) {
     db.userPreferences.findFirst(),
   ])
 
-  const defaultPrefs = {
+  const defaultPrefs: ScoringOptions['preferences'] = {
+    ketoMode: 'flexible',
     avoidFish: false,
     avoidPork: false,
     avoidDairy: false,
     maxCookingMinutes: 30,
   }
-  const preferences = prefs
+  const preferences: ScoringOptions['preferences'] = prefs
     ? {
+        ketoMode: prefs.ketoMode as 'strict' | 'flexible' | 'low_carb',
         avoidFish: prefs.avoidFish,
         avoidPork: prefs.avoidPork,
         avoidDairy: prefs.avoidDairy,

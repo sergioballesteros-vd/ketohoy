@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getMercadonaProduct } from '@/lib/mercadona'
 import { fetchNutritionByEan, ketoScoreFromCarbs } from '@/lib/openFoodFacts'
-import { ketoScoreByCategory } from '@/lib/ketoRules'
+import { isNonKetoByName, ketoScoreByCategory } from '@/lib/ketoRules'
 import type { ProductCategory } from '@/lib/ketoRules'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
@@ -50,12 +50,16 @@ export async function POST(request: Request) {
   const netCarbs = carbs != null
     ? Math.max(0, carbs - (fiber ?? 0))
     : null
-  const ketoScore = netCarbs != null
+  let ketoScore = netCarbs != null
     ? ketoScoreFromCarbs(netCarbs)
     : ketoScoreByCategory(merc.category as ProductCategory)
+  if (isNonKetoByName(merc.name)) {
+    // ponytail: hard-zero obvious carb staples so imports don't look keto-friendly.
+    ketoScore = 0
+  }
 
   // 4. Upsert product
-  let product = await db.product.findFirst({ where: { mercadonaId: String(mercadonaId) } })
+  let product = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
   if (product) {
     product = await db.product.update({
       where: { id: product.id },

@@ -103,6 +103,31 @@ export default function WeeklyPlanPage() {
     plan?.meals.find(m => m.dayOfWeek === day && m.mealType === mealType)
 
   if (loading) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
+  if (!plan || plan.meals.length === 0) {
+    return (
+      <main className="px-4 pt-4 pb-8">
+        {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
+        <div className="flex items-center justify-between pt-2 pb-5">
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+            Plan semanal
+          </h1>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50 transition-all"
+            style={{ background: '#a3e635', color: '#060e07' }}
+          >
+            {generating ? 'Generando...' : <><RefreshIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Generar</>}
+          </button>
+        </div>
+        <div className="text-center py-16">
+          <p className="text-5xl mb-4">📅</p>
+          <p className="font-semibold" style={{ color: '#7a9e7c' }}>Sin plan generado</p>
+          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Pulsa &quot;Generar&quot; para crear el menú de la semana</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="px-4 pt-4 pb-8">
@@ -120,14 +145,6 @@ export default function WeeklyPlanPage() {
           {generating ? 'Generando...' : <><RefreshIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Generar</>}
         </button>
       </div>
-
-      {plan && plan.meals.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-5xl mb-4">📅</p>
-          <p className="font-semibold" style={{ color: '#7a9e7c' }}>Sin plan generado</p>
-          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Pulsa &quot;Generar&quot; para crear el menú de la semana</p>
-        </div>
-      )}
 
       <div className="space-y-3">
         {DAY_NAMES.map((dayName, dayIndex) => (

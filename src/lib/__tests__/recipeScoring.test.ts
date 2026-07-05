@@ -25,6 +25,7 @@ function makeOpts(overrides: Partial<ScoringOptions> = {}): ScoringOptions {
     pantryProductIds: new Set(['p1', 'p2']),
     pantryProductNames: ['pollo', 'lechuga'],
     preferences: {
+      ketoMode: 'flexible',
       avoidFish: false,
       avoidPork: false,
       avoidDairy: false,
@@ -61,28 +62,35 @@ describe('scoreRecipe', () => {
 
   it('score includes +40 when all required ingredients are available (100% ratio)', () => {
     // With all ingredients available, availabilityRatio = 1.0, score += Math.round(1 * 40) = 40
-    const recipe = makeRecipe({ ketoLevel: 'none', prepTimeMinutes: 30 })
+    const recipe = makeRecipe({ ketoLevel: 'strict', prepTimeMinutes: 30 })
     const opts = makeOpts()
     const result = scoreRecipe(recipe, opts)
     expect(result).not.toBeNull()
-    // 40 (availability) + 0 (no keto bonus) + 0 (prep>15) + 10 (missing<=1) + 5 (missing===0)
     expect(result!.score).toBeGreaterThanOrEqual(40)
   })
 
   it('score includes +20 for strict keto level', () => {
     const recipeStrict = makeRecipe({ ketoLevel: 'strict', prepTimeMinutes: 30 })
-    const recipeNone = makeRecipe({ ketoLevel: 'none', prepTimeMinutes: 30 })
-    const opts = makeOpts()
+    const recipeLowCarb = makeRecipe({ ketoLevel: 'low_carb', prepTimeMinutes: 30 })
+    const opts = makeOpts({
+      preferences: {
+        ketoMode: 'low_carb',
+        avoidFish: false,
+        avoidPork: false,
+        avoidDairy: false,
+        maxCookingMinutes: 60,
+      },
+    })
     const resultStrict = scoreRecipe(recipeStrict, opts)
-    const resultNone = scoreRecipe(recipeNone, opts)
+    const resultLowCarb = scoreRecipe(recipeLowCarb, opts)
     expect(resultStrict).not.toBeNull()
-    expect(resultNone).not.toBeNull()
-    expect(resultStrict!.score - resultNone!.score).toBe(20)
+    expect(resultLowCarb).not.toBeNull()
+    expect(resultStrict!.score - resultLowCarb!.score).toBe(20)
   })
 
   it('score includes +15 when prepTimeMinutes <= 15', () => {
-    const recipeFast = makeRecipe({ prepTimeMinutes: 15, ketoLevel: 'none' })
-    const recipeSlow = makeRecipe({ prepTimeMinutes: 30, ketoLevel: 'none' })
+    const recipeFast = makeRecipe({ prepTimeMinutes: 15, ketoLevel: 'strict' })
+    const recipeSlow = makeRecipe({ prepTimeMinutes: 30, ketoLevel: 'strict' })
     const opts = makeOpts()
     const resultFast = scoreRecipe(recipeFast, opts)
     const resultSlow = scoreRecipe(recipeSlow, opts)
@@ -111,8 +119,23 @@ describe('scoreRecipe', () => {
     })
     const opts = makeOpts({
       preferences: {
+        ketoMode: 'flexible',
         avoidFish: false,
         avoidPork: true,
+        avoidDairy: false,
+        maxCookingMinutes: 60,
+      },
+    })
+    expect(scoreRecipe(recipe, opts)).toBeNull()
+  })
+
+  it('returns null when ketoMode is strict and recipe is not strict', () => {
+    const recipe = makeRecipe({ ketoLevel: 'moderate' })
+    const opts = makeOpts({
+      preferences: {
+        ketoMode: 'strict',
+        avoidFish: false,
+        avoidPork: false,
         avoidDairy: false,
         maxCookingMinutes: 60,
       },
@@ -148,7 +171,7 @@ describe('scoreRecipe', () => {
   it('counts pantry matches by name when productId is missing', () => {
     const recipe = makeRecipe({
       ingredients: [
-        { name: 'pollo', quantity: '200g', optional: false, productId: undefined },
+        { name: 'pollo', quantity: '200g', optional: false, productId: null },
         { name: 'lechuga', quantity: '1 ud', optional: false, productId: 'p2' },
       ],
     })

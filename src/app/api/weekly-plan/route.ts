@@ -5,7 +5,7 @@ import { getMonday } from '@/lib/dateUtils'
 export async function GET() {
   const monday = getMonday(new Date())
 
-  let plan = await db.weeklyPlan.findFirst({
+  const plan = await db.weeklyPlan.findFirst({
     where: { weekStart: monday },
     include: {
       meals: {
@@ -14,13 +14,6 @@ export async function GET() {
       },
     },
   })
-
-  if (!plan) {
-    plan = await db.weeklyPlan.create({
-      data: { weekStart: monday },
-      include: { meals: { include: { recipe: true } } },
-    })
-  }
 
   return NextResponse.json(plan)
 }

@@ -17,6 +17,7 @@ const getStats = unstable_cache(
     const pantryProductIds = new Set(pantryItems.map(i => i.productId))
     const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
     const preferences = {
+      ketoMode: (prefs?.ketoMode as 'strict' | 'flexible' | 'low_carb' | undefined) ?? 'flexible',
       avoidFish: prefs?.avoidFish ?? false,
       avoidPork: prefs?.avoidPork ?? false,
       avoidDairy: prefs?.avoidDairy ?? false,

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
-import { Beef, Carrot, ChevronRight, Egg, Fish, Heart, Milk, Minus, Nut, Plus, Search, Sparkles, UtensilsCrossed, Droplets, X } from 'lucide-react'
+import { Apple, Beef, Carrot, ChevronRight, CupSoda, Egg, Ellipsis, Fish, Heart, Milk, Minus, Nut, Plus, Search, Sparkles, UtensilsCrossed, Droplets, X } from 'lucide-react'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
 
@@ -29,9 +29,12 @@ const CATEGORIES = [
   { key: 'eggs', label: 'Huevos', icon: Egg },
   { key: 'dairy', label: 'Lácteos', icon: Milk },
   { key: 'vegetables', label: 'Verduras', icon: Carrot },
+  { key: 'fruit', label: 'Fruta', icon: Apple },
   { key: 'nuts', label: 'Frutos secos', icon: Nut },
   { key: 'oils', label: 'Aceites', icon: Droplets },
   { key: 'sauces', label: 'Salsas', icon: UtensilsCrossed },
+  { key: 'drinks', label: 'Bebidas', icon: CupSoda },
+  { key: 'other', label: 'Otros', icon: Ellipsis },
 ]
 
 const SUBCATEGORIES: Record<string, { key: string; label: string; terms: string[] }[]> = {

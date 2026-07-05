@@ -15,6 +15,7 @@ export default function PreferencesPage() {
   const [prefs, setPrefs] = useState<Preferences | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/preferences').then(r => r.json()).then(setPrefs)
@@ -23,14 +24,23 @@ export default function PreferencesPage() {
   const handleSave = async () => {
     if (!prefs) return
     setSaving(true)
-    await fetch('/api/preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prefs),
-    })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSaved(false)
+    setError(null)
+    try {
+      const res = await fetch('/api/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs),
+      })
+      if (!res.ok) throw new Error('save failed')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      setSaved(false)
+      setError('No se pudo guardar')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (!prefs) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
@@ -149,6 +159,7 @@ export default function PreferencesPage() {
         >
           {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar preferencias'}
         </button>
+        {error && <p className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</p>}
       </div>
 
       <p className="text-xs text-center mt-4 px-4" style={{ color: '#264227' }}>

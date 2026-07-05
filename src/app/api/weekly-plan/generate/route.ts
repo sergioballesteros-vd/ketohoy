@@ -36,6 +36,7 @@ export async function POST() {
   ])
 
   const preferences = {
+    ketoMode: (prefs?.ketoMode as 'strict' | 'flexible' | 'low_carb' | undefined) ?? 'flexible',
     avoidFish: prefs?.avoidFish ?? false,
     avoidPork: prefs?.avoidPork ?? false,
     avoidDairy: prefs?.avoidDairy ?? false,

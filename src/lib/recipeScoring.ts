@@ -26,6 +26,8 @@ export type RecipeSuggestion = {
   reason: string
 }
 
+export type KetoMode = 'strict' | 'flexible' | 'low_carb'
+
 export type ScoringOptions = {
   pantryProductIds: Set<string>
   pantryProductNames: string[] // lowercase product names in pantry
@@ -33,6 +35,7 @@ export type ScoringOptions = {
   recentRecipeIds?: string[] // recipes used in last 3 days
   favoriteRecipeIds?: string[]
   preferences: {
+    ketoMode: KetoMode
     avoidFish: boolean
     avoidPork: boolean
     avoidDairy: boolean
@@ -47,13 +50,21 @@ export function scoreRecipe(
   opts: ScoringOptions
 ): RecipeSuggestion | null {
   const { pantryProductIds, pantryProductNames, preferences, mealType } = opts
+  const ketoMode = preferences.ketoMode ?? 'flexible'
+  const allowedKetoLevels: Record<KetoMode, string[]> = {
+    strict: ['strict'],
+    flexible: ['strict', 'moderate'],
+    low_carb: ['strict', 'moderate', 'low_carb'],
+  }
 
   // Filter by mealType
   const mealTypes: string[] = JSON.parse(recipe.mealTypes)
   if (mealType && !mealTypes.includes(mealType)) return null
 
+  if (!allowedKetoLevels[ketoMode as KetoMode].includes(recipe.ketoLevel)) return null
+
   // Filter by cooking time
-  if (recipe.prepTimeMinutes > preferences.maxCookingMinutes + 10) return null
+  if (recipe.prepTimeMinutes > preferences.maxCookingMinutes) return null
 
   const required = recipe.ingredients.filter(i => !i.optional)
   if (required.length === 0) return null
