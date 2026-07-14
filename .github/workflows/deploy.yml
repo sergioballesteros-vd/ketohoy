@@ -41,9 +41,25 @@ jobs:
             npm run build
             pwd
             ls -la
-            pm2 describe ${{ secrets.PM2_APP_NAME }} || true
-            pm2 restart ${{ secrets.PM2_APP_NAME }} --update-env
-            sleep 5
+            APP_NAME="${{ secrets.PM2_APP_NAME }}"
+            pm2 describe "$APP_NAME" || true
+            pm2 delete "$APP_NAME" || true
+            if command -v lsof >/dev/null 2>&1; then
+              STALE_PIDS="$(lsof -tiTCP:3000 -sTCP:LISTEN || true)"
+              if [ -n "$STALE_PIDS" ]; then
+                echo "Killing stale process(es) on port 3000: $STALE_PIDS"
+                kill $STALE_PIDS || true
+                sleep 2
+              fi
+            elif command -v fuser >/dev/null 2>&1; then
+              fuser -k 3000/tcp || true
+              sleep 2
+            fi
+            PORT=3000 pm2 start npm --name "$APP_NAME" -- start
+            pm2 save
+            sleep 8
+            pm2 describe "$APP_NAME"
+            ss -ltnp | grep ':3000' || true
             test "$(cat .deploy-sha)" = "$DEPLOY_SHA"
             curl -fsSI --retry 5 --retry-delay 2 --max-time 15 \
               -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
