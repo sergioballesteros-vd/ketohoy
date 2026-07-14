@@ -40,6 +40,7 @@ jobs:
             npx prisma db push --accept-data-loss
             npx prisma generate
             npx prisma db seed
+            RECIPE_IMAGE_BACKFILL_LIMIT=40 npx tsx prisma/backfillRecipeImages.ts
             npm run build
             pwd
             ls -la

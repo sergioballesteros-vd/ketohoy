@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ensureRecipeImage } from '@/lib/recipeImage'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
@@ -60,8 +61,22 @@ export async function GET(request: Request) {
     sorted = sorted.filter(s => s.missingIngredients.length === 0)
   }
 
+  const items = await Promise.all(
+    sorted.slice(0, limit).map(async suggestion => {
+      const imageUrl = await ensureRecipeImage(
+        suggestion.recipe.id,
+        suggestion.recipe.title,
+        suggestion.recipe.imageUrl
+      )
+
+      return imageUrl === suggestion.recipe.imageUrl
+        ? suggestion
+        : { ...suggestion, recipe: { ...suggestion.recipe, imageUrl } }
+    })
+  )
+
   return NextResponse.json({
-    items: sorted.slice(0, limit),
+    items,
     total: sorted.length,
     hasMore: sorted.length > limit,
   })

@@ -10,6 +10,7 @@ export type RecipeWithIngredients = {
   tags: string
   steps: string
   description: string
+  imageUrl?: string | null
   ingredients: Array<{
     name: string
     quantity: string | null
