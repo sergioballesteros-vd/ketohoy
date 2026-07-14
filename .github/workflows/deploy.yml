@@ -50,4 +50,4 @@ jobs:
             curl -fsS --max-time 15 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' http://127.0.0.1:3000/explore | \
               grep -q 'Añadir a compra' && \
             curl -fsS --max-time 15 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' http://127.0.0.1:3000/explore | \
-              grep -q 'Tu lista está vacía.'
+              grep -q '3. Tu lista de compra'
