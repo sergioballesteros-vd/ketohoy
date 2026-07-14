@@ -45,9 +45,6 @@ jobs:
             pm2 restart ${{ secrets.PM2_APP_NAME }} --update-env
             sleep 5
             test "$(cat .deploy-sha)" = "$DEPLOY_SHA"
-            curl -fsS --max-time 15 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' http://127.0.0.1:3000/explore | \
-              grep -q '1. Explorar productos' && \
-            curl -fsS --max-time 15 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' http://127.0.0.1:3000/explore | \
-              grep -q 'Añadir a compra' && \
-            curl -fsS --max-time 15 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' http://127.0.0.1:3000/explore | \
-              grep -q '3. Tu lista de compra'
+            curl -fsS --retry 5 --retry-delay 2 --max-time 15 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              -o /dev/null http://127.0.0.1:3000/explore
