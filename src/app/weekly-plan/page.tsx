@@ -22,6 +22,11 @@ async function loadWeeklyPlan() {
   return res.json()
 }
 
+async function readApiError(res: Response, fallback: string) {
+  const data = await res.json().catch(() => null)
+  return typeof data?.error === 'string' ? data.error : fallback
+}
+
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner']
 const MEAL_LABELS: Record<string, { emoji: string; label: string }> = {
@@ -69,10 +74,12 @@ export default function WeeklyPlanPage() {
     try {
       setGenerating(true)
       const res = await fetch('/api/weekly-plan/generate', { method: 'POST' })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        throw new Error(await readApiError(res, 'No se pudo generar el plan semanal'))
+      }
       await fetchPlan()
-    } catch {
-      setError('No se pudo generar el plan semanal')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo generar el plan semanal')
     } finally {
       setGenerating(false)
     }
@@ -123,7 +130,9 @@ export default function WeeklyPlanPage() {
         <div className="text-center py-16">
           <p className="text-5xl mb-4">📅</p>
           <p className="font-semibold" style={{ color: '#7a9e7c' }}>Sin plan generado</p>
-          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Pulsa &quot;Generar&quot; para crear el menú de la semana</p>
+          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>
+            {error ?? 'Pulsa "Generar" para crear el menú de la semana'}
+          </p>
         </div>
       </main>
     )

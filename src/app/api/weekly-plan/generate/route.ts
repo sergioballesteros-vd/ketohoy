@@ -23,17 +23,18 @@ function extendedPool(ids: string[], size: number): string[] {
 export async function POST() {
   const monday = getMonday(new Date())
 
-  // Delete existing plan for this week
-  const existing = await db.weeklyPlan.findFirst({ where: { weekStart: monday } })
-  if (existing) {
-    await db.weeklyPlan.delete({ where: { id: existing.id } })
-  }
-
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
     db.pantryItem.findMany({ include: { product: true } }),
     db.userPreferences.findFirst(),
   ])
+
+  if (recipes.length === 0) {
+    return NextResponse.json(
+      { error: 'No hay recetas cargadas para generar el plan semanal' },
+      { status: 409 }
+    )
+  }
 
   const preferences = {
     ketoMode:
@@ -47,14 +48,13 @@ export async function POST() {
   }
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
+  const hasPantryItems = pantryProductIds.size > 0 || pantryProductNames.length > 0
 
   const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner']
-  const plan = await db.weeklyPlan.create({ data: { weekStart: monday } })
 
   // Pre-compute shuffled pools per meal type (40% threshold for more variety)
   const poolsByType: Record<string, string[]> = {}
-  const mealsToCreate: Array<{
-    planId: string
+  const mealCandidates: Array<{
     recipeId: string
     dayOfWeek: number
     mealType: string
@@ -65,7 +65,7 @@ export async function POST() {
       pantryProductNames,
       preferences,
       mealType,
-      minAvailability: 0.4,
+      minAvailability: hasPantryItems ? 0.4 : 0,
     }
     const sorted = sortSuggestions(
       recipes
@@ -80,14 +80,28 @@ export async function POST() {
     for (const mealType of mealTypes) {
       const recipeId = poolsByType[mealType]?.[day]
       if (recipeId) {
-        mealsToCreate.push({ planId: plan.id, recipeId, dayOfWeek: day, mealType })
+        mealCandidates.push({ recipeId, dayOfWeek: day, mealType })
       }
     }
   }
 
-  if (mealsToCreate.length > 0) {
-    await db.weeklyMeal.createMany({ data: mealsToCreate })
+  if (mealCandidates.length === 0) {
+    return NextResponse.json(
+      { error: 'No hay suficientes recetas compatibles con tus preferencias y despensa' },
+      { status: 422 }
+    )
   }
+
+  // Delete existing plan only after proving that a replacement can be created.
+  const existing = await db.weeklyPlan.findFirst({ where: { weekStart: monday } })
+  if (existing) {
+    await db.weeklyPlan.delete({ where: { id: existing.id } })
+  }
+
+  const plan = await db.weeklyPlan.create({ data: { weekStart: monday } })
+  await db.weeklyMeal.createMany({
+    data: mealCandidates.map(meal => ({ ...meal, planId: plan.id })),
+  })
 
   const fullPlan = await db.weeklyPlan.findUnique({
     where: { id: plan.id },

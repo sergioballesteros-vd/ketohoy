@@ -38,6 +38,8 @@ jobs:
             npm ci --include=dev --no-audit --no-fund
             cp -f dev.db dev.db.deploy-backup 2>/dev/null || true
             npx prisma db push --accept-data-loss
+            npx prisma generate
+            npx prisma db seed
             npm run build
             pwd
             ls -la

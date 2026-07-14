@@ -33,19 +33,28 @@ export async function GET(request: Request) {
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
 
-  const opts: ScoringOptions = {
-    pantryProductIds,
-    pantryProductNames,
-    preferences,
-    mealType,
-    minAvailability: 0.6,
-  }
+  const buildSuggestions = (minAvailability: number) =>
+    recipes
+      .map(r =>
+        scoreRecipe(r as RecipeWithIngredients, {
+          pantryProductIds,
+          pantryProductNames,
+          preferences,
+          mealType,
+          minAvailability,
+        })
+      )
+      .filter((s): s is NonNullable<typeof s> => s !== null)
 
-  const suggestions = recipes
-    .map(r => scoreRecipe(r as RecipeWithIngredients, opts))
-    .filter((s): s is NonNullable<typeof s> => s !== null)
+  const hasPantryItems = pantryProductIds.size > 0 || pantryProductNames.length > 0
+  const suggestions = hasPantryItems
+    ? buildSuggestions(0.6)
+    : buildSuggestions(0)
 
   let sorted = sortSuggestions(suggestions)
+  if (!onlyAvailable && sorted.length === 0 && hasPantryItems) {
+    sorted = sortSuggestions(buildSuggestions(0))
+  }
 
   if (onlyAvailable) {
     sorted = sorted.filter(s => s.missingIngredients.length === 0)

@@ -10,20 +10,28 @@ const adapter = new PrismaBetterSqlite3({ url: dbPath })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  // Clear existing data in dependency order
-  await prisma.weeklyMeal.deleteMany()
-  await prisma.weeklyPlan.deleteMany()
-  await prisma.shoppingListItem.deleteMany()
-  await prisma.recipeIngredient.deleteMany()
-  await prisma.pantryItem.deleteMany()
-  await prisma.recipe.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.userPreferences.deleteMany()
+  const reset = process.env.SEED_RESET === 'true'
+
+  if (reset) {
+    // Clear existing data in dependency order. This is opt-in only: production
+    // deploys use the seed to bootstrap catalog data without deleting user data.
+    await prisma.weeklyMeal.deleteMany()
+    await prisma.weeklyPlan.deleteMany()
+    await prisma.shoppingListItem.deleteMany()
+    await prisma.recipeIngredient.deleteMany()
+    await prisma.pantryItem.deleteMany()
+    await prisma.recipe.deleteMany()
+    await prisma.product.deleteMany()
+    await prisma.userPreferences.deleteMany()
+  }
 
   // Default user preferences
-  await prisma.userPreferences.create({
-    data: { ketoMode: 'flexible' },
-  })
+  const existingPreferences = await prisma.userPreferences.findFirst()
+  if (!existingPreferences) {
+    await prisma.userPreferences.create({
+      data: { ketoMode: 'flexible' },
+    })
+  }
 
   // --- PRODUCTS ---
   const productData = [
@@ -98,9 +106,20 @@ async function main() {
   ]
 
   const products = await Promise.all(
-    productData.map((data) =>
-      prisma.product.create({ data: { ...data, source: 'mercadona' } })
-    )
+    productData.map(async (data) => {
+      const existing = await prisma.product.findFirst({
+        where: { name: data.name, source: 'mercadona' },
+      })
+
+      if (existing) {
+        return prisma.product.update({
+          where: { id: existing.id },
+          data: { ...data, source: 'mercadona' },
+        })
+      }
+
+      return prisma.product.create({ data: { ...data, source: 'mercadona' } })
+    })
   )
 
   // Helper to find product id by name substring
@@ -1489,7 +1508,12 @@ async function main() {
 
   for (const recipe of recipesData) {
     const { ingredients, ...recipeFields } = recipe
-    const created = await prisma.recipe.create({ data: recipeFields })
+    const existing = await prisma.recipe.findFirst({ where: { title: recipeFields.title } })
+    const created = existing
+      ? await prisma.recipe.update({ where: { id: existing.id }, data: recipeFields })
+      : await prisma.recipe.create({ data: recipeFields })
+
+    await prisma.recipeIngredient.deleteMany({ where: { recipeId: created.id } })
 
     for (const ing of ingredients) {
       const productName = keyToName[ing.key]
@@ -1517,16 +1541,22 @@ async function main() {
     .map(name => products.find(p => p.name === name))
     .filter((p): p is NonNullable<typeof p> => p !== undefined)
 
-  await Promise.all(
-    pantryProducts.map(p => prisma.pantryItem.create({ data: { productId: p.id } }))
-  )
+  const pantryCount = await prisma.pantryItem.count()
+  if (pantryCount === 0) {
+    await Promise.all(
+      pantryProducts.map(p => prisma.pantryItem.create({ data: { productId: p.id } }))
+    )
+  }
 
-  console.log(`✓ Created ${products.length} products`)
-  console.log(`✓ Created ${recipesData.length} recipes`)
-  console.log(`✓ Created ${pantryProducts.length} pantry items`)
-  console.log('✓ Created default UserPreferences')
+  console.log(`✓ Upserted ${products.length} products`)
+  console.log(`✓ Upserted ${recipesData.length} recipes`)
+  console.log(`✓ ${pantryCount === 0 ? 'Created' : 'Kept existing'} pantry baseline`)
+  console.log(`✓ ${existingPreferences ? 'Kept existing' : 'Created default'} UserPreferences`)
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    console.error(error)
+    process.exitCode = 1
+  })
   .finally(() => prisma.$disconnect())

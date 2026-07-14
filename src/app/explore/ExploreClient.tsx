@@ -158,6 +158,17 @@ export default function ExplorePage() {
     })()
   }, [loadTrending, loadShoppingList])
 
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (!query) return
+
+    const timeout = window.setTimeout(() => {
+      void loadSearch(query)
+    }, 450)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchQuery, loadSearch])
+
   const visibleProducts = selectedSubcategory
     ? products.filter(product => matchesSubcategory(product, selectedSubcategory))
     : products
@@ -240,6 +251,7 @@ export default function ExplorePage() {
             placeholder="Buscar productos keto..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Buscar productos keto"
             style={{
               background: 'rgba(163, 230, 53, 0.05)',
               border: '1px solid rgba(163, 230, 53, 0.2)',
