@@ -36,7 +36,8 @@ jobs:
             printf 'DATABASE_URL=file:./dev.db\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
             export DATABASE_URL="file:./dev.db"
             npm ci --include=dev --no-audit --no-fund
-            npx prisma db push
+            cp -f dev.db dev.db.deploy-backup 2>/dev/null || true
+            npx prisma db push --accept-data-loss
             npm run build
             pwd
             ls -la

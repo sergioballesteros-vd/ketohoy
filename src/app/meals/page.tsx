@@ -32,6 +32,7 @@ export default function MealsPage() {
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [mealType, setMealType] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [quickOnly, setQuickOnly] = useState(false)
@@ -42,6 +43,7 @@ export default function MealsPage() {
 
     const run = async () => {
       setLoading(true)
+      setError(null)
       try {
         const params = new URLSearchParams()
         if (mealType) params.set('mealType', mealType)
@@ -50,6 +52,9 @@ export default function MealsPage() {
         params.set('limit', String(limit))
 
         const res = await fetch(`/api/recipes/suggestions?${params}`)
+        if (!res.ok) {
+          throw new Error(`request failed: ${res.status}`)
+        }
         const data: SuggestionsResponse = await res.json()
         if (cancelled) return
 
@@ -61,6 +66,13 @@ export default function MealsPage() {
           setSuggestions(data.items)
           setTotal(data.total)
           setHasMore(data.hasMore)
+        }
+      } catch {
+        if (!cancelled) {
+          setSuggestions([])
+          setTotal(0)
+          setHasMore(false)
+          setError('No se pudieron cargar las recetas')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -85,8 +97,8 @@ export default function MealsPage() {
           Ideas de comida
         </h1>
         <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="text-sm" style={{ color: '#547856' }}>
-            {loading ? 'Buscando...' : `${suggestions.length} de ${total} recetas`}
+          <p className="text-sm" style={{ color: error ? '#ef4444' : '#547856' }}>
+            {error ? error : loading ? 'Buscando...' : `${suggestions.length} de ${total} recetas`}
           </p>
           {!loading && suggestions.length > 0 && (
             <button
@@ -151,6 +163,11 @@ export default function MealsPage() {
               style={{ background: '#142514' }}
             />
           ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-red-900/60 bg-red-950/40 text-center py-16">
+          <p className="font-semibold text-red-200">No se pudieron cargar las recetas</p>
+          <p className="text-sm mt-1" style={{ color: '#fca5a5' }}>Revisa la conexión e inténtalo de nuevo.</p>
         </div>
       ) : suggestions.length === 0 ? (
         <div className="rounded-2xl border border-forest-700 bg-forest-800/70 text-center py-16">

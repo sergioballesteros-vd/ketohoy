@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
+import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
 export async function GET(request: Request) {
@@ -17,22 +17,18 @@ export async function GET(request: Request) {
     db.userPreferences.findFirst(),
   ])
 
-  const defaultPrefs: ScoringOptions['preferences'] = {
-    ketoMode: 'flexible',
-    avoidFish: false,
-    avoidPork: false,
-    avoidDairy: false,
-    maxCookingMinutes: 30,
-  }
   const preferences: ScoringOptions['preferences'] = prefs
     ? {
-        ketoMode: prefs.ketoMode as 'strict' | 'flexible' | 'low_carb',
+        ketoMode:
+          prefs.ketoMode === 'strict' || prefs.ketoMode === 'flexible' || prefs.ketoMode === 'low_carb'
+            ? prefs.ketoMode
+            : DEFAULT_PREFERENCES.ketoMode,
         avoidFish: prefs.avoidFish,
         avoidPork: prefs.avoidPork,
         avoidDairy: prefs.avoidDairy,
         maxCookingMinutes: maxTime ?? prefs.maxCookingMinutes,
       }
-    : { ...defaultPrefs, maxCookingMinutes: maxTime ?? defaultPrefs.maxCookingMinutes }
+    : { ...DEFAULT_PREFERENCES, maxCookingMinutes: maxTime ?? DEFAULT_PREFERENCES.maxCookingMinutes }
 
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { db } from '@/lib/db'
-import { fetchRecipeImage } from '@/lib/unsplash'
+import { ensureRecipeImage } from '@/lib/recipeImage'
 import AddMissingButton from './AddMissingButton'
 
 type RecipeIngredient = {
@@ -34,14 +34,8 @@ async function getRecipe(id: string): Promise<Recipe | null> {
       include: { ingredients: { include: { product: true } } },
     })
     if (!recipe) return null
-    if (!recipe.imageUrl) {
-      const imageUrl = await fetchRecipeImage(recipe.title)
-      if (imageUrl) {
-        await db.recipe.update({ where: { id }, data: { imageUrl } })
-        return { ...recipe, imageUrl }
-      }
-    }
-    return recipe
+    const imageUrl = await ensureRecipeImage(recipe.id, recipe.title, recipe.imageUrl)
+    return imageUrl === recipe.imageUrl ? recipe : { ...recipe, imageUrl }
   } catch {
     return null
   }

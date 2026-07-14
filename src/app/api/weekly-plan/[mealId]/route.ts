@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
+import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
 export async function PATCH(
@@ -19,11 +19,14 @@ export async function PATCH(
   ])
 
   const preferences = {
-    ketoMode: (prefs?.ketoMode as 'strict' | 'flexible' | 'low_carb' | undefined) ?? 'flexible',
+    ketoMode:
+      prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
+        ? prefs.ketoMode
+        : DEFAULT_PREFERENCES.ketoMode,
     avoidFish: prefs?.avoidFish ?? false,
     avoidPork: prefs?.avoidPork ?? false,
     avoidDairy: prefs?.avoidDairy ?? false,
-    maxCookingMinutes: prefs?.maxCookingMinutes ?? 30,
+    maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
   }
 
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)

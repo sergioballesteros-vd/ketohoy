@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { fetchRecipeImage } from '@/lib/unsplash'
-
-const inFlightImageFetches = new Map<string, Promise<string | null>>()
+import { ensureRecipeImage } from '@/lib/recipeImage'
 
 export async function GET(
   _request: Request,
@@ -17,23 +15,7 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
   if (!recipe.imageUrl) {
-    const imageUrl = await (inFlightImageFetches.get(id) ??
-      (async () => {
-        const pending = fetchRecipeImage(recipe.title)
-          .then(async fetchedUrl => {
-            if (!fetchedUrl) return null
-            const updated = await db.recipe.updateMany({
-              where: { id, imageUrl: null },
-              data: { imageUrl: fetchedUrl },
-            })
-            return updated.count > 0 ? fetchedUrl : db.recipe.findUnique({ where: { id } }).then(row => row?.imageUrl ?? fetchedUrl)
-          })
-          .finally(() => {
-            inFlightImageFetches.delete(id)
-          })
-        inFlightImageFetches.set(id, pending)
-        return pending
-      })())
+    const imageUrl = await ensureRecipeImage(id, recipe.title, recipe.imageUrl)
     if (imageUrl) {
       recipe = { ...recipe, imageUrl }
     }

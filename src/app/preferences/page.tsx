@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import type { KetoMode } from '@/lib/recipeScoring'
 
 type Preferences = {
   id: string
-  ketoMode: string
+  ketoMode: KetoMode
   avoidFish: boolean
   avoidPork: boolean
   avoidDairy: boolean
@@ -60,9 +61,9 @@ export default function PreferencesPage() {
           <label className="block font-semibold mb-3" style={{ color: '#ecf5e0' }}>Modo keto</label>
           <div className="space-y-2">
             {[
-              { value: 'strict', label: 'Keto estricto', desc: '<20g carbos/día', emoji: '🥑' },
-              { value: 'flexible', label: 'Keto flexible', desc: '20-50g carbos/día', emoji: '🍳' },
-              { value: 'low_carb', label: 'Low carb', desc: '<100g carbos/día', emoji: '🥗' },
+              { value: 'strict' as KetoMode, label: 'Keto estricto', desc: '<20g carbos/día', emoji: '🥑' },
+              { value: 'flexible' as KetoMode, label: 'Keto flexible', desc: '20-50g carbos/día', emoji: '🍳' },
+              { value: 'low_carb' as KetoMode, label: 'Low carb', desc: '<100g carbos/día', emoji: '🥗' },
             ].map(opt => {
               const active = prefs.ketoMode === opt.value
               return (

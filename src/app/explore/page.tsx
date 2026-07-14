@@ -81,6 +81,7 @@ export default function ExplorePage() {
   const [shoppingLoading, setShoppingLoading] = useState(true)
   const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
   const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({})
+  const [favoriteProductIds, setFavoriteProductIds] = useState<Record<string, boolean>>({})
 
   const loadShoppingList = useCallback(async () => {
     try {
@@ -154,8 +155,7 @@ export default function ExplorePage() {
 
   useEffect(() => {
     void (async () => {
-      await loadTrending()
-      await loadShoppingList()
+      await Promise.all([loadTrending(), loadShoppingList()])
     })()
   }, [loadTrending, loadShoppingList])
 
@@ -343,7 +343,7 @@ export default function ExplorePage() {
           </div>
         ) : visibleProducts.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-2">
-            {visibleProducts.slice(0, 6).map(product => {
+            {visibleProducts.map(product => {
               const qty = draftQuantities[product.id] ?? 1
               return (
                 <button
@@ -364,10 +364,23 @@ export default function ExplorePage() {
                     <button
                       type="button"
                       className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center"
-                      style={{ background: 'rgba(11,20,10,0.72)', border: '1px solid rgba(236,245,224,0.12)', color: '#ecf5e0' }}
-                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        background: favoriteProductIds[product.id] ? '#a3e635' : 'rgba(11,20,10,0.72)',
+                        border: '1px solid rgba(236,245,224,0.12)',
+                        color: favoriteProductIds[product.id] ? '#060e07' : '#ecf5e0',
+                      }}
+                      aria-pressed={!!favoriteProductIds[product.id]}
+                      aria-label={favoriteProductIds[product.id] ? 'Quitar favorito' : 'Marcar favorito'}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // ponytail: local-only until favorites persistence exists.
+                        setFavoriteProductIds(current => ({
+                          ...current,
+                          [product.id]: !current[product.id],
+                        }))
+                      }}
                     >
-                      <Heart size={16} />
+                      <Heart size={16} fill={favoriteProductIds[product.id] ? 'currentColor' : 'none'} />
                     </button>
                     <div className="aspect-[1.1] p-3">
                       {product.imageUrl ? (
@@ -673,10 +686,6 @@ export default function ExplorePage() {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}} />
     </main>
   )
 }

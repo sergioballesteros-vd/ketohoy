@@ -45,6 +45,14 @@ export type ScoringOptions = {
   minAvailability?: number // default 0.6
 }
 
+export const DEFAULT_PREFERENCES: ScoringOptions['preferences'] = {
+  ketoMode: 'flexible',
+  avoidFish: false,
+  avoidPork: false,
+  avoidDairy: false,
+  maxCookingMinutes: 20,
+}
+
 export function scoreRecipe(
   recipe: RecipeWithIngredients,
   opts: ScoringOptions
