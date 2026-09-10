@@ -15,15 +15,17 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # tsc, seed, and test all need the generated client (src/generated/prisma) —
+      # normally only `npm run build`'s `prebuild` hook generates it, and `npm ci`
+      # doesn't run it implicitly here. Do it once, explicitly, before anything
+      # that imports it.
+      - run: npx prisma generate
       - run: npm run lint
       - run: npx tsc --noEmit
       - name: Seed a CI database
         # Must run before `npm test` — the API integration tests copy this
-        # seeded db as their fixture (src/lib/__tests__/testDb.ts). `generate`
-        # runs explicitly since `db seed` needs the client and normally only
-        # `npm run build`'s `prebuild` hook generates it.
+        # seeded db as their fixture (src/lib/__tests__/testDb.ts).
         run: |
-          npx prisma generate
           npx prisma migrate deploy
           npx prisma db seed
         env:
