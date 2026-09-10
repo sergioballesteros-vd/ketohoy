@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withErrorHandling(
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
 
   const recipe = await db.recipe.findUnique({
@@ -14,7 +13,7 @@ export async function POST(
     include: { ingredients: true },
   })
   if (!recipe) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    throw new ApiError('Not found', 404)
   }
 
   const pantryItems = await db.pantryItem.findMany({ include: { product: true } })
@@ -81,4 +80,5 @@ export async function POST(
   }
 
   return NextResponse.json({ added: created.length, items: created, skipped: 0 })
-}
+  }
+)

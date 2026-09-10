@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 
-export async function POST(request: Request) {
-  const body = await request.json()
-  const { ids }: { ids: string[] } = body
+const markBoughtSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+})
 
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return NextResponse.json({ error: 'ids array required' }, { status: 400 })
-  }
+export const POST = withErrorHandling(async (request: Request) => {
+  const { ids } = markBoughtSchema.parse(await request.json())
 
   await db.shoppingListItem.updateMany({
     where: { id: { in: ids } },
@@ -37,4 +38,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ marked: ids.length })
-}
+})

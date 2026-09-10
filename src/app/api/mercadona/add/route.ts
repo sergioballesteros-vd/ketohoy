@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { getMercadonaProduct } from '@/lib/mercadona'
 import { fetchNutritionByEan, ketoScoreFromCarbs } from '@/lib/openFoodFacts'
 import { isNonKetoByName, ketoScoreByCategory } from '@/lib/ketoRules'
 import type { ProductCategory } from '@/lib/ketoRules'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
+import { rateLimit } from '@/lib/rateLimit'
+
+const addMercadonaProductSchema = z.object({
+  mercadonaId: z.union([z.string(), z.number()]),
+  addToPantry: z.boolean().optional().default(false),
+  addToShoppingList: z.boolean().optional().default(false),
+  quantity: z.union([z.number(), z.string()]).optional(),
+})
 
 // POST /api/mercadona/add
 // Body: { mercadonaId: string, addToPantry?: boolean, addToShoppingList?: boolean }
@@ -13,18 +23,18 @@ import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } 
 // 3. Calculate keto score from carbs (fallback to category)
 // 4. Upsert product in DB
 // 5. Optionally add to pantry or shopping list
-export async function POST(request: Request) {
-  const body = await request.json()
-  const { mercadonaId, addToPantry = false, addToShoppingList = false, quantity } = body
+export const POST = withErrorHandling(async (request: Request) => {
+  const rl = rateLimit(request, { limit: 30, windowMs: 60_000 })
+  if (!rl.ok) throw new ApiError('Too many requests', 429)
 
-  if (!mercadonaId) {
-    return NextResponse.json({ error: 'mercadonaId required' }, { status: 400 })
-  }
+  const { mercadonaId, addToPantry, addToShoppingList, quantity } = addMercadonaProductSchema.parse(
+    await request.json()
+  )
 
   // 1. Get full Mercadona product detail
   const merc = await getMercadonaProduct(String(mercadonaId))
   if (!merc) {
-    return NextResponse.json({ error: 'Mercadona product not found' }, { status: 404 })
+    throw new ApiError('Mercadona product not found', 404)
   }
 
   // 2. Fetch Open Food Facts nutrition if EAN available
@@ -145,4 +155,4 @@ export async function POST(request: Request) {
     source: carbs != null ? 'openfoodfacts' : 'category',
     ean: merc.ean ?? null,
   })
-}
+})

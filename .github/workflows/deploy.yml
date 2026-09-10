@@ -1,12 +1,15 @@
 name: Deploy to OVH
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262  # v1.0.3
@@ -16,7 +19,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -euo pipefail
-            DEPLOY_SHA="${{ github.sha }}"
+            DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
             DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/keto-mercadona}"
             TMP_DIR="$(mktemp -d)"
@@ -36,8 +39,36 @@ jobs:
             printf 'DATABASE_URL=file:./dev.db\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
             export DATABASE_URL="file:./dev.db"
             npm ci --include=dev --no-audit --no-fund
-            cp -f dev.db dev.db.deploy-backup 2>/dev/null || true
-            npx prisma db push --accept-data-loss
+            # Requires `sqlite3` on the deploy host (apt install sqlite3 on
+            # Ubuntu) — this step deliberately has no silent fallback: if it's
+            # missing, `set -euo pipefail` aborts the deploy before any
+            # migration runs, rather than proceeding without a backup.
+            # To restore: stop the app (`pm2 stop $APP_NAME`), copy the chosen
+            # backups/dev-*.db over dev.db, `pm2 restart $APP_NAME`.
+            mkdir -p backups
+            if [ -f dev.db ]; then
+              sqlite3 dev.db ".backup 'backups/dev-$(date +%Y%m%d%H%M%S).db'"
+              ls -1t backups/dev-*.db | tail -n +11 | xargs -r rm --
+            fi
+            # This DB was historically managed with `prisma db push`, so on the
+            # very first deploy after switching to `migrate deploy` it has the
+            # app's tables but no `_prisma_migrations` history — `migrate deploy`
+            # would fail with P3005 ("schema is not empty"). Baseline it once:
+            # `db push` already synced the live schema to match schema.prisma on
+            # every prior deploy, so marking existing migrations as applied
+            # (without re-running their DDL) is safe and correct. No-op once the
+            # migrations table exists (every deploy after the first).
+            if [ -f dev.db ]; then
+              HAS_APP_TABLE="$(sqlite3 dev.db "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='UserPreferences';")"
+              HAS_MIGRATIONS_TABLE="$(sqlite3 dev.db "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='_prisma_migrations';")"
+              if [ "$HAS_APP_TABLE" = "1" ] && [ "$HAS_MIGRATIONS_TABLE" = "0" ]; then
+                echo "Baselining pre-existing db push-managed database against migration history..."
+                for dir in prisma/migrations/*/; do
+                  npx prisma migrate resolve --applied "$(basename "$dir")"
+                done
+              fi
+            fi
+            npx prisma migrate deploy
             npx prisma generate
             npx prisma db seed
             RECIPE_IMAGE_BACKFILL_LIMIT=40 npx tsx prisma/backfillRecipeImages.ts

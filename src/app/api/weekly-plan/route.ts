@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 import { getMonday } from '@/lib/dateUtils'
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const monday = getMonday(new Date())
 
   const plan = await db.weeklyPlan.findFirst({
@@ -16,4 +17,4 @@ export async function GET() {
   })
 
   return NextResponse.json(plan)
-}
+})

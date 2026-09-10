@@ -1,24 +1,32 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
-export async function GET() {
+const createShoppingItemSchema = z.object({
+  name: z.string().trim().min(1),
+  quantity: z.union([z.number(), z.string()]).optional(),
+  productId: z.string().nullable().optional(),
+  reason: z.string().nullable().optional(),
+})
+
+const deleteShoppingItemsSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+})
+
+export const GET = withErrorHandling(async () => {
   const items = await db.shoppingListItem.findMany({
     include: { product: true },
     orderBy: [{ checked: 'asc' }, { createdAt: 'desc' }],
   })
   return NextResponse.json(items)
-}
+})
 
-export async function POST(request: Request) {
-  const body = await request.json()
-  const { name, quantity, productId, reason } = body
+export const POST = withErrorHandling(async (request: Request) => {
+  const { name, quantity, productId, reason } = createShoppingItemSchema.parse(await request.json())
 
-  if (!name) {
-    return NextResponse.json({ error: 'name required' }, { status: 400 })
-  }
-
-  const normalizedName = String(name).trim()
+  const normalizedName = name.trim()
   const quantityValue = formatShoppingQuantity(parseShoppingQuantity(quantity, 1))
   const existing = await db.shoppingListItem.findFirst({
     where: productId ? { productId: String(productId) } : { name: normalizedName },
@@ -47,14 +55,10 @@ export async function POST(request: Request) {
     include: { product: true },
   })
   return NextResponse.json(item, { status: 201 })
-}
+})
 
-export async function DELETE(request: Request) {
-  const body = await request.json()
-  const { ids }: { ids: string[] } = body
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return NextResponse.json({ error: 'ids array required' }, { status: 400 })
-  }
+export const DELETE = withErrorHandling(async (request: Request) => {
+  const { ids } = deleteShoppingItemsSchema.parse(await request.json())
   await db.shoppingListItem.deleteMany({ where: { id: { in: ids } } })
   return NextResponse.json({ deleted: ids.length })
-}
+})

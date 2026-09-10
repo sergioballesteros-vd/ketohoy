@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 
 // GET /api/products/search?q=queso&category=dairy
-export async function GET(request: Request) {
+export const GET = withErrorHandling(async (request: Request) => {
   const { searchParams } = new URL(request.url)
   const q = searchParams.get('q') ?? ''
   const category = searchParams.get('category')
@@ -18,4 +19,4 @@ export async function GET(request: Request) {
     take: 50,
   })
   return NextResponse.json(products)
-}
+})

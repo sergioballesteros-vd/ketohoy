@@ -46,18 +46,43 @@ La estructura del proyecto está modularizada para escalabilidad y mantenimiento
 - **`prisma/`**: Esquema de la base de datos (SQLite / Prisma) y scripts de semillas (`seed.ts`).
 
 ## 🚀 Quick Start
-Asegúrate de configurar las variables de entorno en `.env` antes de inicializar la aplicación.
+Copia `.env.example` a `.env.local` y rellena las variables (ver el archivo
+para el detalle de cada una) antes de inicializar la aplicación.
 
 ```bash
 # 1. Instalar dependencias
 npm install
 
 # 2. Inicializar la base de datos
-npx prisma db push
-npm run prisma:seed
+npx prisma migrate dev
+npx prisma db seed
 
 # 3. Arrancar servidor de desarrollo
 npm run dev
+```
+
+### Producto Mercadona (opcional)
+
+`src/lib/mercadona.ts` usa el CLI externo `mercadona` (no es una dependencia
+npm) para buscar productos reales. Si no está instalado, la app cae
+automáticamente a un catálogo demo local — verás un aviso en consola. No es
+necesario para desarrollar; instálalo solo si necesitas datos reales de
+Mercadona.
+
+## 🗄️ Backup y restore de producción
+
+Cada deploy (`.github/workflows/deploy.yml`) hace un backup de `dev.db` con
+`sqlite3 .backup` antes de aplicar migraciones, guardando los últimos 10 en
+`backups/` en el servidor. Requiere `sqlite3` instalado en el host
+(`apt install sqlite3` en Ubuntu) — si falta, el deploy se aborta antes de
+tocar la base de datos, no sigue sin backup.
+
+Para restaurar un backup:
+
+```bash
+pm2 stop <PM2_APP_NAME>
+cp backups/dev-<timestamp>.db dev.db
+pm2 restart <PM2_APP_NAME>
 ```
 
 

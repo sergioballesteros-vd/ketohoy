@@ -107,7 +107,7 @@ export default function ExplorePage() {
       const data = await res.json()
       setShoppingItems(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error(error)
+      console.error('[ExploreClient] failed to load shopping list', error)
       setShoppingItems([])
     } finally {
       setShoppingLoading(false)
@@ -123,7 +123,7 @@ export default function ExplorePage() {
       setProducts(list)
       setDetailProduct(list[0] ?? null)
     } catch (error) {
-      console.error(error)
+      console.error('[ExploreClient] failed to load trending products', error)
       setProducts([])
       setDetailProduct(null)
     } finally {
@@ -143,7 +143,7 @@ export default function ExplorePage() {
       setProducts(list)
       setDetailProduct(list[0] ?? null)
     } catch (error) {
-      console.error(error)
+      console.error('[ExploreClient] failed to load category', key, error)
       setProducts([])
       setDetailProduct(null)
     } finally {
@@ -163,7 +163,7 @@ export default function ExplorePage() {
       setProducts(list)
       setDetailProduct(list[0] ?? null)
     } catch (error) {
-      console.error(error)
+      console.error('[ExploreClient] failed to search products', query, error)
       setProducts([])
       setDetailProduct(null)
     } finally {

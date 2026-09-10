@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
-export async function PATCH(
-  _request: Request,
-  { params }: { params: Promise<{ mealId: string }> }
-) {
+export const PATCH = withErrorHandling(
+  async (_request: Request, { params }: { params: Promise<{ mealId: string }> }) => {
   const { mealId } = await params
 
   const meal = await db.weeklyMeal.findUnique({ where: { id: mealId } })
-  if (!meal) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!meal) throw new ApiError('Not found', 404)
 
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
@@ -51,7 +50,7 @@ export async function PATCH(
 
   // Pick a different recipe than current
   const pick = sorted.find(s => s.recipe.id !== meal.recipeId) ?? sorted[0]
-  if (!pick) return NextResponse.json({ error: 'No suggestions available' }, { status: 404 })
+  if (!pick) throw new ApiError('No suggestions available', 404)
 
   const updated = await db.weeklyMeal.update({
     where: { id: mealId },
@@ -60,4 +59,5 @@ export async function PATCH(
   })
 
   return NextResponse.json(updated)
-}
+  }
+)

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 import { getMonday } from '@/lib/dateUtils'
 import { extendedPool } from '@/lib/weeklyPlanPool'
 
-export async function POST() {
+export const POST = withErrorHandling(async () => {
   const monday = getMonday(new Date())
 
   const [recipes, pantryItems, prefs] = await Promise.all([
@@ -15,10 +16,7 @@ export async function POST() {
   ])
 
   if (recipes.length === 0) {
-    return NextResponse.json(
-      { error: 'No hay recetas cargadas para generar el plan semanal' },
-      { status: 409 }
-    )
+    throw new ApiError('No hay recetas cargadas para generar el plan semanal', 409)
   }
 
   const preferences = {
@@ -77,10 +75,7 @@ export async function POST() {
   }
 
   if (mealCandidates.length === 0) {
-    return NextResponse.json(
-      { error: 'No hay suficientes recetas compatibles con tus preferencias y despensa' },
-      { status: 422 }
-    )
+    throw new ApiError('No hay suficientes recetas compatibles con tus preferencias y despensa', 422)
   }
 
   // Delete existing plan only after proving that a replacement can be created.
@@ -105,4 +100,4 @@ export async function POST() {
   })
 
   return NextResponse.json(fullPlan)
-}
+})

@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
 
-export async function PATCH(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorHandling(
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
 
   const item = await db.shoppingListItem.findUnique({ where: { id } })
   if (!item) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    throw new ApiError('Not found', 404)
   }
 
   const checked = !item.checked
@@ -29,4 +28,5 @@ export async function PATCH(
   }
 
   return NextResponse.json(updated)
-}
+  }
+)

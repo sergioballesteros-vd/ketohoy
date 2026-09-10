@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 import { ensureRecipeImage } from '@/lib/recipeImage'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
-export async function GET(request: Request) {
+export const GET = withErrorHandling(async (request: Request) => {
   const { searchParams } = new URL(request.url)
   const mealType = searchParams.get('mealType') ?? undefined
   const maxTime = searchParams.get('maxTime') ? parseInt(searchParams.get('maxTime')!) : undefined
@@ -80,4 +81,4 @@ export async function GET(request: Request) {
     total: sorted.length,
     hasMore: sorted.length > limit,
   })
-}
+})

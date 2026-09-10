@@ -167,6 +167,10 @@ async function isMercadonaCliAvailable(): Promise<boolean> {
     _cliAvailable = true
   } catch {
     _cliAvailable = false
+    console.warn(
+      '[mercadona] CLI not found on PATH — falling back to demo product catalog. ' +
+        'See README.md "Producto Mercadona" for install instructions.'
+    )
   }
   return _cliAvailable
 }

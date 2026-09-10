@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
+import { withErrorHandling } from '@/lib/apiError'
 
 async function getOrCreatePreferences() {
   const existing = await db.userPreferences.findFirst()
@@ -7,21 +9,24 @@ async function getOrCreatePreferences() {
   return db.userPreferences.create({ data: {} })
 }
 
-const allowedKetoModes = new Set(['strict', 'flexible', 'low_carb'])
+const patchPreferencesSchema = z.object({
+  ketoMode: z.enum(['strict', 'flexible', 'low_carb']).optional(),
+  avoidFish: z.boolean().optional(),
+  avoidPork: z.boolean().optional(),
+  avoidDairy: z.boolean().optional(),
+  maxCookingMinutes: z.number().int().positive().optional(),
+})
 
 // GET /api/preferences
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const prefs = await getOrCreatePreferences()
   return NextResponse.json(prefs)
-}
+})
 
 // PATCH /api/preferences
-export async function PATCH(request: Request) {
-  const body = await request.json()
+export const PATCH = withErrorHandling(async (request: Request) => {
+  const body = patchPreferencesSchema.parse(await request.json())
   const prefs = await getOrCreatePreferences()
-  if (body.ketoMode !== undefined && !allowedKetoModes.has(body.ketoMode)) {
-    return NextResponse.json({ error: 'Invalid ketoMode' }, { status: 400 })
-  }
 
   const updated = await db.userPreferences.update({
     where: { id: prefs.id },
@@ -34,4 +39,4 @@ export async function PATCH(request: Request) {
     },
   })
   return NextResponse.json(updated)
-}
+})
