@@ -1,4 +1,9 @@
 import HomePageClient from '@/components/HomePageClient'
+
+// Force dynamic rendering: the hour-based greeting must reflect the actual
+// request time, not a value baked into a static/ISR shell at build time
+// (that mismatch was causing a hydration error in production builds).
+export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { unstable_cache } from 'next/cache'
 import { scoreRecipe } from '@/lib/recipeScoring'

@@ -3,22 +3,7 @@ import { db } from '@/lib/db'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 import { getMonday } from '@/lib/dateUtils'
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-function extendedPool(ids: string[], size: number): string[] {
-  if (ids.length === 0) return []
-  const result: string[] = []
-  while (result.length < size) result.push(...shuffle([...ids]))
-  return result.slice(0, size)
-}
+import { extendedPool } from '@/lib/weeklyPlanPool'
 
 export async function POST() {
   const monday = getMonday(new Date())
@@ -48,7 +33,6 @@ export async function POST() {
   }
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
-  const hasPantryItems = pantryProductIds.size > 0 || pantryProductNames.length > 0
 
   const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner']
 
@@ -60,20 +44,27 @@ export async function POST() {
     mealType: string
   }> = []
   for (const mealType of mealTypes) {
+    // minAvailability: 0 — a weekly plan is meant to drive the shopping list,
+    // so pantry match only ranks candidates (via score), it must never
+    // exclude a recipe outright or a small pantry starves whole meal slots.
     const opts: ScoringOptions = {
       pantryProductIds,
       pantryProductNames,
       preferences,
       mealType,
-      minAvailability: hasPantryItems ? 0.4 : 0,
+      minAvailability: 0,
     }
     const sorted = sortSuggestions(
       recipes
         .map(r => scoreRecipe(r as RecipeWithIngredients, opts))
         .filter((s): s is NonNullable<typeof s> => s !== null)
     )
+    // Use the top-ranked half (min 4) as the rotation pool so low-scoring
+    // recipes don't dilute variety, but keep enough candidates to avoid repeats.
+    const poolSize = Math.max(4, Math.ceil(sorted.length / 2))
+    const topIds = sorted.slice(0, poolSize).map(s => s.recipe.id)
     // extend to 7 slots with shuffled repetitions if needed — no consecutive repeats
-    poolsByType[mealType] = extendedPool(sorted.map(s => s.recipe.id), 7)
+    poolsByType[mealType] = extendedPool(topIds, 7)
   }
 
   for (let day = 0; day < 7; day++) {

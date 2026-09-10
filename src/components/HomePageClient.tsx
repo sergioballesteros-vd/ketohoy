@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { LogoMark, SettingsIcon, CartIcon, MealsIcon, PantryIcon, CalendarIcon } from '@/components/icons'
+import { productosCount, pluralize } from '@/lib/pluralize'
 
 type HomePageClientProps = {
   stats: {
@@ -60,7 +61,7 @@ export default function HomePageClient({ stats, greeting }: HomePageClientProps)
               <div className="text-3xl font-bold mb-0.5 font-syne text-[#a3e635]">
                 {stats.recipesAvailable}
               </div>
-              <div className="text-xs font-medium text-forest-400">recetas</div>
+              <div className="text-xs font-medium text-forest-400">listas ya</div>
             </Link>
             <Link
               href="/inventory"
@@ -120,7 +121,7 @@ export default function HomePageClient({ stats, greeting }: HomePageClientProps)
             <div className="flex-1">
               <div className="font-semibold text-sm text-forest-50">Mi despensa</div>
               <div className="text-xs mt-0.5 text-forest-400">
-                {stats.pantryCount > 0 ? `${stats.pantryCount} productos en casa` : 'Añade lo que tienes'}
+                {stats.pantryCount > 0 ? `${productosCount(stats.pantryCount)} en casa` : 'Añade lo que tienes'}
               </div>
             </div>
             <span className="text-forest-500">›</span>
@@ -136,7 +137,9 @@ export default function HomePageClient({ stats, greeting }: HomePageClientProps)
             <div className="flex-1">
               <div className="font-semibold text-sm text-forest-50">Lista de compra</div>
               <div className="text-xs mt-0.5 text-forest-400">
-                {stats.shoppingCount > 0 ? `${stats.shoppingCount} productos pendientes` : 'Sin pendientes'}
+                {stats.shoppingCount > 0
+                  ? `${productosCount(stats.shoppingCount)} ${pluralize(stats.shoppingCount, 'pendiente', 'pendientes')}`
+                  : 'Sin pendientes'}
               </div>
             </div>
             {stats.shoppingCount > 0 ? (

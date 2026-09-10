@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Apple, Beef, Carrot, ChevronRight, CupSoda, Egg, Ellipsis, Fish, Heart, Milk, Minus, Nut, Plus, Search, Sparkles, UtensilsCrossed, Droplets, X } from 'lucide-react'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
+import { productosCount } from '@/lib/pluralize'
 
 type ShoppingItem = {
   id: string
@@ -80,7 +81,25 @@ export default function ExplorePage() {
   const [shoppingLoading, setShoppingLoading] = useState(true)
   const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
   const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({})
-  const [favoriteProductIds, setFavoriteProductIds] = useState<Record<string, boolean>>({})
+  // Persisted to localStorage (device-local, no backend model yet) so favorites
+  // survive a reload — full cross-device sync is tracked as follow-up work.
+  const [favoriteProductIds, setFavoriteProductIds] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const stored = localStorage.getItem('ketohoy:favoriteProductIds')
+      return stored ? JSON.parse(stored) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ketohoy:favoriteProductIds', JSON.stringify(favoriteProductIds))
+    } catch {
+      // ignore unavailable storage (private mode, quota, etc.)
+    }
+  }, [favoriteProductIds])
 
   const loadShoppingList = useCallback(async () => {
     try {
@@ -357,10 +376,18 @@ export default function ExplorePage() {
             {visibleProducts.map(product => {
               const qty = draftQuantities[product.id] ?? 1
               return (
-                <button
+                <div
                   key={product.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setDetailProduct(product)}
-                  className="w-56 rounded-[28px] overflow-hidden shrink-0 snap-start text-left transition-transform active:scale-[0.99]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setDetailProduct(product)
+                    }
+                  }}
+                  className="w-56 rounded-[28px] overflow-hidden shrink-0 snap-start text-left transition-transform active:scale-[0.99] cursor-pointer"
                   style={{ background: '#111c12', border: '1px solid #1c321d', boxShadow: '0 10px 30px rgba(0,0,0,0.22)' }}
                 >
                   <div className="relative bg-black">
@@ -384,7 +411,6 @@ export default function ExplorePage() {
                       aria-label={favoriteProductIds[product.id] ? 'Quitar favorito' : 'Marcar favorito'}
                       onClick={(e) => {
                         e.stopPropagation()
-                        // ponytail: local-only until favorites persistence exists.
                         setFavoriteProductIds(current => ({
                           ...current,
                           [product.id]: !current[product.id],
@@ -449,7 +475,7 @@ export default function ExplorePage() {
                       </button>
                     </div>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -674,7 +700,7 @@ export default function ExplorePage() {
               <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#ecf5e0' }}>
                 <span className="text-lg">🛒</span>
                 Subtotal
-                <span style={{ color: '#889c89' }}>({shoppingSummary.length} productos)</span>
+                <span style={{ color: '#889c89' }}>({productosCount(shoppingSummary.length)})</span>
               </div>
               <div className="text-2xl font-black" style={{ color: '#a3e635' }}>
                 {subtotal > 0 ? `${subtotal.toFixed(2)} €` : '—'}

@@ -50,6 +50,14 @@ const CATEGORY_EMOJI: Record<string, string> = {
   sauces: '🥫', drinks: '🥤', other: '🍽️',
 }
 
+// Display-only labels — the `category` value itself stays in English since
+// it's a stored data model key shared with mercadona.ts/ketoRules.ts.
+const CATEGORY_LABEL: Record<string, string> = {
+  meat: 'Carne', fish: 'Pescado', eggs: 'Huevos', dairy: 'Lácteos',
+  vegetables: 'Verduras', fruit: 'Fruta', nuts: 'Frutos secos', oils: 'Aceites',
+  sauces: 'Salsas', drinks: 'Bebidas', other: 'Otros',
+}
+
 export default function InventoryPage() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -366,7 +374,7 @@ export default function InventoryPage() {
               <div key={category}>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-2 flex items-center gap-1.5 text-[#3b5e3c]">
                   <span>{CATEGORY_EMOJI[category] ?? '🍽️'}</span>
-                  <span>{category}</span>
+                  <span>{CATEGORY_LABEL[category] ?? category}</span>
                   <span className="text-[#264227]">({items.length})</span>
                 </p>
                 <div className="space-y-2">
