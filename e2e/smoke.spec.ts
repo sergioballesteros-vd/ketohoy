@@ -2,11 +2,20 @@ import { test, expect } from '@playwright/test'
 
 const PAGES = ['/', '/explore', '/inventory', '/meals', '/preferences', '/shopping-list', '/weekly-plan']
 
+// Recipe/product images are backfilled from Unsplash (src/lib/recipeImage.ts).
+// Those URLs can go dead independently of the app (deleted upstream, CDN
+// hiccup, no network egress in a CI runner) — the browser logs that as a
+// console error, but <Image> degrades gracefully (alt text, no crash) and
+// it's not a bug in this app. Distinguish that noise from real app errors —
+// thrown exceptions (pageerror) and our own console.error/warn calls — which
+// must still fail the test.
+const isExternalResourceNoise = (text: string) => /Failed to load resource/.test(text)
+
 for (const path of PAGES) {
   test(`no console errors on ${path}`, async ({ page }) => {
     const errors: string[] = []
     page.on('console', msg => {
-      if (msg.type() === 'error') errors.push(msg.text())
+      if (msg.type() === 'error' && !isExternalResourceNoise(msg.text())) errors.push(msg.text())
     })
     page.on('pageerror', err => errors.push(err.message))
 
