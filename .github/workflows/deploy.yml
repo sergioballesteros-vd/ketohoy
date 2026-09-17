@@ -101,5 +101,5 @@ jobs:
             ! grep -qi '^x-nextjs-prerender:' /tmp/explore-local.headers
             curl -fsSI --max-time 15 \
               -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-              http://152.228.142.57:3000/explore | tee /tmp/explore-public.headers
+              http://${{ secrets.SSH_HOST }}:3000/explore | tee /tmp/explore-public.headers
             ! grep -qi '^x-nextjs-prerender:' /tmp/explore-public.headers
