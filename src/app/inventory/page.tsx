@@ -100,7 +100,7 @@ export default function InventoryPage() {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className={`inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
+          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
         >
           <Plus size={16} strokeWidth={3} /> Añadir
         </button>

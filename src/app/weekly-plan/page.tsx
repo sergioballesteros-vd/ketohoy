@@ -158,7 +158,7 @@ export default function WeeklyPlanPage() {
       type="button"
       disabled={generating}
       onClick={() => (hasPlan ? setConfirmRegen(true) : void generate())}
-      className={`inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold disabled:opacity-50 ${focusRing} ${
+      className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold disabled:opacity-50 ${focusRing} ${
         hasPlan ? 'bg-forest-800 text-forest-50 hover:bg-forest-700' : 'bg-[#a3e635] text-forest-950'
       }`}
     >
@@ -244,7 +244,7 @@ export default function WeeklyPlanPage() {
                       {meal && recipe ? (
                         <>
                           <Link href={`/recipes/${recipe.id}`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg ${focusRing}`}>
-                            <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-forest-800">
+                            <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-forest-800 max-[359px]:h-12 max-[359px]:w-12">
                               {recipe.imageUrl ? (
                                 <Image src={recipe.imageUrl} alt="" fill sizes="56px" className="object-cover" />
                               ) : (
@@ -253,7 +253,7 @@ export default function WeeklyPlanPage() {
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block text-[11px] font-semibold tracking-wider text-forest-400 uppercase">{MEAL_LABEL[type]}</span>
-                              <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-forest-50">{recipe.title}</span>
+                              <span className="line-clamp-3 text-[15px] leading-snug font-semibold text-forest-50 min-[400px]:line-clamp-2">{recipe.title}</span>
                               <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-forest-300">
                                 <span className="inline-flex items-center gap-1">
                                   <Clock size={12} /> {recipe.prepTimeMinutes} min
@@ -267,7 +267,7 @@ export default function WeeklyPlanPage() {
                               type="button"
                               onClick={() => void addMissing(recipe.id)}
                               aria-label={`Añadir a la lista lo que falta para ${recipe.title}`}
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${
+                              className={`relative hit-area flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${
                                 added[recipe.id] ? 'text-[#a3e635]' : 'text-forest-300'
                               }`}
                             >
@@ -278,7 +278,7 @@ export default function WeeklyPlanPage() {
                             type="button"
                             onClick={() => setSwapping(meal)}
                             aria-label={`Cambiar ${MEAL_LABEL[type].toLowerCase()} del ${day.toLowerCase()}`}
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest-300 hover:bg-forest-800 hover:text-forest-50 ${focusRing}`}
+                            className={`relative hit-area flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest-300 hover:bg-forest-800 hover:text-forest-50 ${focusRing}`}
                           >
                             <Shuffle size={17} />
                           </button>

@@ -143,7 +143,7 @@ export default function MealsPage() {
             <button
               type="button"
               onClick={clearFilters}
-              className={`h-9 shrink-0 rounded-full px-2 text-[13px] font-semibold whitespace-nowrap text-[#a3e635] ${focusRing}`}
+              className={`relative hit-area h-9 shrink-0 rounded-full px-2 text-[13px] font-semibold whitespace-nowrap text-[#a3e635] ${focusRing}`}
             >
               Limpiar
             </button>
@@ -227,7 +227,7 @@ export default function MealsPage() {
               <button
                 type="button"
                 onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
-                className={`mx-auto mt-6 block rounded-full bg-forest-800 px-5 py-2.5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                className={`mx-auto mt-6 block rounded-full bg-forest-800 px-5 py-3 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
               >
                 Ver 20 más
               </button>

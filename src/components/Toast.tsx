@@ -30,10 +30,15 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
   )
 
   const action = state?.action
-  const toast = state && (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex justify-center px-4">
+  // The live region stays mounted (empty = silent) so screen readers announce the message when it appears.
+  const toast = (
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex justify-center px-4"
+    >
+      {state && (
       <div
-        role="status"
         className="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-forest-700 py-2.5 pr-2 pl-4 text-sm text-forest-50 shadow-lg"
       >
         <span>{state.message}</span>
@@ -55,6 +60,7 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
           </button>
         )}
       </div>
+      )}
     </div>
   )
 

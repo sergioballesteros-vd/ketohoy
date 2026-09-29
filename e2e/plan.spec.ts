@@ -23,7 +23,7 @@ test('plan: empty state, generate 28 meals, swap a meal to a chosen alternative,
 
   // swap Monday's lunch: open the sheet, pick the first alternative
   const lunch = page.getByRole('region', { name: 'Lunes' }).locator('li').nth(1)
-  const before = await lunch.locator('a span.line-clamp-2').innerText()
+  const before = await lunch.locator('a span.leading-snug').innerText()
   await lunch.getByRole('button', { name: /^Cambiar comida del lunes/ }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByRole('button').filter({ hasText: 'min' }).first()).toBeVisible({ timeout: 15_000 })
@@ -33,12 +33,12 @@ test('plan: empty state, generate 28 meals, swap a meal to a chosen alternative,
   await alternative.click()
 
   await expect(sheet).toHaveCount(0)
-  await expect(lunch.locator('a span.line-clamp-2')).toHaveText(picked)
+  await expect(lunch.locator('a span.leading-snug')).toHaveText(picked)
 
   // persisted, and nothing was duplicated or lost
   await page.reload()
   await expect(rows).toHaveCount(28, { timeout: 15_000 })
-  await expect(page.getByRole('region', { name: 'Lunes' }).locator('li').nth(1).locator('a span.line-clamp-2')).toHaveText(picked)
+  await expect(page.getByRole('region', { name: 'Lunes' }).locator('li').nth(1).locator('a span.leading-snug')).toHaveText(picked)
   const plan = await (await page.request.get('/api/weekly-plan')).json()
   expect(new Set(plan.meals.map((m: { dayOfWeek: number; mealType: string }) => `${m.dayOfWeek}-${m.mealType}`)).size).toBe(28)
 
@@ -54,10 +54,10 @@ test('plan: "Elegir por mí" swaps without picking, regenerate asks first and re
   await expect(rows).toHaveCount(28, { timeout: 20_000 })
 
   const dinner = page.getByRole('region', { name: 'Martes' }).locator('li').nth(3)
-  const before = await dinner.locator('a span.line-clamp-2').innerText()
+  const before = await dinner.locator('a span.leading-snug').innerText()
   await dinner.getByRole('button', { name: /^Cambiar cena/ }).click()
   await page.getByRole('button', { name: 'Elegir por mí' }).click()
-  await expect(dinner.locator('a span.line-clamp-2')).not.toHaveText(before, { timeout: 10_000 })
+  await expect(dinner.locator('a span.leading-snug')).not.toHaveText(before, { timeout: 10_000 })
 
   const oldPlan = (await (await page.request.get('/api/weekly-plan')).json()).id
   await page.getByRole('button', { name: 'Regenerar' }).click()

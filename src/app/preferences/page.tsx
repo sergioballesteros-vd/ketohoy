@@ -69,7 +69,7 @@ export default function PreferencesPage() {
     <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <Link
         href="/"
-        className={`-ml-2 inline-flex h-10 items-center gap-0.5 rounded-lg pr-3 pl-1 text-sm font-semibold text-forest-300 hover:text-forest-50 ${focusRing}`}
+        className={`-ml-2 inline-flex h-11 items-center gap-0.5 rounded-lg pr-3 pl-1 text-sm font-semibold text-forest-300 hover:text-forest-50 ${focusRing}`}
       >
         <ChevronLeft size={18} /> Inicio
       </Link>
@@ -140,7 +140,7 @@ export default function PreferencesPage() {
                     aria-checked={prefs[key]}
                     aria-labelledby={`avoid-${key}`}
                     onClick={() => setPrefs({ ...prefs, [key]: !prefs[key] })}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${focusRing} ${prefs[key] ? 'bg-[#a3e635]' : 'bg-forest-700'}`}
+                    className={`relative hit-area h-7 w-12 shrink-0 rounded-full transition-colors ${focusRing} ${prefs[key] ? 'bg-[#a3e635]' : 'bg-forest-700'}`}
                   >
                     <span
                       className={`absolute top-0.5 left-0 h-6 w-6 rounded-full transition-transform ${prefs[key] ? 'translate-x-[1.375rem] bg-forest-950' : 'translate-x-0.5 bg-forest-300'}`}
@@ -168,7 +168,7 @@ export default function PreferencesPage() {
               step={5}
               value={prefs.maxCookingMinutes}
               onChange={e => setPrefs({ ...prefs, maxCookingMinutes: parseInt(e.target.value) })}
-              className="mt-3 h-8 w-full accent-[#a3e635]"
+              className="mt-3 h-11 w-full accent-[#a3e635]"
             />
             <div className="flex justify-between text-xs text-forest-400">
               <span>5 min</span>

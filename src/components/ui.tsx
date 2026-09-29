@@ -23,7 +23,7 @@ export function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors ${focusRing} ${
+      className={`relative hit-area inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors ${focusRing} ${
         active
           ? 'bg-[#a3e635] text-forest-950'
           : 'bg-forest-800 text-forest-100 hover:bg-forest-700 active:bg-forest-700'

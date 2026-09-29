@@ -6,7 +6,7 @@ import { pageWidthClass } from '@/lib/pageWidth'
 
 const navItems = [
   { href: '/', label: 'Inicio', Icon: HomeIcon },
-  { href: '/explore', label: 'Descubrir', Icon: ExploreIcon },
+  { href: '/explore', label: 'Catálogo', Icon: ExploreIcon },
   { href: '/meals', label: 'Recetas', Icon: MealsIcon },
   { href: '/inventory', label: 'Despensa', Icon: PantryIcon },
   { href: '/weekly-plan', label: 'Plan', Icon: CalendarIcon },
@@ -27,7 +27,7 @@ export default function Navigation() {
       aria-label="Principal"
       className="fixed right-0 bottom-0 left-0 z-40 border-t border-forest-700 bg-forest-900/95 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-md"
     >
-      <div className={`mx-auto flex px-1 pt-1 ${pageWidthClass(pathname)}`}>
+      <div className={`mx-auto flex px-0 pt-1 min-[360px]:px-1 ${pageWidthClass(pathname)}`}>
         {navItems.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href)
           return (
@@ -41,7 +41,7 @@ export default function Navigation() {
             >
               {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-b-full bg-[#a3e635]" />}
               <Icon size={19} />
-              <span className="text-[10px] font-medium tracking-tight">{label}</span>
+              <span className="text-[11px] font-medium tracking-tight">{label}</span>
             </Link>
           )
         })}

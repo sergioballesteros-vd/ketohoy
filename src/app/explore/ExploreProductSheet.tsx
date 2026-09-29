@@ -50,7 +50,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
           onClick={onToggleFavorite}
           aria-pressed={favorite}
           aria-label={favorite ? 'Quitar favorito' : 'Marcar favorito'}
-          className={`flex h-10 w-10 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${favorite ? 'text-[#a3e635]' : 'text-forest-200'}`}
+          className={`relative hit-area flex h-10 w-10 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${favorite ? 'text-[#a3e635]' : 'text-forest-200'}`}
         >
           <Heart size={20} fill={favorite ? 'currentColor' : 'none'} />
         </button>

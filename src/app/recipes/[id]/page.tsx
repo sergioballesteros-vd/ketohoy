@@ -53,7 +53,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
     <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <Link
         href="/meals"
-        className="-ml-2 inline-flex h-10 items-center gap-0.5 rounded-lg pr-3 pl-1 text-sm font-semibold text-forest-300 hover:text-forest-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a3e635]"
+        className="-ml-2 inline-flex h-11 items-center gap-0.5 rounded-lg pr-3 pl-1 text-sm font-semibold text-forest-300 hover:text-forest-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a3e635]"
       >
         <ChevronLeft size={18} /> Recetas
       </Link>

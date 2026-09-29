@@ -226,7 +226,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
                           disabled={busy === p.mercadonaId}
                           onClick={() => void addProduct(p)}
                           aria-label={`Añadir ${p.name}`}
-                          className={`flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 disabled:opacity-50 ${focusRing}`}
+                          className={`relative hit-area flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 disabled:opacity-50 ${focusRing}`}
                         >
                           {busy === p.mercadonaId ? <Loader2 size={18} className="animate-spin" /> : <Plus size={20} strokeWidth={2.5} />}
                         </button>

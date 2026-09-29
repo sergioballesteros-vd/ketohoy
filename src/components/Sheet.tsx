@@ -87,7 +87,7 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
                 type="button"
                 onClick={onClose}
                 aria-label="Cerrar"
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-forest-200 hover:bg-forest-800 ${focusRing}`}
+                className={`relative hit-area flex h-10 w-10 items-center justify-center rounded-full text-forest-200 hover:bg-forest-800 ${focusRing}`}
               >
                 <X size={20} />
               </button>

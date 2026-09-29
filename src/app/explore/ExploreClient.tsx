@@ -276,7 +276,7 @@ export default function ExplorePage() {
                 clearFilters()
                 searchRef.current?.focus()
               }}
-              className={`absolute top-1/2 right-1 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-forest-300 hover:text-forest-50 ${focusRing}`}
+              className={`absolute top-1/2 right-1 hit-area flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-forest-300 hover:text-forest-50 ${focusRing}`}
             >
               <X size={16} />
             </button>
@@ -358,7 +358,7 @@ export default function ExplorePage() {
                         aria-pressed={fav}
                         aria-label={fav ? 'Quitar favorito' : 'Marcar favorito'}
                         onClick={() => toggleFavorite(product.id)}
-                        className={`absolute top-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-forest-950/60 backdrop-blur-sm ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
+                        className={`absolute top-1 right-1 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-forest-950/60 backdrop-blur-sm ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
                       >
                         <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
                       </button>
@@ -369,18 +369,18 @@ export default function ExplorePage() {
                           disabled={busy}
                           aria-label={`Añadir ${product.name} a la lista`}
                           onClick={() => tap(product, 1)}
-                          className={`absolute right-1.5 bottom-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 shadow-md disabled:opacity-50 ${focusRing}`}
+                          className={`absolute right-1.5 bottom-1.5 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 shadow-md disabled:opacity-50 ${focusRing}`}
                         >
                           <Plus size={20} strokeWidth={2.5} />
                         </button>
                       ) : (
-                        <div className="absolute right-1.5 bottom-1.5 flex h-10 items-center rounded-full bg-[#a3e635] text-forest-950 shadow-md">
+                        <div className="absolute right-1.5 bottom-1.5 flex h-11 items-center rounded-full bg-[#a3e635] text-forest-950 shadow-md">
                           <button
                             type="button"
                             disabled={busy}
                             aria-label={`Quitar una unidad de ${product.name}`}
                             onClick={() => tap(product, -1)}
-                            className={`flex h-10 w-9 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
+                            className={`flex h-11 w-10 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
                           >
                             <Minus size={16} strokeWidth={2.5} />
                           </button>
@@ -390,7 +390,7 @@ export default function ExplorePage() {
                             disabled={busy}
                             aria-label={`Añadir otra unidad de ${product.name}`}
                             onClick={() => tap(product, 1)}
-                            className={`flex h-10 w-9 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
+                            className={`flex h-11 w-10 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
                           >
                             <Plus size={16} strokeWidth={2.5} />
                           </button>

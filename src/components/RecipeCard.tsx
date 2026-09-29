@@ -115,7 +115,7 @@ export default function RecipeCard({
                 ? "No se pudo añadir. Reintentar"
                 : "Añadir faltantes a la lista"
             }
-            className={`absolute right-2 bottom-2 flex h-10 w-10 items-center justify-center rounded-full shadow-md ${focusRing} ${
+            className={`absolute right-2 bottom-2 hit-area flex h-10 w-10 items-center justify-center rounded-full shadow-md ${focusRing} ${
               state === "done"
                 ? "bg-[#a3e635] text-forest-950"
                 : state === "error"

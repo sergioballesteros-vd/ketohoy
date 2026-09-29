@@ -59,8 +59,8 @@ export default function HomePageClient({ stats, greeting }: HomePageClientProps)
         </div>
         <Link
           href="/preferences"
-          aria-label="Preferencias"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-forest-300 transition-colors hover:bg-forest-800 hover:text-forest-50"
+          aria-label="Preferencias y cuenta"
+          className="relative hit-area flex h-10 w-10 items-center justify-center rounded-full text-forest-300 transition-colors hover:bg-forest-800 hover:text-forest-50"
         >
           <Settings size={20} />
         </Link>

@@ -91,3 +91,17 @@
 .animate-stagger-2 { animation: fade-slide-up 0.4s ease-out 0.2s both; }
 .animate-stagger-3 { animation: fade-slide-up 0.4s ease-out 0.3s both; }
 .animate-stagger-4 { animation: fade-slide-up 0.4s ease-out 0.4s both; }
+
+/* Invisible 44px-minimum touch target centred on the element; its visual size is unchanged.
+   The element must be positioned (relative/absolute). */
+@utility hit-area {
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}

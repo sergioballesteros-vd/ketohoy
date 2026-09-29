@@ -141,7 +141,7 @@ export default function ShoppingListPage() {
         <button
           type="button"
           onClick={() => setAdding('search')}
-          className={`inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
+          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
         >
           <Plus size={16} strokeWidth={3} /> Añadir
         </button>
@@ -200,7 +200,7 @@ export default function ShoppingListPage() {
                           type="button"
                           onClick={() => void change(item, -1)}
                           aria-label={qty <= 1 ? `Quitar ${item.name} de la lista` : `Reducir cantidad de ${item.name}`}
-                          className={`flex h-10 w-9 items-center justify-center rounded-full text-forest-50 ${focusRing}`}
+                          className={`flex h-11 w-10 items-center justify-center rounded-full text-forest-50 ${focusRing}`}
                         >
                           {qty <= 1 ? <Trash2 size={16} className="text-red-300" /> : <Minus size={16} />}
                         </button>
@@ -211,7 +211,7 @@ export default function ShoppingListPage() {
                           type="button"
                           onClick={() => void change(item, 1)}
                           aria-label={`Aumentar cantidad de ${item.name}`}
-                          className={`flex h-10 w-9 items-center justify-center rounded-full text-[#a3e635] ${focusRing}`}
+                          className={`flex h-11 w-10 items-center justify-center rounded-full text-[#a3e635] ${focusRing}`}
                         >
                           <Plus size={16} />
                         </button>
@@ -223,7 +223,7 @@ export default function ShoppingListPage() {
                           type="button"
                           onClick={() => void remove(item)}
                           aria-label={`Quitar ${item.name} de la lista`}
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest-400 hover:text-red-300 ${focusRing}`}
+                          className={`relative hit-area flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest-400 hover:text-red-300 ${focusRing}`}
                         >
                           <Trash2 size={16} />
                         </button>
