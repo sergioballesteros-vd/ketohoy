@@ -27,7 +27,7 @@ export default function Navigation() {
   return (
     <nav
       aria-label="Principal"
-      className="fixed right-0 bottom-0 left-0 z-40 border-t border-forest-700 bg-forest-900/95 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-md"
+      className="tab-bar fixed right-0 bottom-0 left-0 z-40 border-t border-forest-700 bg-forest-900/95 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-md"
     >
       <div className={`mx-auto flex px-0 pt-1 min-[360px]:px-1 ${pageWidthClass(pathname)}`}>
         {navItems.map(({ href, label, Icon }) => {
@@ -41,7 +41,7 @@ export default function Navigation() {
                 active ? 'text-[#c7f23a]' : 'text-forest-300 hover:text-forest-50'
               }`}
             >
-              {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-b-full bg-[#a3e635]" />}
+              {active && <span className="tick absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-b-full bg-[#a3e635]" />}
               <Icon size={19} />
               <span className="text-[11px] font-medium tracking-tight">{label}</span>
             </Link>

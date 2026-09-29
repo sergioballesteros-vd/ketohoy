@@ -124,8 +124,10 @@ a[class*='rounded-']:active {
 .enter { animation: enter var(--duration-normal) var(--ease-out) backwards; }
 .tick { animation: fade-in var(--duration-fast) var(--ease-out) backwards; }
 .pop { animation: pop var(--duration-fast) var(--ease-out) backwards; }
-/* Route change (app/template.tsx): opacity only, the tab bar lives outside it. */
-.page-in { animation: fade-in var(--duration-fast) linear backwards; }
+/* Route change (template.tsx, React ViewTransition): short cross-fade, tab bar excluded. */
+::view-transition-group(root) { animation-duration: var(--duration-normal); animation-timing-function: var(--ease-out); }
+.tab-bar { view-transition-name: tab-bar; }
+::view-transition-group(tab-bar) { animation-duration: 0s; }
 /* Leaving row: it is removed from state right after (see useLeaving). */
 .leaving { opacity: 0; transform: translateX(-8px); transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in); pointer-events: none; }
 
@@ -173,10 +175,11 @@ a[class*='rounded-']:active {
 .hero-in { animation: enter var(--duration-slow) var(--ease-out) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .enter, .tick, .pop, .hero-in, .strike, .reveal, .page-in, .sheet-overlay, .sheet-panel { animation: none !important; }
+  .enter, .tick, .pop, .hero-in, .strike, .reveal, .sheet-overlay, .sheet-panel { animation: none !important; }
   button:not(:disabled):active, a[class*='rounded-']:active { transform: none; }
   .card-lift:hover, .card-lift:hover .card-img { transform: none; }
   .leaving, .toast[data-open='false'] { transform: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* Invisible 44px-minimum touch target centred on the element; its visual size is unchanged.

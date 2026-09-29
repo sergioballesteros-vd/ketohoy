@@ -61,7 +61,7 @@ export default function RecipeCard({
   };
 
   return (
-    <li className="card-lift min-w-0">
+    <li className="enter card-lift min-w-0">
       <div className="card-media relative aspect-[4/3] overflow-hidden rounded-2xl bg-forest-800">
         {recipe.imageUrl ? (
           <Image
