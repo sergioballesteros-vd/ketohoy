@@ -9,3 +9,18 @@ export function ketoLabel(score: number): { label: string; tone: KetoTone; hint:
   if (score >= 2) return { label: 'Dudoso', tone: 'ok', hint: `Puntuación keto ${score} de 5: puede llevar azúcares ocultos` }
   return { label: 'No keto', tone: 'bad', hint: `Puntuación keto ${score} de 5: alto en carbohidratos` }
 }
+
+export type NutritionSource = 'openfoodfacts' | 'manual' | 'category' | string
+
+/**
+ * Plain-language explanation of where a product's keto score comes from.
+ * Honest about the estimate: without nutrition data the score only reflects the product category.
+ */
+export function ketoExplanation(score: number, source: NutritionSource, netCarbs?: number | null): string {
+  const scale = `Puntuación ${score} de 5.`
+  if (source === 'openfoodfacts' && netCarbs != null)
+    return `${scale} Calculada con los carbohidratos netos (${netCarbs.toLocaleString('es-ES', { maximumFractionDigits: 1 })} g por 100 g) de Open Food Facts. Los datos pueden tener errores; revisa la etiqueta.`
+  if (source === 'manual' && netCarbs != null)
+    return `${scale} Valor de referencia (${netCarbs.toLocaleString('es-ES', { maximumFractionDigits: 1 })} g de carbohidratos netos por 100 g), no medido en este producto concreto.`
+  return `${scale} Estimación según el tipo de producto, sin datos nutricionales: puede haber azúcares o harinas añadidos. Revisa la etiqueta.`
+}

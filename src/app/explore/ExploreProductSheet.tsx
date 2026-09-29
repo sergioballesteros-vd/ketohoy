@@ -4,8 +4,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { Heart, Minus, Plus, ShoppingBasket } from 'lucide-react'
 import type { MercadonaProduct } from '@/lib/mercadona'
-import { ketoLabel } from '@/lib/ketoLabel'
-import { KetoBadge, focusRing } from '@/components/ui'
+import { KetoBadge, KetoNote, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
 import { apiFetch } from '@/lib/apiFetch'
 
@@ -24,7 +23,6 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
   const [detail, setDetail] = useState<{ ingredients?: string; allergens?: string } | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
-  const { hint } = ketoLabel(product.ketoScore)
 
   useEffect(() => {
     let cancelled = false
@@ -122,12 +120,14 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
             </span>
             {product.referencePrice && <span className="text-sm text-forest-300">{product.referencePrice}</span>}
           </p>
-          <div className="mt-1.5" title={hint}>
+          <div className="mt-1.5">
             <KetoBadge score={product.ketoScore} />
           </div>
         </div>
       </div>
-      <p className="mt-3 text-xs text-forest-400">{hint}. Estimación según el tipo de producto, no un dato nutricional exacto.</p>
+      <div className="mt-3">
+        <KetoNote score={product.ketoScore} source="category" />
+      </div>
 
       {(detail?.ingredients || detail?.allergens) && (
         <div className="mt-5 divide-y divide-forest-800 border-t border-forest-800">

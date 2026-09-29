@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ketoLabel, type KetoTone } from '@/lib/ketoLabel'
+import { ketoExplanation, ketoLabel, type KetoTone } from '@/lib/ketoLabel'
 
 // Shared visual primitives (dark green + lime). Lime = primary action, selection, success.
 // Everything else is neutral forest tones; red only for "not keto".
@@ -54,6 +54,11 @@ export function ToneLabel({ tone, label, title }: { tone: KetoTone; label: strin
 export function KetoBadge({ score }: { score: number }) {
   const { label, tone, hint } = ketoLabel(score)
   return <ToneLabel tone={tone} label={label} title={hint} />
+}
+
+/** Visible (not tooltip-only, so it works on touch) explanation of how the keto label was obtained. */
+export function KetoNote({ score, source, netCarbs }: { score: number; source: string; netCarbs?: number | null }) {
+  return <p className="text-xs text-forest-400">{ketoExplanation(score, source, netCarbs)}</p>
 }
 
 export function Skeleton({ className = '' }: { className?: string }) {

@@ -114,11 +114,11 @@ async function main() {
       if (existing) {
         return prisma.product.update({
           where: { id: existing.id },
-          data: { ...data, source: 'mercadona' },
+          data: { ...data, source: 'mercadona', nutritionSource: 'manual' },
         })
       }
 
-      return prisma.product.create({ data: { ...data, source: 'mercadona' } })
+      return prisma.product.create({ data: { ...data, source: 'mercadona', nutritionSource: 'manual' } })
     })
   )
 

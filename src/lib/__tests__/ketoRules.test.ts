@@ -53,6 +53,26 @@ describe('isNonKetoByName', () => {
   })
 })
 
+describe('isNonKetoByName battery', () => {
+  it.each([
+    'Pan de molde', 'PAN RALLADO', 'Panes de hamburguesa', 'Pasta integral', 'Pastas frescas', 'Macarrones', 'Arroz basmati',
+    'Arroz redondo', 'Patatas fritas', 'Chips de patata', 'Azúcar blanco', 'Bollería surtida', 'Cereales de desayuno',
+    'Zumo de naranja', 'Refresco de cola', 'Lentejas cocidas', 'Garbanzos', 'Alubias blancas', 'Harina de trigo',
+    'Galletas María', 'Bizcocho de yogur', 'Tarta de queso', 'Pizza margarita',
+  ])('flags %s', name => expect(isNonKetoByName(name)).toBe(true))
+
+  it.each([
+    'Panceta ahumada', 'Champán brut', 'Campana extractora', 'Espárragos verdes', 'Pechuga de pollo',
+    'Queso curado', 'Salsa tártara', 'Tartar de salmón', 'Harina de almendras', 'Harina de coco',
+    'Yogur natural sin azúcar', 'Mermelada sin azúcares añadidos', 'Refresco Zero', 'Cerealista', 'Patatera',
+    'Aguacate', 'Huevos camperos',
+  ])('does not flag %s', name => expect(isNonKetoByName(name)).toBe(false))
+
+  it('still flags a carb staple that only contains an exception elsewhere', () => {
+    expect(isNonKetoByName('Pan de molde y harina de almendras')).toBe(true)
+  })
+})
+
 describe('productMatchesPreferences', () => {
   it('returns false for fish when avoidFish is true', () => {
     expect(

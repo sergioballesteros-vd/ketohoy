@@ -20,16 +20,28 @@ export function ketoScoreByCategory(category: ProductCategory): number {
   return scores[category] ?? 2
 }
 
-// Check if product name suggests non-keto item
+// Whole-word matches (accents and case ignored), never substrings: "pan" must not match
+// "panceta" or "champán". Each entry is a regex source for one carb staple.
+const NON_KETO_WORDS = [
+  'pan(es)?', 'pastas?', 'arroc?e?s?', 'arroz', 'patatas?', 'azucar(es)?', 'bolleria', 'cereal(es)?', 'zumos?',
+  'refrescos?', 'legumbres?', 'lentejas?', 'garbanzos?', 'alubias?', 'harinas?', 'galletas?', 'bizcochos?',
+  'tartas?', 'pizzas?', 'macarrones',
+].map(w => new RegExp(`(?:^|[^a-z])${w}(?![a-z])`))
+
+// Phrases that cancel a match: flours from nuts/seeds, "sin azúcar", zero-sugar sodas.
+const KETO_EXCEPTIONS = [
+  /harinas? de (almendras?|coco|lino|avellanas?|cacahuetes?|semillas?)/g,
+  /sin (azucar(es)?|azucares anadidos)/g,
+  /refrescos? (zero|cero|light|sin calorias)/g,
+]
+
+const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+// Check if product name suggests a carb staple. Name heuristic only: a false negative just leaves
+// the category/nutrition score in charge.
 export function isNonKetoByName(name: string): boolean {
-  const lower = name.toLowerCase()
-  const nonKetoTerms = [
-    'pan', 'pasta', 'arroz', 'patata', 'azúcar', 'azucar',
-    'bollería', 'bolleria', 'cereal', 'zumo', 'refresco',
-    'legumbre', 'lenteja', 'garbanzo', 'alubia', 'harina',
-    'galleta', 'bizcocho', 'tarta', 'pizza', 'macarron',
-  ]
-  return nonKetoTerms.some(term => lower.includes(term))
+  const text = KETO_EXCEPTIONS.reduce((t, re) => t.replace(re, ' '), normalize(name))
+  return NON_KETO_WORDS.some(re => re.test(text))
 }
 
 // Shared term lists for dietary restrictions (used for products and recipe ingredients)

@@ -30,7 +30,10 @@ model Product {
   mercadonaId     String?  @unique
   category        String // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
   ketoScore       Int      @default(3) // 0-5
-  netCarbsPer100g Float?
+  netCarbsPer100g Float? // carbs - fiber (when fiber is unknown, fiber counts as 0)
+  carbsPer100g    Float?
+  fiberPer100g    Float?
+  nutritionSource String   @default("category") // openfoodfacts, manual, category (no nutrition data: score is a category estimate)
   proteinPer100g  Float?
   fatPer100g      Float?
   caloriesPer100g Float?

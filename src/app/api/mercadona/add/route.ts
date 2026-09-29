@@ -70,17 +70,24 @@ export const POST = withErrorHandling(async (request: Request) => {
     ketoScore = 0
   }
 
-  // 4. Upsert product
+  // 4. Upsert product. netCarbsPer100g is really net (carbs - fiber); the source records whether
+  // the score came from measured data or is only a category estimate.
+  const nutritionFields = {
+    netCarbsPer100g: netCarbs,
+    carbsPer100g: carbs,
+    fiberPer100g: fiber,
+    fatPer100g: fat,
+    proteinPer100g: protein,
+    caloriesPer100g: calories,
+    nutritionSource: carbs != null ? 'openfoodfacts' : 'category',
+  }
   let product = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
   if (product) {
     product = await db.product.update({
       where: { id: product.id },
       data: {
         ketoScore,
-        netCarbsPer100g: carbs,
-        fatPer100g: fat,
-        proteinPer100g: protein,
-        caloriesPer100g: calories,
+        ...nutritionFields,
         unitPrice: merc.unitPrice,
         imageUrl: merc.imageUrl,
       },
@@ -94,10 +101,7 @@ export const POST = withErrorHandling(async (request: Request) => {
         mercadonaId: String(mercadonaId),
         category: merc.category,
         ketoScore,
-        netCarbsPer100g: carbs,
-        fatPer100g: fat,
-        proteinPer100g: protein,
-        caloriesPer100g: calories,
+        ...nutritionFields,
         unitPrice: merc.unitPrice,
         imageUrl: merc.imageUrl,
         tags: '[]',

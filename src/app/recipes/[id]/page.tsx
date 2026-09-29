@@ -121,6 +121,12 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
         )}
       </p>
       {recipe.description && <p className="mt-3 text-[15px] leading-relaxed text-forest-100">{recipe.description}</p>}
+      <p className="mt-2 text-xs text-forest-400">
+        {keto.label === 'Keto'
+          ? 'Keto: receta pensada con ingredientes bajos en carbohidratos.'
+          : 'Flexible: admite algún ingrediente con más carbohidratos.'}{' '}
+        Es una clasificación de la receta, no un cálculo de macros por ración.
+      </p>
 
       <section className="mt-6" aria-labelledby="ingredients-title">
         <div className="flex items-baseline justify-between gap-3">

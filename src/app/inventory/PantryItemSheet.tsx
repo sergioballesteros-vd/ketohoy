@@ -3,8 +3,7 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { Loader2, ShoppingBasket, Trash2 } from 'lucide-react'
-import { ketoLabel } from '@/lib/ketoLabel'
-import { KetoBadge, focusRing } from '@/components/ui'
+import { KetoBadge, KetoNote, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
 import { apiFetch } from '@/lib/apiFetch'
 
@@ -17,6 +16,7 @@ export type PantryProduct = {
   unitPrice: number | null
   imageUrl: string | null
   netCarbsPer100g: number | null
+  nutritionSource: string
   fatPer100g: number | null
   proteinPer100g: number | null
   caloriesPer100g: number | null
@@ -51,7 +51,6 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [detail, setDetail] = useState<{ ingredients?: string; allergens?: string } | null>(null)
-  const { hint } = ketoLabel(p.ketoScore)
 
   useEffect(() => {
     if (!p.mercadonaId) return
@@ -71,7 +70,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
   const dirty = nextQty !== item.quantity || nextUnit !== item.unit
 
   const macros = [
-    ['Carbos', p.netCarbsPer100g, 'g'],
+    ['Carbos netos', p.netCarbsPer100g, 'g'],
     ['Grasa', p.fatPer100g, 'g'],
     ['Proteína', p.proteinPer100g, 'g'],
   ] as const
@@ -155,7 +154,9 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
       </div>
       {invalid && <p className="mt-1 text-xs text-red-300">La cantidad debe ser mayor que 0 (o vacía).</p>}
 
-      <p className="mt-4 text-xs text-forest-400">{hint}. Estimación según el tipo de producto.</p>
+      <div className="mt-4">
+        <KetoNote score={p.ketoScore} source={p.nutritionSource} netCarbs={p.netCarbsPer100g} />
+      </div>
 
       {(hasMacros || detail?.ingredients || detail?.allergens || !p.mercadonaId) && (
         <div className="mt-4 divide-y divide-forest-800 border-t border-forest-800">
