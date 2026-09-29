@@ -61,15 +61,15 @@ export default function RecipeCard({
   };
 
   return (
-    <li className="min-w-0">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-forest-800">
+    <li className="card-lift min-w-0">
+      <div className="card-media relative aspect-[4/3] overflow-hidden rounded-2xl bg-forest-800">
         {recipe.imageUrl ? (
           <Image
             src={recipe.imageUrl}
             alt=""
             fill
             sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"
-            className="object-cover"
+            className="card-img object-cover"
           />
         ) : (
           <ChefHat

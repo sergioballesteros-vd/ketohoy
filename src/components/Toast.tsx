@@ -14,17 +14,31 @@ const actionClass = `rounded-lg px-2 py-1 font-bold text-[#a3e635] hover:bg-fore
  */
 export function useToast(): { toast: ReactNode; show: (message: string, action?: ToastAction) => void } {
   const [state, setState] = useState<ToastState | null>(null)
+  const [open, setOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const show = useCallback((message: string, action?: ToastAction) => {
-    if (timer.current) clearTimeout(timer.current)
-    setState({ message, action })
-    timer.current = setTimeout(() => setState(null), action ? 6000 : 3000)
+  // Hide = play the exit transition, then drop the content (so the next message is announced again).
+  const hide = useCallback(() => {
+    setOpen(false)
+    clearTimer.current = setTimeout(() => setState(null), 200)
   }, [])
+
+  const show = useCallback(
+    (message: string, action?: ToastAction) => {
+      if (timer.current) clearTimeout(timer.current)
+      if (clearTimer.current) clearTimeout(clearTimer.current)
+      setState({ message, action })
+      setOpen(true)
+      timer.current = setTimeout(hide, action ? 6000 : 3000)
+    },
+    [hide]
+  )
 
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current)
+      if (clearTimer.current) clearTimeout(clearTimer.current)
     },
     []
   )
@@ -37,11 +51,11 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex justify-center px-4"
     >
-      {state && (
       <div
-        className="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-forest-700 py-2.5 pr-2 pl-4 text-sm text-forest-50 shadow-lg"
+        data-open={open}
+        className="toast pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-forest-700 py-2.5 pr-2 pl-4 text-sm text-forest-50 shadow-lg"
       >
-        <span>{state.message}</span>
+        {state && <span>{state.message}</span>}
         {action && 'href' in action && (
           <a href={action.href} className={actionClass}>
             {action.label}
@@ -52,7 +66,8 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
             type="button"
             onClick={() => {
               action.run()
-              setState(null)
+              if (timer.current) clearTimeout(timer.current)
+              hide()
             }}
             className={actionClass}
           >
@@ -60,7 +75,6 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
           </button>
         )}
       </div>
-      )}
     </div>
   )
 

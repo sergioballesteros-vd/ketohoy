@@ -53,6 +53,7 @@ export default function WeeklyPlanPage() {
   const [generating, setGenerating] = useState(false)
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [swapping, setSwapping] = useState<WeeklyMeal | null>(null)
+  const [replacingId, setReplacingId] = useState<string | null>(null) // row waiting for a server-picked recipe
   const [added, setAdded] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
   const { toast, show } = useToast()
@@ -106,6 +107,7 @@ export default function WeeklyPlanPage() {
 
   const swap = async (meal: WeeklyMeal, picked?: { recipe: PlanRecipe; missing: number; total: number }) => {
     setSwapping(null)
+    if (!picked) setReplacingId(meal.id)
     if (picked) {
       // optimistic: the row changes immediately, the server answer replaces it
       setPlan(p =>
@@ -128,6 +130,7 @@ export default function WeeklyPlanPage() {
       show(err instanceof Error ? err.message : 'No se pudo cambiar la receta')
     }
     await fetchPlan()
+    setReplacingId(null)
   }
 
   const addMissing = async (recipeId: string) => {
@@ -225,7 +228,7 @@ export default function WeeklyPlanPage() {
           </div>
         )
       ) : (
-        <div className={`mt-2 lg:grid lg:grid-cols-3 lg:gap-x-10 ${generating ? 'opacity-50' : ''}`} aria-busy={generating}>
+        <div className={`mt-2 lg:grid lg:grid-cols-3 lg:gap-x-10 transition-opacity duration-200 ${generating ? 'opacity-60' : ''}`} aria-busy={generating}>
           {DAYS.map((day, dayIndex) => (
             <section key={day} id={`day-${dayIndex}`} className="scroll-mt-40 pt-4 lg:scroll-mt-4" aria-label={day}>
               <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-forest-300 uppercase">
@@ -240,10 +243,10 @@ export default function WeeklyPlanPage() {
                   const recipe = meal?.recipe
                   const av = availabilityText(meal?.availability ?? null)
                   return (
-                    <li key={type} className="flex min-h-[4.5rem] items-center gap-1 py-2">
+                    <li key={type} className={`flex min-h-[4.5rem] items-center gap-1 py-2 transition-opacity duration-150 ${replacingId === meal?.id ? 'opacity-60' : ''}`}>
                       {meal && recipe ? (
                         <>
-                          <Link href={`/recipes/${recipe.id}`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg ${focusRing}`}>
+                          <Link key={recipe.id} href={`/recipes/${recipe.id}`} className={`enter flex min-w-0 flex-1 items-center gap-3 rounded-lg ${focusRing}`}>
                             <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-forest-800 max-[359px]:h-12 max-[359px]:w-12">
                               {recipe.imageUrl ? (
                                 <Image src={recipe.imageUrl} alt="" fill sizes="56px" className="object-cover" />

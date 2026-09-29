@@ -332,15 +332,15 @@ export default function ExplorePage() {
                 const busy = !!pending[product.mercadonaId]
                 const fav = !!favoriteProductIds[product.id]
                 return (
-                  <li key={product.id}>
-                    <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
+                  <li key={product.id} className="card-lift">
+                    <div className="card-media relative aspect-square overflow-hidden rounded-2xl bg-white">
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
                           alt=""
                           fill
                           sizes="(min-width: 640px) 200px, 50vw"
-                          className="object-cover"
+                          className="card-img object-cover"
                         />
                       ) : (
                         <ShoppingBasket className="absolute inset-0 m-auto text-forest-500" size={32} strokeWidth={1.5} />
@@ -384,7 +384,7 @@ export default function ExplorePage() {
                           >
                             <Minus size={16} strokeWidth={2.5} />
                           </button>
-                          <span className="min-w-4 text-center text-sm font-bold" aria-live="polite">{qty}</span>
+                          <span className="min-w-4 text-center text-sm font-bold" aria-live="polite"><span key={qty} className="tick inline-block">{qty}</span></span>
                           <button
                             type="button"
                             disabled={busy}

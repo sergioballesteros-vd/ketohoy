@@ -30,6 +30,7 @@ async function loadShoppingListItems(): Promise<ShoppingItem[]> {
   return Array.isArray(data) ? data : []
 }
 
+const LEAVE_MS = 140
 const isNumeric = (q: string | null) => q != null && q.trim() !== '' && Number.isFinite(Number(q))
 
 export default function ShoppingListPage() {
@@ -37,6 +38,7 @@ export default function ShoppingListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState<null | 'search' | 'manual'>(null)
+  const [leaving, setLeaving] = useState<Set<string>>(new Set())
   const { toast, show } = useToast()
 
   const refresh = useCallback(async () => {
@@ -63,6 +65,13 @@ export default function ShoppingListPage() {
   const owned: Record<string, number> = {}
   for (const i of pending) if (i.product?.mercadonaId) owned[i.product.mercadonaId] = parseShoppingQuantity(i.quantity, 1)
 
+  // Plays the exit (opacity/transform) before the row leaves the list; the request is not delayed.
+  const leave = async (id: string) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    setLeaving(s => new Set(s).add(id))
+    await new Promise(r => setTimeout(r, LEAVE_MS))
+  }
+
   const request = async (url: string, init?: RequestInit) => {
     const res = await apiFetch(url, init)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -82,9 +91,11 @@ export default function ShoppingListPage() {
 
   const change = async (item: ShoppingItem, delta: number) => {
     const next = parseShoppingQuantity(item.quantity, 1) + delta
+    const req = request(`/api/shopping-list/${item.id}/quantity`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ delta }) })
+    if (next <= 0) await leave(item.id)
     setItems(list => (next <= 0 ? list.filter(i => i.id !== item.id) : list.map(i => (i.id === item.id ? { ...i, quantity: String(next) } : i))))
     try {
-      await request(`/api/shopping-list/${item.id}/quantity`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ delta }) })
+      await req
       if (next <= 0) undoable(item)
     } catch {
       show('No se pudo cambiar la cantidad')
@@ -93,9 +104,11 @@ export default function ShoppingListPage() {
   }
 
   const remove = async (item: ShoppingItem) => {
+    const req = request(`/api/shopping-list/${item.id}`, { method: 'DELETE' })
+    await leave(item.id)
     setItems(list => list.filter(i => i.id !== item.id))
     try {
-      await request(`/api/shopping-list/${item.id}`, { method: 'DELETE' })
+      await req
       undoable(item)
     } catch {
       show('No se pudo eliminar el producto')
@@ -134,8 +147,8 @@ export default function ShoppingListPage() {
         <div>
           <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Lista de compra</h1>
           <p className="mt-0.5 text-sm text-forest-300">
-            {loading ? ' ' : `${pending.length} ${pluralize(pending.length, 'pendiente', 'pendientes')}`}
-            {total > 0 && <span> · {euros(total)}</span>}
+            {loading ? ' ' : <span key={pending.length} className="tick inline-block">{`${pending.length} ${pluralize(pending.length, 'pendiente', 'pendientes')}`}</span>}
+            {total > 0 && <span> · <span key={total} className="tick inline-block">{euros(total)}</span></span>}
           </p>
         </div>
         <button
@@ -170,7 +183,7 @@ export default function ShoppingListPage() {
                 const qty = parseShoppingQuantity(item.quantity, 1)
                 const price = item.product?.unitPrice
                 return (
-                  <li key={item.id} className="flex min-h-16 items-center gap-2 py-1.5">
+                  <li key={item.id} className={`enter flex min-h-16 items-center gap-2 py-1.5 ${leaving.has(item.id) ? 'leaving' : ''}`}>
                     <button
                       type="button"
                       onClick={() => void toggle(item)}
@@ -205,7 +218,7 @@ export default function ShoppingListPage() {
                           {qty <= 1 ? <Trash2 size={16} className="text-red-300" /> : <Minus size={16} />}
                         </button>
                         <span className="min-w-5 text-center text-sm font-bold text-forest-50" aria-live="polite">
-                          {item.quantity}
+                          <span key={item.quantity} className="tick inline-block">{item.quantity}</span>
                         </span>
                         <button
                           type="button"
@@ -283,18 +296,18 @@ export default function ShoppingListPage() {
               </div>
               <ul className="divide-y divide-forest-800">
                 {bought.map(item => (
-                  <li key={item.id} className="flex min-h-14 items-center gap-2 py-1">
+                  <li key={item.id} className="enter flex min-h-14 items-center gap-2 py-1">
                     <button
                       type="button"
                       onClick={() => void toggle(item)}
                       aria-label={`Devolver ${item.name} a la lista`}
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${focusRing}`}
                     >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#a3e635] text-forest-950">
+                      <span className="pop flex h-6 w-6 items-center justify-center rounded-full bg-[#a3e635] text-forest-950">
                         <Check size={14} strokeWidth={3} />
                       </span>
                     </button>
-                    <span className="min-w-0 flex-1 truncate text-[15px] text-forest-300 line-through">{item.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] text-forest-300"><span className="strike">{item.name}</span></span>
                     {item.quantity && <span className="shrink-0 text-sm text-forest-400">×{item.quantity}</span>}
                   </li>
                 ))}
