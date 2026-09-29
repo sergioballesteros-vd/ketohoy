@@ -23,7 +23,7 @@ export const GET = withErrorHandling(
   const queries = CATEGORY_QUERIES[name]
   if (!queries) throw new ApiError('Unknown category', 400)
 
-  const results = await Promise.all(queries.map(q => searchMercadonaProducts(q)))
+  const results = await Promise.all(queries.map(q => searchMercadonaProducts(q, 30)))
   const seen = new Set<string>()
   const products = results.flat().filter(p => {
     if (!productMatchesMercadonaCategory(p, name as ProductCategory)) return false
@@ -32,6 +32,6 @@ export const GET = withErrorHandling(
     return true
   })
 
-  return NextResponse.json({ products, category: name })
+  return NextResponse.json({ products: products.slice(0, 60), category: name })
   }
 )

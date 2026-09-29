@@ -1,9 +1,5 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { ketoScoreByCategory } from '@/lib/ketoRules'
 import type { ProductCategory } from '@/lib/ketoRules'
-
-const execFileAsync = promisify(execFile)
 
 export type MercadonaProduct = {
   id: string
@@ -158,39 +154,85 @@ export const DEMO_MERCADONA_PRODUCTS: MercadonaProduct[] = [
   },
 ]
 
-let _cliAvailable: boolean | null = null
+const API = 'https://tienda.mercadona.es/api'
+// Top-level category ids of tienda.mercadona.es (GET /api/categories) that can hold
+// keto-relevant food (crawled two levels deep): fruta y verdura, pescado, carne, charcutería y quesos,
+// huevos/leche, café/infusiones, aceite/especias/salsas, conservas, aperitivos, agua.
+const CATALOG_CATEGORY_IDS = [1, 2, 3, 4, 6, 8, 12, 14, 15, 18]
+const CATALOG_TTL_MS = 12 * 60 * 60 * 1000
 
-async function isMercadonaCliAvailable(): Promise<boolean> {
-  if (_cliAvailable !== null) return _cliAvailable
-  try {
-    await execFileAsync('mercadona', ['--version'], { timeout: 3000 })
-    _cliAvailable = true
-  } catch {
-    _cliAvailable = false
-    console.warn(
-      '[mercadona] CLI not found on PATH — falling back to demo product catalog. ' +
-        'See README.md "Producto Mercadona" for install instructions.'
-    )
-  }
-  return _cliAvailable
+async function fetchJson(path: string): Promise<unknown> {
+  const res = await fetch(`${API}${path}${path.includes('?') ? '&' : '?'}lang=es&wh=mad1`, {
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!res.ok) throw new Error(`Mercadona API ${res.status} for ${path}`)
+  return res.json()
 }
 
-export async function searchMercadonaProducts(query: string): Promise<MercadonaProduct[]> {
-  const available = await isMercadonaCliAvailable()
-  if (!available) return searchDemoMercadonaProducts(query)
+let catalogCache: { at: number; hits: RawHit[] } | null = null
+let catalogInflight: Promise<RawHit[]> | null = null
 
+// ponytail: in-memory catalog index per process (~50 requests once per 12h) instead of
+// a DB table or a search service; move it to the DB if the app ever runs multi-instance.
+async function loadCatalog(): Promise<RawHit[]> {
+  if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL_MS) return catalogCache.hits
+  catalogInflight ??= (async () => {
+    // Products hang off subcategories: /categories → top-level → sub ids → /categories/{sub}.
+    const tree = (await fetchJson('/categories/')) as { results: Array<{ id: number; name: string; categories: Array<{ id: number; name: string }> }> }
+    const subs = tree.results
+      .filter(top => CATALOG_CATEGORY_IDS.includes(top.id))
+      .flatMap(top => top.categories.map(sub => ({ top: top.name, id: sub.id, name: sub.name })))
+    const byId = new Map<string, RawHit>()
+    for (let i = 0; i < subs.length; i += 8) {
+      const batch = await Promise.allSettled(
+        subs.slice(i, i + 8).map(async sub => ({ sub, res: (await fetchJson(`/categories/${sub.id}/`)) as CategoryResponse }))
+      )
+      for (const r of batch) {
+        if (r.status !== 'fulfilled') continue
+        const { sub, res } = r.value
+        for (const leaf of res.categories ?? []) {
+          for (const p of leaf.products ?? []) {
+            // Rewrite categories so normalize() maps on the specific sub/leaf names.
+            byId.set(String(p.id), { ...p, categories: [{ name: sub.top, categories: [{ name: `${sub.name} ${leaf.name}` }] }] })
+          }
+        }
+      }
+    }
+    if (byId.size === 0) throw new Error('Mercadona catalog unavailable')
+    catalogCache = { at: Date.now(), hits: [...byId.values()] }
+    return catalogCache.hits
+  })().finally(() => { catalogInflight = null })
+  return catalogInflight
+}
+
+type CategoryResponse = { name: string; categories?: Array<{ name: string; products?: RawHit[] }> }
+
+// "huevos" ↔ "huevo", "aceites" ↔ "aceite", "limones" ↔ "limon"
+const stem = (w: string) => (w.length > 3 ? w.replace(/(es|s)$/, '') : w)
+
+export function searchCatalog(hits: RawHit[], query: string, limit: number): RawHit[] {
+  const tokens = normalizeText(query).split(/\s+/).filter(Boolean).map(stem)
+  if (tokens.length === 0) return []
+  const scored: Array<{ hit: RawHit; score: number }> = []
+  for (const hit of hits) {
+    const name = normalizeText(hit.display_name ?? '')
+    const sub = normalizeText(hit.categories?.[0]?.categories?.[0]?.name ?? '')
+    if (!tokens.every(t => name.includes(t) || sub.includes(t))) continue
+    // Name hits beat category-only hits; earlier match and shorter names rank higher.
+    const nameIdx = Math.min(...tokens.map(t => (name.includes(t) ? name.indexOf(t) : 999)))
+    scored.push({ hit, score: nameIdx * 2 + name.length / 100 })
+  }
+  return scored.sort((a, b) => a.score - b.score).slice(0, limit).map(s => s.hit)
+}
+
+export async function searchMercadonaProducts(query: string, limit = 12): Promise<MercadonaProduct[]> {
   try {
-    const { stdout } = await execFileAsync(
-      'mercadona',
-      ['search', '--limit', '10', '--json', query],
-      { timeout: 10000 }
-    )
-    const raw = JSON.parse(stdout)
-    // CLI returns { query, nbHits, hits: [...] }
-    const hits = Array.isArray(raw.hits) ? raw.hits : Array.isArray(raw) ? raw : []
-    const products = normalizeMercadonaProducts(hits)
-    return products.length > 0 ? products : searchDemoMercadonaProducts(query)
-  } catch {
+    const products = normalizeMercadonaProducts(searchCatalog(await loadCatalog(), query, limit))
+    if (products.length > 0) return products
+    // Real catalog loaded but nothing matched: don't show demo items for a real search.
+    return []
+  } catch (err) {
+    console.warn('[mercadona] API unavailable, using demo catalog:', err instanceof Error ? err.message : err)
     return searchDemoMercadonaProducts(query)
   }
 }
@@ -201,24 +243,20 @@ export async function searchMercadonaProductsByQueries(queries: string[]): Promi
 }
 
 export async function getMercadonaProduct(id: string): Promise<MercadonaProduct | null> {
-  const available = await isMercadonaCliAvailable()
-  if (!available) return getDemoMercadonaProduct(id)
-
+  const numericId = id.startsWith('mercadona_') ? id.slice('mercadona_'.length) : id
   try {
-    const { stdout } = await execFileAsync(
-      'mercadona',
-      ['product', id, '--json'],
-      { timeout: 10000 }
-    )
-    const raw = JSON.parse(stdout)
-    const [product] = normalizeMercadonaProducts([raw])
+    const detail = (await fetchJson(`/products/${encodeURIComponent(numericId)}/`)) as RawHit
+    const fromCatalog = (await loadCatalog().catch(() => [])).find(p => String(p.id) === numericId)
+    const [product] = normalizeMercadonaProducts([
+      { ...detail, categories: fromCatalog?.categories ?? detail.categories },
+    ])
     return product ?? getDemoMercadonaProduct(id)
   } catch {
     return getDemoMercadonaProduct(id)
   }
 }
 
-type RawHit = {
+export type RawHit = {
   id?: string | number
   ean?: string
   display_name?: string
@@ -235,7 +273,7 @@ type RawHit = {
   }
 }
 
-function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
+export function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
   return raw
     .filter((item): item is RawHit => typeof item === 'object' && item !== null)
     .map(item => {
@@ -246,7 +284,10 @@ function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
       const topCategory = item.categories?.[0]
       const midCategory = topCategory?.categories?.[0]
       const categoryName = midCategory?.name ?? topCategory?.name ?? ''
-      const mappedCategory = mapMercadonaCategory(categoryName) as ProductCategory
+      // Category names first; fall back to the product name (e.g. "Salmón ahumado" sits under "Salazones").
+      const mappedCategory = (mapMercadonaCategory(categoryName) !== 'other'
+        ? mapMercadonaCategory(categoryName)
+        : mapMercadonaCategory(item.display_name ?? '')) as ProductCategory
 
       // Strip HTML tags from ingredients/allergens
       const stripHtml = (s?: string) => s?.replace(/<[^>]+>/g, '') ?? undefined
@@ -260,7 +301,7 @@ function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
         category: mappedCategory,
         ketoScore: ketoScoreByCategory(mappedCategory),
         unitPrice: price != null ? parseFloat(String(price)) : null,
-        referencePrice: refPrice != null ? `${refPrice}€/${refFormat ?? 'u'}` : null,
+        referencePrice: refPrice != null ? `${formatEuros(refPrice)}/${refFormat ?? 'ud'}` : null,
         imageUrl: item.thumbnail ?? null,
         tags: '[]',
         ean: item.ean ?? undefined,
@@ -270,15 +311,22 @@ function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
     })
 }
 
+// Mercadona sends prices as strings with 3 decimals ("3.500"); show "3,50 €" like the demo data.
+function formatEuros(value: string | number): string {
+  const n = parseFloat(String(value))
+  return Number.isFinite(n) ? `${n.toFixed(2).replace('.', ',')} €` : `${value} €`
+}
+
 function mapMercadonaCategory(raw: string): string {
   const lower = normalizeText(raw)
-  if (lower.includes('carne') || lower.includes('pollo') || lower.includes('pavo') || lower.includes('ternera') || lower.includes('cerdo')) return 'meat'
+  if (lower.includes('carne') || lower.includes('pollo') || lower.includes('pavo') || lower.includes('ternera') || lower.includes('cerdo') || lower.includes('bacon') || lower.includes('jamon') || lower.includes('embutido') || lower.includes('salchicha') || lower.includes('chorizo')) return 'meat'
   if (lower.includes('pescado') || lower.includes('marisco') || lower.includes('atun') || lower.includes('salmon') || lower.includes('bacalao')) return 'fish'
   if (lower.includes('huevo')) return 'eggs'
-  if (lower.includes('lacteo') || lower.includes('queso') || lower.includes('yogur') || lower.includes('leche')) return 'dairy'
+  if (lower.includes('lacteo') || lower.includes('queso') || lower.includes('yogur') || lower.includes('leche') || lower.includes('mantequilla') || lower.includes('nata')) return 'dairy'
+  if (lower.includes('frutos secos') || lower.includes('fruto seco') || lower.includes('nuez') || lower.includes('almendra') || lower.includes('avellana')) return 'nuts'
   if (lower.includes('fruta') || lower.includes('manzana') || lower.includes('pera') || lower.includes('platano') || lower.includes('fresa') || lower.includes('frambuesa') || lower.includes('arandano')) return 'fruit'
   if (lower.includes('verdura') || lower.includes('hortaliza')) return 'vegetables'
-  if (lower.includes('fruto seco') || lower.includes('nuez') || lower.includes('almendra') || lower.includes('avellana')) return 'nuts'
+  if (lower.includes('frutos secos') || lower.includes('fruto seco') || lower.includes('nuez') || lower.includes('almendra') || lower.includes('avellana')) return 'nuts'
   if (lower.includes('aceite') || lower.includes('vinagre')) return 'oils'
   if (lower.includes('salsa') || lower.includes('condimento') || lower.includes('aderezo')) return 'sauces'
   if (lower.includes('bebida') || lower.includes('agua') || lower.includes('zumo') || lower.includes('refresco')) return 'drinks'

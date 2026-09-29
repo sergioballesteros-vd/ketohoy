@@ -61,13 +61,12 @@ npx prisma db seed
 npm run dev
 ```
 
-### Producto Mercadona (opcional)
+### Catálogo Mercadona
 
-`src/lib/mercadona.ts` usa el CLI externo `mercadona` (no es una dependencia
-npm) para buscar productos reales. Si no está instalado, la app cae
-automáticamente a un catálogo demo local — verás un aviso en consola. No es
-necesario para desarrollar; instálalo solo si necesitas datos reales de
-Mercadona.
+`src/lib/mercadona.ts` lee el catálogo público de `tienda.mercadona.es` (sin
+claves ni CLI): indexa en memoria las categorías relevantes para keto al primer
+uso (~50 peticiones, refresco cada 12 h) y busca en local. Si Mercadona no
+responde, cae a un catálogo demo de 8 productos y lo avisa en consola.
 
 ## 🗄️ Backup y restore de producción
 

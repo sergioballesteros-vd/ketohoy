@@ -13,8 +13,12 @@
 
 const buckets = new Map<string, { count: number; resetAt: number }>()
 
+// Buckets are per route family (e.g. /api/auth, /api/mercadona) so browsing the
+// catalog can't exhaust the login/register allowance, and vice versa.
 function clientKey(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const scope = new URL(request.url).pathname.split('/').slice(0, 3).join('/')
+  return `${scope}|${ip}`
 }
 
 /** Fixed-window rate limit. Returns whether the request is allowed. */

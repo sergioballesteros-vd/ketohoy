@@ -345,7 +345,7 @@ export default function ExplorePage() {
             <div className="flex items-center gap-2">
               <Sparkles size={20} className="text-[#a3e635]" />
               <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-                1. Explorar productos
+                Explorar productos
               </h2>
             </div>
             <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
@@ -494,7 +494,7 @@ export default function ExplorePage() {
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-              2. Detalle del producto
+              Detalle del producto
             </h2>
             <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
               Elige la cantidad que necesitas
@@ -646,7 +646,7 @@ export default function ExplorePage() {
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-              3. Tu lista de compra
+              Tu lista de compra
             </h2>
             <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
               Revisa y ajusta las cantidades

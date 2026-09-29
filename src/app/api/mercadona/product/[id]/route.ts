@@ -13,7 +13,7 @@ export const GET = withErrorHandling(
     const product = await getMercadonaProduct(id)
 
     if (!product) {
-      throw new ApiError('Not found or Mercadona CLI unavailable', 404)
+      throw new ApiError('Product not found', 404)
     }
     return NextResponse.json(product)
   }
