@@ -1,22 +1,18 @@
-// ponytail: in-memory per-process limiter — this app runs a single PM2
-// instance with no reverse proxy in front, so a shared store (Redis) or
-// per-instance-safe IP detection would be over-building for a single-user
-// app. Upgrade to a real IP source + shared store if this goes multi-instance.
+// ponytail: in-memory per-process limiter — one PM2 instance, so a shared store (Redis) would be
+// over-building. Upgrade to a shared store if this ever runs on several instances.
 //
-// Known limitation: the deploy topology (deploy.yml) exposes PM2 directly on
-// port 3000 with no trusted reverse proxy in front, so `x-forwarded-for` is
-// entirely client-controlled — anyone can bypass this limiter by sending a
-// different fake value per request. This is a courtesy throttle against
-// accidental request storms (e.g. a buggy retry loop), NOT a defense against
-// a deliberate abuser. Real protection requires a trusted proxy (nginx/
-// Cloudflare) that sets/strips this header before it reaches the app.
+// Client IP: production runs behind Caddy (scripts/provision.sh), which overwrites X-Forwarded-For
+// with the real peer address, and the app only listens on 127.0.0.1 — nothing else can reach it.
+// We still read the LAST entry: that is the one appended by the nearest trusted proxy, whereas the
+// first entries are whatever the client sent. Do not expose the app port directly (see
+// docs/deployment-proxy.md): without the proxy this header is client-controlled.
 
 const buckets = new Map<string, { count: number; resetAt: number }>()
 
 // Buckets are per route family (e.g. /api/auth, /api/mercadona) so browsing the
 // catalog can't exhaust the login/register allowance, and vice versa.
 function clientKey(request: Request, name?: string): string {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'unknown'
   const scope = name ?? new URL(request.url).pathname.split('/').slice(0, 3).join('/')
   return `${scope}|${ip}`
 }
@@ -28,6 +24,8 @@ export function rateLimit(
 ): { ok: true } | { ok: false; retryAfterSeconds: number } {
   const key = clientKey(request, name)
   const now = Date.now()
+  // Keep the map bounded: drop expired windows once it grows (a flood of distinct keys can't leak memory).
+  if (buckets.size > 5000) for (const [k, b] of buckets) if (b.resetAt <= now) buckets.delete(k)
   const bucket = buckets.get(key)
 
   if (!bucket || bucket.resetAt <= now) {

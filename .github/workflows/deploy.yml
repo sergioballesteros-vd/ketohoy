@@ -36,7 +36,7 @@ jobs:
               "$TMP_DIR"/ "$DEPLOY_PATH"/
             cd "$DEPLOY_PATH"
             printf '%s\n' "$DEPLOY_SHA" > .deploy-sha
-            printf 'DATABASE_URL=file:./dev.db\nCOOKIE_SECURE=true\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
+            printf 'DATABASE_URL=file:./dev.db\nCOOKIE_SECURE=true\nAPP_URL=https://%s\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.APP_DOMAIN }}" "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
             export DATABASE_URL="file:./dev.db"
             npm ci --include=dev --no-audit --no-fund
             # Requires `sqlite3` on the deploy host (apt install sqlite3 on
@@ -102,3 +102,5 @@ jobs:
             curl -fsSI --retry 5 --retry-delay 3 --max-time 20 \
               "https://${{ secrets.APP_DOMAIN }}/login" | tee /tmp/login-public.headers
             head -1 /tmp/login-public.headers | grep -q ' 200'
+            grep -qi '^content-security-policy:' /tmp/login-public.headers
+            grep -qi '^strict-transport-security:' /tmp/login-public.headers

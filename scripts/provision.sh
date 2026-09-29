@@ -37,7 +37,10 @@ fi
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
 	encode gzip
-	reverse_proxy 127.0.0.1:3000
+	# Overwrite (never append to) X-Forwarded-For with the real peer: the app's rate limiter trusts it.
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 CADDY
 systemctl enable --now caddy && systemctl reload caddy

@@ -31,8 +31,8 @@ export async function createSession(userId: string): Promise<void> {
   ;(await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    // ponytail: set COOKIE_SECURE=true once the site is served over HTTPS
-    // (a Secure cookie is dropped by browsers on plain http).
+    // Secure cookies are dropped by browsers on plain http, so this stays opt-in:
+    // COOKIE_SECURE=true in production (deploy.yml sets it), unset for local http.
     secure: process.env.COOKIE_SECURE === 'true',
     path: '/',
     expires: expiresAt,
