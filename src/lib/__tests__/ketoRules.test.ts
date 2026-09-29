@@ -78,3 +78,15 @@ describe('productMatchesPreferences', () => {
     ).toBe(true)
   })
 })
+
+describe('productMatchesPreferences shellfish/pork variants', () => {
+  const prefs = (o: object) => ({ avoidFish: false, avoidPork: false, avoidDairy: false, ...o })
+  it('avoidFish excludes molluscs', () => {
+    for (const n of ['Sepia a la plancha', 'Mejillones', 'Almejas', 'Pulpo']) {
+      expect(productMatchesPreferences(n, 'other', prefs({ avoidFish: true }))).toBe(false)
+    }
+  })
+  it('avoidPork excludes panceta', () => {
+    expect(productMatchesPreferences('Panceta', 'other', prefs({ avoidPork: true }))).toBe(false)
+  })
+})

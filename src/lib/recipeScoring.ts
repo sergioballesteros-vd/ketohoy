@@ -1,4 +1,5 @@
 import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
+import { FISH_TERMS, PORK_TERMS, DAIRY_TERMS } from '@/lib/ketoRules'
 
 export type RecipeWithIngredients = {
   id: string
@@ -90,13 +91,9 @@ export function scoreRecipe(
 
     // Check avoided ingredients
     const { avoidFish, avoidPork, avoidDairy } = preferences
-    const fishTerms = ['salmón', 'salmon', 'atún', 'atun', 'merluza', 'sardina', 'gamba', 'pescado']
-    const porkTerms = ['bacon', 'jamón', 'jamon', 'chorizo', 'salchicha', 'lomo de cerdo']
-    const dairyTerms = ['queso', 'nata', 'mantequilla', 'yogur', 'leche', 'mozzarella']
-
-    if (avoidFish && fishTerms.some(t => ingLower.includes(t))) return null
-    if (avoidPork && porkTerms.some(t => ingLower.includes(t))) return null
-    if (avoidDairy && dairyTerms.some(t => ingLower.includes(t))) return null
+    if (avoidFish && FISH_TERMS.some(t => ingLower.includes(t))) return null
+    if (avoidPork && PORK_TERMS.some(t => ingLower.includes(t))) return null
+    if (avoidDairy && DAIRY_TERMS.some(t => ingLower.includes(t))) return null
 
     if (inPantryById || inPantryByName) {
       available.push(ing.name)
