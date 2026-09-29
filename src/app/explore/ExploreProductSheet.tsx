@@ -7,6 +7,7 @@ import type { MercadonaProduct } from '@/lib/mercadona'
 import { ketoLabel } from '@/lib/ketoLabel'
 import { KetoBadge, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 type Props = {
   product: MercadonaProduct
@@ -27,7 +28,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/mercadona/product/${product.mercadonaId}`)
+    apiFetch(`/api/mercadona/product/${product.mercadonaId}`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => !cancelled && setDetail(d))
       .catch(() => {})

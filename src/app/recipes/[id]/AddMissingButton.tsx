@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Check, ListPlus, Loader2 } from 'lucide-react'
 import { focusRing } from '@/components/ui'
+import { apiFetch } from '@/lib/apiFetch'
 
 export default function AddMissingButton({ recipeId, allInPantry }: { recipeId: string; allInPantry: boolean }) {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'nothing' | 'error'>('idle')
@@ -10,7 +11,7 @@ export default function AddMissingButton({ recipeId, allInPantry }: { recipeId: 
   const add = async () => {
     setState('busy')
     try {
-      const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+      const res = await apiFetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setState(data.added > 0 ? 'done' : 'nothing')

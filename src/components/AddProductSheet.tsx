@@ -7,6 +7,7 @@ import type { MercadonaProduct } from '@/lib/mercadona'
 import { CATEGORIES } from '@/lib/categories'
 import { Chip, KetoBadge, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 type Props = {
   /** where added products go: the pantry or the shopping list */
@@ -61,7 +62,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
     const t = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await ok(await fetch(`/api/mercadona/search?q=${encodeURIComponent(q)}`))
+        const res = await ok(await apiFetch(`/api/mercadona/search?q=${encodeURIComponent(q)}`))
         const data = await res.json()
         if (!cancelled) {
           setResults(data.products ?? [])
@@ -98,7 +99,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
     setError(null)
     try {
       await ok(
-        await fetch('/api/mercadona/add', {
+        await apiFetch('/api/mercadona/add', {
           method: 'POST',
           headers: JSON_HEADERS,
           body: JSON.stringify(
@@ -127,11 +128,11 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
       // Manual products are real products (with a category) in both flows, so they land in the right
       // pantry group when bought from the list.
       const product = await (
-        await ok(await fetch('/api/products', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ name: clean, category, source: 'manual' }) }))
+        await ok(await apiFetch('/api/products', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ name: clean, category, source: 'manual' }) }))
       ).json()
       if (target === 'pantry') {
         await ok(
-          await fetch('/api/pantry', {
+          await apiFetch('/api/pantry', {
             method: 'POST',
             headers: JSON_HEADERS,
             body: JSON.stringify({ productId: product.id, quantity: quantity && quantity > 0 ? quantity : null, unit: unit !== 'ud' ? unit : null }),
@@ -139,7 +140,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
         )
       } else {
         await ok(
-          await fetch('/api/shopping-list', {
+          await apiFetch('/api/shopping-list', {
             method: 'POST',
             headers: JSON_HEADERS,
             body: JSON.stringify({ name: clean, productId: product.id, quantity: quantity && quantity > 0 ? quantity : 1 }),

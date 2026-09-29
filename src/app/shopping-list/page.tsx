@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast'
 import { Skeleton, focusRing } from '@/components/ui'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
 import { pluralize } from '@/lib/pluralize'
+import { apiFetch } from '@/lib/apiFetch'
 
 type ShoppingItem = {
   id: string
@@ -23,7 +24,7 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const euros = (n: number) => `${n.toFixed(2).replace('.', ',')} €`
 
 async function loadShoppingListItems(): Promise<ShoppingItem[]> {
-  const res = await fetch('/api/shopping-list')
+  const res = await apiFetch('/api/shopping-list')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : []
@@ -63,7 +64,7 @@ export default function ShoppingListPage() {
   for (const i of pending) if (i.product?.mercadonaId) owned[i.product.mercadonaId] = parseShoppingQuantity(i.quantity, 1)
 
   const request = async (url: string, init?: RequestInit) => {
-    const res = await fetch(url, init)
+    const res = await apiFetch(url, init)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
   }
 
@@ -108,7 +109,7 @@ export default function ShoppingListPage() {
       label: 'Deshacer',
       run: () =>
         void (async () => {
-          await fetch('/api/shopping-list', {
+          await apiFetch('/api/shopping-list', {
             method: 'POST',
             headers: JSON_HEADERS,
             body: JSON.stringify({ name: item.name, quantity: item.quantity ?? 1, productId: item.productId, reason: item.reason }),

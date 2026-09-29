@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Beef, Check, ChevronLeft, Fish, Leaf, Loader2, LogOut, Milk, Salad, Scale } from 'lucide-react'
 import type { KetoMode } from '@/lib/recipeScoring'
 import { Skeleton, focusRing } from '@/components/ui'
+import { apiFetch } from '@/lib/apiFetch'
 
 type Preferences = {
   id: string
@@ -48,7 +49,7 @@ export default function PreferencesPage() {
     setSaved(false)
     setError(null)
     try {
-      const res = await fetch('/api/preferences', {
+      const res = await apiFetch('/api/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs),
@@ -199,7 +200,7 @@ export default function PreferencesPage() {
         type="button"
         onClick={async () => {
           await fetch('/api/auth/logout', { method: 'POST' })
-          window.location.href = '/login'
+          window.location.replace('/login')
         }}
         className={`mx-auto mt-8 flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-forest-300 hover:text-forest-50 ${focusRing}`}
       >

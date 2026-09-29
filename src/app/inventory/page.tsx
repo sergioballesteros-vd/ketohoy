@@ -8,11 +8,12 @@ import { KetoBadge, Skeleton, focusRing } from '@/components/ui'
 import { CATEGORIES, categoryOf } from '@/lib/categories'
 import { productosCount } from '@/lib/pluralize'
 import PantryItemSheet, { type PantryRow } from './PantryItemSheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
 async function loadPantryItems(): Promise<PantryRow[]> {
-  const res = await fetch('/api/pantry')
+  const res = await apiFetch('/api/pantry')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : []
@@ -62,14 +63,14 @@ export default function InventoryPage() {
   }, [items])
 
   const save = async (item: PantryRow, quantity: number | null, unit: string | null) => {
-    const res = await fetch(`/api/pantry/${item.id}`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ quantity, unit }) })
+    const res = await apiFetch(`/api/pantry/${item.id}`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ quantity, unit }) })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     await refresh()
   }
 
   // Removing is instant but reversible: the toast re-creates the row with the same quantity.
   const remove = async (item: PantryRow) => {
-    const res = await fetch(`/api/pantry/${item.id}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/pantry/${item.id}`, { method: 'DELETE' })
     if (!res.ok) {
       show('No se pudo quitar el producto')
       return
@@ -79,7 +80,7 @@ export default function InventoryPage() {
       label: 'Deshacer',
       run: () =>
         void (async () => {
-          await fetch('/api/pantry', {
+          await apiFetch('/api/pantry', {
             method: 'POST',
             headers: JSON_HEADERS,
             body: JSON.stringify({ productId: item.productId, quantity: item.quantity, unit: item.unit }),

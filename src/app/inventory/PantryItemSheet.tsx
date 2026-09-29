@@ -6,6 +6,7 @@ import { Loader2, ShoppingBasket, Trash2 } from 'lucide-react'
 import { ketoLabel } from '@/lib/ketoLabel'
 import { KetoBadge, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 export type PantryProduct = {
   id: string
@@ -55,7 +56,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
   useEffect(() => {
     if (!p.mercadonaId) return
     let cancelled = false
-    fetch(`/api/mercadona/product/${p.mercadonaId}`)
+    apiFetch(`/api/mercadona/product/${p.mercadonaId}`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => !cancelled && setDetail(d))
       .catch(() => {})

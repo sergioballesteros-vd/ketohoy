@@ -15,7 +15,8 @@ const patchPreferencesSchema = z.object({
   avoidFish: z.boolean().optional(),
   avoidPork: z.boolean().optional(),
   avoidDairy: z.boolean().optional(),
-  maxCookingMinutes: z.number().int().positive().optional(),
+  // same bounds as the slider on /preferences (5-60 min, step 5)
+  maxCookingMinutes: z.number().int().min(5).max(60).optional(),
 })
 
 // GET /api/preferences

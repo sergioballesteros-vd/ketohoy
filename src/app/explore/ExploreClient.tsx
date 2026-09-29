@@ -10,6 +10,7 @@ import { parseShoppingQuantity } from '@/lib/shoppingList'
 import { productosCount } from '@/lib/pluralize'
 import { Chip, KetoBadge, Skeleton, focusRing } from '@/components/ui'
 import ExploreProductSheet from './ExploreProductSheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 type ShoppingItem = {
   id: string
@@ -101,7 +102,7 @@ export default function ExplorePage() {
 
   const loadShoppingList = useCallback(async () => {
     try {
-      const res = await fetch('/api/shopping-list')
+      const res = await apiFetch('/api/shopping-list')
       const data = await res.json()
       setShoppingItems(Array.isArray(data) ? data : [])
     } catch (error) {
@@ -115,7 +116,7 @@ export default function ExplorePage() {
     setLoading(true)
     setLoadFailed(false)
     try {
-      const res = await fetch(url)
+      const res = await apiFetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setProducts(data.products ?? [])
@@ -201,7 +202,7 @@ export default function ExplorePage() {
     try {
       let res: Response
       if (delta > 0) {
-        res = await fetch('/api/mercadona/add', {
+        res = await apiFetch('/api/mercadona/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mercadonaId: key, addToShoppingList: true, quantity: delta }),
@@ -209,7 +210,7 @@ export default function ExplorePage() {
       } else {
         const row = inList[key]
         if (!row) return
-        res = await fetch(`/api/shopping-list/${row.id}/quantity`, {
+        res = await apiFetch(`/api/shopping-list/${row.id}/quantity`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ delta }),

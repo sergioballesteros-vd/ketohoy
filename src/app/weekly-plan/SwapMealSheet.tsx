@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { ChefHat, Clock, Loader2, Shuffle } from 'lucide-react'
 import Sheet from '@/components/Sheet'
 import { focusRing } from '@/components/ui'
+import { apiFetch } from '@/lib/apiFetch'
 
 export type PlanRecipe = {
   id: string
@@ -40,7 +41,7 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/recipes/suggestions?mealType=${mealType}&limit=30`)
+    apiFetch(`/api/recipes/suggestions?mealType=${mealType}&limit=30`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()

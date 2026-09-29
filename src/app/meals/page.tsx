@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Check, ChefHat, Coffee, Cookie, LayoutGrid, Moon, Sun, Zap } from 'lucide-react'
 import RecipeCard from '@/components/RecipeCard'
 import { Chip, Skeleton, focusRing } from '@/components/ui'
+import { apiFetch } from '@/lib/apiFetch'
 
 type Suggestion = {
   recipe: {
@@ -64,7 +65,7 @@ export default function MealsPage() {
         if (quickOnly) params.set('maxTime', '15')
         params.set('limit', String(limit))
 
-        const res = await fetch(`/api/recipes/suggestions?${params}`)
+        const res = await apiFetch(`/api/recipes/suggestions?${params}`)
         if (!res.ok) {
           throw new Error(`request failed: ${res.status}`)
         }
@@ -100,7 +101,7 @@ export default function MealsPage() {
   }, [mealType, onlyAvailable, quickOnly, limit, reloadKey])
 
   const handleAddMissingToCart = async (recipeId: string) => {
-    const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+    const res = await apiFetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
   }
 

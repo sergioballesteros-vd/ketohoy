@@ -7,6 +7,7 @@ import Sheet from '@/components/Sheet'
 import { useToast } from '@/components/Toast'
 import { Skeleton, focusRing } from '@/components/ui'
 import SwapMealSheet, { type PlanRecipe } from './SwapMealSheet'
+import { apiFetch } from '@/lib/apiFetch'
 
 type Availability = { missing: number; total: number }
 
@@ -59,7 +60,7 @@ export default function WeeklyPlanPage() {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const res = await fetch('/api/weekly-plan')
+      const res = await apiFetch('/api/weekly-plan')
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setPlan(await res.json())
       setError(null)
@@ -92,7 +93,7 @@ export default function WeeklyPlanPage() {
     setGenerating(true)
     setError(null)
     try {
-      const res = await fetch('/api/weekly-plan/generate', { method: 'POST' })
+      const res = await apiFetch('/api/weekly-plan/generate', { method: 'POST' })
       if (!res.ok) throw new Error(await readApiError(res, 'No se pudo generar el plan semanal'))
       await fetchPlan()
       show('Plan generado')
@@ -117,7 +118,7 @@ export default function WeeklyPlanPage() {
       )
     }
     try {
-      const res = await fetch(`/api/weekly-plan/${meal.id}`, {
+      const res = await apiFetch(`/api/weekly-plan/${meal.id}`, {
         method: 'PATCH',
         ...(picked && { headers: JSON_HEADERS, body: JSON.stringify({ recipeId: picked.recipe.id }) }),
       })
@@ -131,7 +132,7 @@ export default function WeeklyPlanPage() {
 
   const addMissing = async (recipeId: string) => {
     try {
-      const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+      const res = await apiFetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
       if (!res.ok) throw new Error()
       const { added: count = 0 } = await res.json()
       setAdded(a => ({ ...a, [recipeId]: true }))
