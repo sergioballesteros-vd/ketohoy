@@ -11,10 +11,10 @@ test('anonymous visitors are redirected to /login and API returns 401', async ({
 test('register via UI, see own empty data, log out, log back in', async ({ page }) => {
   const email = `ui-${Date.now()}@example.com`
   await page.goto('/login')
-  await page.getByRole('button', { name: /Regístrate/ }).click()
-  await page.getByPlaceholder('Email').fill(email)
-  await page.getByPlaceholder(/Contraseña/).fill('ui-password-123')
-  await page.getByRole('button', { name: 'Crear cuenta' }).click()
+  await page.getByRole('tab', { name: 'Crear cuenta' }).click()
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel(/^Contraseña/).fill('ui-password-123')
+  await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('en casa')).toBeVisible()
 
@@ -25,12 +25,12 @@ test('register via UI, see own empty data, log out, log back in', async ({ page 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/\/login$/)
 
-  await page.getByPlaceholder('Email').fill(email)
-  await page.getByPlaceholder('Contraseña').fill('wrong-password')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel(/^Contraseña/).fill('wrong-password')
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByText('Email o contraseña incorrectos')).toBeVisible()
 
-  await page.getByPlaceholder('Contraseña').fill('ui-password-123')
+  await page.getByLabel(/^Contraseña/).fill('ui-password-123')
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page).toHaveURL(/\/$/)
 })
