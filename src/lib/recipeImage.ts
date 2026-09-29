@@ -24,6 +24,9 @@ export async function ensureRecipeImage(
   currentImageUrl?: string | null
 ) {
   if (currentImageUrl) return currentImageUrl
+  // Fetching "the first Unsplash result" while a user browses would silently pick unreviewed photos.
+  // Off by default; images are completed on purpose with `npm run images:backfill`.
+  if (process.env.RECIPE_IMAGE_AUTOFETCH !== 'true') return null
 
   const pending = inFlightImageFetches.get(id)
   if (pending) return pending

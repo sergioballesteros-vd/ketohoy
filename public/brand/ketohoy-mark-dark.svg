@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="KetoHoy">
+  <g fill="none" stroke="#0C1A0D" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <!-- left contour -->
+    <path d="M70 30
+             C53 37 42 52 36 69
+             C28 91 29 116 41 137
+             C51 155 68 164 84 164" />
+    <!-- right contour -->
+    <path d="M113 40
+             C126 55 134 76 135 98
+             C136 122 126 145 108 156
+             C101 160 93 163 84 164" />
+  </g>
+
+  <!-- leaf -->
+  <path d="M67 30
+           C75 12 97 8 116 18
+           C108 36 88 42 67 30Z"
+        fill="#0C1A0D"/>
+
+  <!-- seed -->
+  <ellipse cx="82" cy="111" rx="24" ry="27" fill="#0C1A0D"/>
+  <ellipse cx="82" cy="111" rx="6" ry="6.5" fill="#F7F5ED"/>
+</svg>

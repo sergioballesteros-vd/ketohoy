@@ -40,6 +40,13 @@ export const POST = withErrorHandling(async (request: Request) => {
     if (existing) return NextResponse.json(existing)
   }
 
+  // Manual products are deduplicated by name+category so adding "Sal" twice reuses one product
+  // (the shopping list merges rows by productId).
+  if (!mercadonaId && (source ?? 'manual') === 'manual') {
+    const existing = await db.product.findFirst({ where: { source: 'manual', name, category } })
+    if (existing) return NextResponse.json(existing)
+  }
+
   const product = await db.product.create({
     data: {
       name,

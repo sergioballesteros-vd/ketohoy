@@ -16,7 +16,7 @@ test('register via UI, see own empty data, log out, log back in', async ({ page 
   await page.getByLabel(/^Contraseña/).fill('ui-password-123')
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByText('en casa')).toBeVisible()
+  await expect(page.getByText('Añade lo que tienes')).toBeVisible()
 
   // A fresh account starts with an empty pantry and shopping list.
   expect(await (await page.request.get('/api/pantry')).json()).toEqual([])

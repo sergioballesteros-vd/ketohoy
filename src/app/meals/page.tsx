@@ -1,8 +1,9 @@
 'use client'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import MealTypeTabs from '@/components/MealTypeTabs'
+import { Check, ChefHat, Coffee, Cookie, LayoutGrid, Moon, Sun, Zap } from 'lucide-react'
 import RecipeCard from '@/components/RecipeCard'
-import { ZapIcon, CheckIcon } from '@/components/icons'
+import { Chip, Skeleton, focusRing } from '@/components/ui'
 
 type Suggestion = {
   recipe: {
@@ -12,6 +13,7 @@ type Suggestion = {
     difficulty: string
     ketoLevel: string
     mealTypes: string
+    imageUrl?: string | null
   }
   score: number
   availableIngredients: string[]
@@ -27,6 +29,16 @@ type SuggestionsResponse =
       hasMore: boolean
     }
 
+const MEAL_TYPES = [
+  { value: '', label: 'Todas', Icon: LayoutGrid },
+  { value: 'breakfast', label: 'Desayuno', Icon: Coffee },
+  { value: 'lunch', label: 'Comida', Icon: Sun },
+  { value: 'dinner', label: 'Cena', Icon: Moon },
+  { value: 'snack', label: 'Snack', Icon: Cookie },
+]
+
+const GRID = 'grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4'
+
 export default function MealsPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [total, setTotal] = useState(0)
@@ -37,6 +49,7 @@ export default function MealsPage() {
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [quickOnly, setQuickOnly] = useState(false)
   const [limit, setLimit] = useState(40)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -84,129 +97,143 @@ export default function MealsPage() {
     return () => {
       cancelled = true
     }
-  }, [mealType, onlyAvailable, quickOnly, limit])
+  }, [mealType, onlyAvailable, quickOnly, limit, reloadKey])
 
   const handleAddMissingToCart = async (recipeId: string) => {
-    await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+    const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
   }
 
+  const hasFilters = !!mealType || onlyAvailable || quickOnly
+  const clearFilters = () => {
+    setMealType('')
+    setOnlyAvailable(false)
+    setQuickOnly(false)
+    setLimit(40)
+  }
+  // Nothing in the pantry matches any recipe ingredient: availability can't say anything useful yet.
+  const pantryUnused = suggestions.length > 0 && suggestions.every(s => s.availableIngredients.length === 0)
+
   return (
-    <main className="px-4 pt-4 pb-28">
-      <div className="pt-2 pb-4">
-        <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
-          Ideas de comida
-        </h1>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="text-sm" style={{ color: error ? '#ef4444' : '#547856' }}>
-            {error ? error : loading ? 'Buscando...' : `${suggestions.length} de ${total} recetas`}
+    <main className="min-h-screen px-4">
+      <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h1 className="text-2xl font-bold text-forest-50">Recetas</h1>
+          <p className={`text-xs ${error ? 'text-red-300' : 'text-forest-300'}`} aria-live="polite">
+            {error ?? (loading ? 'Buscando…' : `${suggestions.length} de ${total}`)}
           </p>
-          {!loading && suggestions.length > 0 && (
+        </div>
+
+        <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+          {MEAL_TYPES.map(({ value, label, Icon }) => (
+            <Chip key={value} active={mealType === value} onClick={() => setMealType(value)}>
+              <Icon size={15} /> {label}
+            </Chip>
+          ))}
+        </div>
+        <div className="hide-scrollbar -mx-4 mt-2 flex items-center gap-2 overflow-x-auto px-4">
+          <Chip active={onlyAvailable} onClick={() => setOnlyAvailable(v => !v)}>
+            <Check size={15} /> Con lo que tengo
+          </Chip>
+          <Chip active={quickOnly} onClick={() => setQuickOnly(v => !v)}>
+            <Zap size={15} /> Menos de 15 min
+          </Chip>
+          {hasFilters && (
             <button
-              onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
-              className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
-              style={{ background: '#142514', color: '#a3e635', border: '1px solid #1c321d' }}
+              type="button"
+              onClick={clearFilters}
+              className={`h-9 shrink-0 rounded-full px-2 text-[13px] font-semibold whitespace-nowrap text-[#a3e635] ${focusRing}`}
             >
-              Ver más
+              Limpiar
             </button>
           )}
         </div>
       </div>
 
-      <div className="mb-4">
-        <MealTypeTabs value={mealType} onChange={setMealType} />
-      </div>
-
-      {/* Filters */}
-      <div className="mb-5 rounded-2xl border border-forest-700 bg-forest-800/80 p-2">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setQuickOnly(!quickOnly)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
-            style={quickOnly
-              ? { background: '#a3e635', color: '#060e07' }
-              : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
-            }
-          >
-            <ZapIcon size={13} /> &lt;15 min
-          </button>
-          <button
-            onClick={() => setOnlyAvailable(!onlyAvailable)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
-            style={onlyAvailable
-              ? { background: '#a3e635', color: '#060e07' }
-              : { background: '#142514', color: '#547856', border: '1px solid #1c321d' }
-            }
-          >
-            <CheckIcon size={13} /> Solo con lo que tengo
-          </button>
-          <button
-            onClick={() => {
-              setMealType('')
-              setOnlyAvailable(false)
-              setQuickOnly(false)
-              setLimit(40)
-            }}
-            className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
-            style={{ background: '#0f1a10', color: '#86a888', border: '1px solid #1c321d' }}
-          >
-            Limpiar filtros
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div
-              key={i}
-              className="rounded-2xl h-40 animate-pulse"
-              style={{ background: '#142514' }}
-            />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-red-900/60 bg-red-950/40 text-center py-16">
-          <p className="font-semibold text-red-200">No se pudieron cargar las recetas</p>
-          <p className="text-sm mt-1" style={{ color: '#fca5a5' }}>Revisa la conexión e inténtalo de nuevo.</p>
-        </div>
-      ) : suggestions.length === 0 ? (
-        <div className="rounded-2xl border border-forest-700 bg-forest-800/70 text-center py-16">
-          <p className="text-5xl mb-4">🥗</p>
-          {onlyAvailable ? (
-            <>
-              <p className="font-semibold" style={{ color: '#7a9e7c' }}>No tienes ingredientes para ninguna receta</p>
-              <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Añade productos a tu despensa</p>
-            </>
-          ) : (
-            <>
-              <p className="font-semibold" style={{ color: '#7a9e7c' }}>Sin recetas con estos filtros</p>
-              <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Prueba quitando algún filtro</p>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {suggestions.map(s => (
-            <RecipeCard
-              key={s.recipe.id}
-              {...s}
-              onAddMissingToCart={
-                s.missingIngredients.length > 0
-                  ? () => handleAddMissingToCart(s.recipe.id)
-                  : undefined
-              }
-            />
-          ))}
-          {hasMore && limit < 100 && (
+      <section className="mt-2">
+        {loading ? (
+          <div className={GRID} aria-busy="true">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i}>
+                <Skeleton className="aspect-[4/3]" />
+                <Skeleton className="mt-2 h-4 w-3/4 rounded-md" />
+                <Skeleton className="mt-1.5 h-3 w-1/2 rounded-md" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center">
+            <ChefHat size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+            <p className="font-medium text-forest-50">{error}</p>
+            <p className="mt-1 text-sm text-forest-300">Revisa la conexión e inténtalo de nuevo.</p>
             <button
-              onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
-              className="w-full rounded-2xl border border-forest-700 bg-forest-800/70 py-3 text-sm font-semibold text-forest-200 transition-colors"
+              type="button"
+              onClick={() => setReloadKey(k => k + 1)}
+              className={`mt-3 rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}
             >
-              Cargar 20 más
+              Reintentar
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        ) : suggestions.length === 0 ? (
+          <div className="py-16 text-center">
+            <ChefHat size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+            {onlyAvailable ? (
+              <>
+                <p className="font-medium text-forest-50">No tienes ingredientes para ninguna receta</p>
+                <p className="mt-1 text-sm text-forest-300">Añade productos a tu despensa o quita el filtro.</p>
+                <Link href="/inventory" className={`mt-3 inline-block rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
+                  Ir a la despensa
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-forest-50">Sin recetas con estos filtros</p>
+                <p className="mt-1 text-sm text-forest-300">Prueba quitando alguno.</p>
+                {hasFilters && (
+                  <button type="button" onClick={clearFilters} className={`mt-3 rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
+                    Limpiar filtros
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            {pantryUnused && (
+              <p className="mb-3 text-sm text-forest-300">
+                Tu despensa aún no coincide con ninguna receta.{' '}
+                <Link href="/inventory" className={`font-semibold text-[#a3e635] underline-offset-2 hover:underline ${focusRing}`}>
+                  Añade lo que tienes
+                </Link>{' '}
+                para ver cuáles puedes cocinar ya.
+              </p>
+            )}
+            <ul className={GRID}>
+              {suggestions.map(s => (
+                <RecipeCard
+                  key={s.recipe.id}
+                  recipe={s.recipe}
+                  availableIngredients={s.availableIngredients}
+                  missingIngredients={s.missingIngredients}
+                  hideReady={onlyAvailable}
+                  onAddMissingToCart={
+                    s.missingIngredients.length > 0 ? () => handleAddMissingToCart(s.recipe.id) : undefined
+                  }
+                />
+              ))}
+            </ul>
+            {hasMore && limit < 100 && (
+              <button
+                type="button"
+                onClick={() => setLimit(prev => Math.min(prev + 20, 100))}
+                className={`mx-auto mt-6 block rounded-full bg-forest-800 px-5 py-2.5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+              >
+                Ver 20 más
+              </button>
+            )}
+          </>
+        )}
+      </section>
     </main>
   )
 }

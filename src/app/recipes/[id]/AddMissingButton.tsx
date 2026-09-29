@@ -1,38 +1,54 @@
 'use client'
+import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Check, ListPlus, Loader2 } from 'lucide-react'
+import { focusRing } from '@/components/ui'
 
-export default function AddMissingButton({ recipeId }: { recipeId: string }) {
-  const [loading, setLoading] = useState(false)
-  const [doneMessage, setDoneMessage] = useState<string | null>(null)
-  const router = useRouter()
+export default function AddMissingButton({ recipeId, allInPantry }: { recipeId: string; allInPantry: boolean }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'nothing' | 'error'>('idle')
 
-  const handleClick = async () => {
-    setLoading(true)
-    const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
-    const data = await res.json()
-    setLoading(false)
-    if (data.added > 0) {
-      setDoneMessage('✓ Ingredientes añadidos a la lista de compra')
-      setTimeout(() => router.push('/shopping-list'), 1000)
-    } else {
-      setDoneMessage('✓ Ya tienes todos los ingredientes')
+  const add = async () => {
+    setState('busy')
+    try {
+      const res = await fetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setState(data.added > 0 ? 'done' : 'nothing')
+    } catch {
+      setState('error')
     }
   }
 
-  if (doneMessage) return (
-    <div className="text-center text-green-400 py-4">
-      {doneMessage}
-    </div>
-  )
+  if (state === 'done' || state === 'nothing') {
+    return (
+      <p role="status" className="flex items-center justify-center gap-2 py-3 text-sm font-semibold text-[#a3e635]">
+        <Check size={16} strokeWidth={3} />
+        {state === 'done' ? 'Ingredientes añadidos a tu lista.' : 'Ya tienes todo lo necesario.'}
+        {state === 'done' && (
+          <Link href="/shopping-list" className={`rounded underline underline-offset-2 ${focusRing}`}>
+            Ver lista
+          </Link>
+        )}
+      </p>
+    )
+  }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className="w-full bg-orange-700 hover:bg-orange-600 disabled:opacity-50 rounded-xl py-3 text-sm font-medium transition-colors"
-    >
-      {loading ? 'Añadiendo...' : '🛒 Añadir ingredientes faltantes a la compra'}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => void add()}
+        disabled={state === 'busy' || allInPantry}
+        className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#a3e635] font-bold text-forest-950 disabled:opacity-50 ${focusRing}`}
+      >
+        {state === 'busy' ? <Loader2 size={18} className="animate-spin" /> : <ListPlus size={18} />}
+        {allInPantry ? 'Tienes todos los ingredientes' : 'Añadir lo que falta a la lista'}
+      </button>
+      {state === 'error' && (
+        <p role="alert" className="mt-2 text-center text-sm text-red-300">
+          No se pudo añadir. Inténtalo de nuevo.
+        </p>
+      )}
+    </>
   )
 }

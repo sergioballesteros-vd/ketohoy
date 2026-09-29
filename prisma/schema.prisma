@@ -102,6 +102,9 @@ model ShoppingListItem {
   updatedAt DateTime @updatedAt
   userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // What buying this item did to the pantry, so un-buying reverses exactly that (null = not bought / bought before tracking).
+  pantryDelta   Float?
+  pantryCreated Boolean @default(false) // true if that purchase created the pantry row
 
   @@index([userId])
 }

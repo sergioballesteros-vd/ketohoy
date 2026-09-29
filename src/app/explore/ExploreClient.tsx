@@ -2,11 +2,14 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCallback, useEffect, useState } from 'react'
-import { Apple, Beef, Carrot, ChevronRight, CupSoda, Egg, Ellipsis, Fish, Heart, Milk, Minus, Nut, Plus, Search, Sparkles, UtensilsCrossed, Droplets, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Heart, LayoutGrid, Minus, Plus, Search, ShoppingBasket, X } from 'lucide-react'
+import { CATEGORIES } from '@/lib/categories'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
 import { productosCount } from '@/lib/pluralize'
+import { Chip, KetoBadge, Skeleton, focusRing } from '@/components/ui'
+import ExploreProductSheet from './ExploreProductSheet'
 
 type ShoppingItem = {
   id: string
@@ -22,20 +25,6 @@ type ShoppingItem = {
     category: string
   } | null
 }
-
-const CATEGORIES = [
-  { key: 'meat', label: 'Carne', icon: Beef },
-  { key: 'fish', label: 'Pescado', icon: Fish },
-  { key: 'eggs', label: 'Huevos', icon: Egg },
-  { key: 'dairy', label: 'Lácteos', icon: Milk },
-  { key: 'vegetables', label: 'Verduras', icon: Carrot },
-  { key: 'fruit', label: 'Fruta', icon: Apple },
-  { key: 'nuts', label: 'Frutos secos', icon: Nut },
-  { key: 'oils', label: 'Aceites', icon: Droplets },
-  { key: 'sauces', label: 'Salsas', icon: UtensilsCrossed },
-  { key: 'drinks', label: 'Bebidas', icon: CupSoda },
-  { key: 'other', label: 'Otros', icon: Ellipsis },
-]
 
 const SUBCATEGORIES: Record<string, { key: string; label: string; terms: string[] }[]> = {
   meat: [
@@ -71,16 +60,25 @@ const matchesSubcategory = (product: MercadonaResult, subcategoryKey: string) =>
   return subcategory.terms.some(term => haystack.includes(normalizeText(term)))
 }
 
+
+// Every product comes from Mercadona, so that name carries no information on a card.
+const showBrand = (brand?: string | null) => !!brand && brand.toLowerCase() !== 'mercadona'
+
+const euros = (n: number) => `${n.toFixed(2).replace('.', ',')} €`
+
 export default function ExplorePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<MercadonaResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([])
-  const [shoppingLoading, setShoppingLoading] = useState(true)
   const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
-  const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({})
+  // Quantity shown right after a tap, before the server confirms; `pending` locks that product meanwhile.
+  const [optimistic, setOptimistic] = useState<Record<string, number>>({})
+  const [pending, setPending] = useState<Record<string, boolean>>({})
+  const [cartError, setCartError] = useState<string | null>(null)
   // Persisted to localStorage (device-local, no backend model yet) so favorites
   // survive a reload — full cross-device sync is tracked as follow-up work.
   const [favoriteProductIds, setFavoriteProductIds] = useState<Record<string, boolean>>(() => {
@@ -109,69 +107,51 @@ export default function ExplorePage() {
     } catch (error) {
       console.error('[ExploreClient] failed to load shopping list', error)
       setShoppingItems([])
-    } finally {
-      setShoppingLoading(false)
     }
   }, [])
 
-  const loadTrending = useCallback(async () => {
+  // One loader for trending / category / search: same state handling, different URL.
+  const fetchProducts = useCallback(async (url: string) => {
     setLoading(true)
+    setLoadFailed(false)
     try {
-      const res = await fetch('/api/mercadona/search?q=keto')
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      const list = data.products?.slice(0, 8) ?? []
-      setProducts(list)
-      setDetailProduct(list[0] ?? null)
+      setProducts(data.products ?? [])
     } catch (error) {
-      console.error('[ExploreClient] failed to load trending products', error)
+      console.error('[ExploreClient] failed to load products', url, error)
       setProducts([])
-      setDetailProduct(null)
+      setLoadFailed(true)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const loadCategory = useCallback(async (key: string) => {
-    setSelectedCategory(key)
-    setSelectedSubcategory(null)
-    setSearchQuery('')
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/mercadona/category/${key}`)
-      const data = await res.json()
-      const list = data.products ?? []
-      setProducts(list)
-      setDetailProduct(list[0] ?? null)
-    } catch (error) {
-      console.error('[ExploreClient] failed to load category', key, error)
-      setProducts([])
-      setDetailProduct(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const loadTrending = useCallback(() => fetchProducts('/api/mercadona/search?q=keto'), [fetchProducts])
 
-  const loadSearch = useCallback(async (query: string) => {
-    setSearchQuery(query)
-    setSelectedCategory(null)
-    setSelectedSubcategory(null)
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/mercadona/search?q=${encodeURIComponent(query)}`)
-      const data = await res.json()
-      const list = data.products ?? []
-      setProducts(list)
-      setDetailProduct(list[0] ?? null)
-    } catch (error) {
-      console.error('[ExploreClient] failed to search products', query, error)
-      setProducts([])
-      setDetailProduct(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const loadCategory = useCallback(
+    async (key: string) => {
+      setSelectedCategory(key)
+      setSelectedSubcategory(null)
+      setSearchQuery('')
+      await fetchProducts(`/api/mercadona/category/${key}`)
+    },
+    [fetchProducts]
+  )
+
+  const loadSearch = useCallback(
+    async (query: string) => {
+      setSearchQuery(query)
+      setSelectedCategory(null)
+      setSelectedSubcategory(null)
+      await fetchProducts(`/api/mercadona/search?q=${encodeURIComponent(query)}`)
+    },
+    [fetchProducts]
+  )
 
   useEffect(() => {
+    // Original code wrapped this in an async IIFE for the same reason: initial data fetch on mount.
     void (async () => {
       await Promise.all([loadTrending(), loadShoppingList()])
     })()
@@ -192,537 +172,302 @@ export default function ExplorePage() {
     ? products.filter(product => matchesSubcategory(product, selectedSubcategory))
     : products
 
-  const selectedProduct = detailProduct ?? visibleProducts[0] ?? null
-  const selectedQuantity = selectedProduct ? (draftQuantities[selectedProduct.id] ?? 1) : 1
-
   const shoppingSummary = shoppingItems.filter(item => !item.checked)
   const subtotal = shoppingSummary.reduce((sum, item) => {
     const qty = parseShoppingQuantity(item.quantity, 1)
     return sum + qty * (item.product?.unitPrice ?? 0)
   }, 0)
 
-  const updateDraftQuantity = (productId: string, delta: number) => {
-    setDraftQuantities(current => {
-      const next = Math.max(1, (current[productId] ?? 1) + delta)
-      return { ...current, [productId]: next }
-    })
+  // mercadonaId -> shopping list row, to show/adjust what is already in the list.
+  const inList = useMemo(() => {
+    const map: Record<string, { id: string; qty: number }> = {}
+    for (const item of shoppingSummary) {
+      const key = item.product?.mercadonaId
+      if (key) map[key] = { id: item.id, qty: parseShoppingQuantity(item.quantity, 1) }
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shoppingItems])
+
+  const qtyOf = (product: MercadonaResult) => optimistic[product.mercadonaId] ?? inList[product.mercadonaId]?.qty ?? 0
+
+  const changeQuantity = async (product: MercadonaResult, delta: number) => {
+    const key = product.mercadonaId
+    if (pending[key]) return
+    const next = Math.max(0, qtyOf(product) + delta)
+    setCartError(null)
+    setPending(p => ({ ...p, [key]: true }))
+    setOptimistic(o => ({ ...o, [key]: next }))
+    try {
+      let res: Response
+      if (delta > 0) {
+        res = await fetch('/api/mercadona/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mercadonaId: key, addToShoppingList: true, quantity: delta }),
+        })
+      } else {
+        const row = inList[key]
+        if (!row) return
+        res = await fetch(`/api/shopping-list/${row.id}/quantity`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delta }),
+        })
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      await loadShoppingList()
+    } catch (error) {
+      console.error('[ExploreClient] failed to update shopping list', error)
+      setCartError('No se pudo actualizar la lista. Inténtalo de nuevo.')
+      throw error
+    } finally {
+      const without = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== key))
+      setOptimistic(without)
+      setPending(without)
+    }
   }
 
-  const setDraftQuantity = (productId: string, quantity: number) => {
-    setDraftQuantities(current => ({ ...current, [productId]: Math.max(1, quantity) }))
-  }
+  const tap = (product: MercadonaResult, delta: number) => void changeQuantity(product, delta).catch(() => {})
 
-  const handleAddToCart = async (product: MercadonaResult, quantity: number) => {
-    await fetch('/api/mercadona/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mercadonaId: product.mercadonaId,
-        addToShoppingList: true,
-        quantity,
-      }),
-    })
-    await loadShoppingList()
-  }
-
-  const clearFilters = async () => {
+  const clearFilters = () => {
     setSelectedCategory(null)
     setSelectedSubcategory(null)
     setSearchQuery('')
-    await loadTrending()
+    void loadTrending()
   }
 
+  const toggleFavorite = (id: string) => setFavoriteProductIds(current => ({ ...current, [id]: !current[id] }))
+
+  const cartCount = shoppingSummary.length
+  const searchRef = useRef<HTMLInputElement>(null)
+
   return (
-    <main className="px-4 pt-6 pb-24 min-h-screen" style={{ background: 'radial-gradient(circle at top, rgba(163,230,53,0.08), transparent 30%), #081109' }}>
-      <div className="sticky top-0 z-10 pb-3" style={{ background: 'linear-gradient(180deg, #081109 88%, transparent 100%)' }}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold mb-0.5 tracking-tight" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
-              Descubrir
-            </h1>
-            <p className="text-xs sm:text-sm" style={{ color: '#5f7f5f' }}>
-              Explora, ajusta cantidad y añade sin saltar de pantalla.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void clearFilters()}
-            className="mt-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-            style={{ background: '#142514', color: '#a3e635', border: '1px solid #1c321d' }}
-          >
-            Ver todos <ChevronRight size={16} className="inline-block" />
-          </button>
-        </div>
+    <main className={`min-h-screen px-4 ${cartCount > 0 ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'pb-6'}`}>
+      <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
+        <h1 className="mb-3 text-2xl font-bold text-forest-50">Descubrir</h1>
 
         <form
-          onSubmit={(e) => {
+          role="search"
+          onSubmit={e => {
             e.preventDefault()
-            void loadSearch(searchQuery.trim())
+            if (searchQuery.trim()) void loadSearch(searchQuery.trim())
           }}
-          className="relative mt-4"
+          className="relative"
         >
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#a3e635]">
-            <Search size={20} />
-          </div>
+          <Search size={18} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-forest-300" />
           <input
-            type="text"
-            className="w-full py-3.5 pl-11 pr-10 rounded-2xl outline-none transition-all duration-300"
-            placeholder="Buscar productos keto..."
+            ref={searchRef}
+            type="search"
+            enterKeyHint="search"
+            className="h-11 w-full rounded-xl border border-forest-700 bg-forest-800 pr-10 pl-10 text-[15px] text-forest-50 outline-none transition-colors placeholder:text-forest-400 focus:border-[#a3e635] focus:ring-2 focus:ring-[#a3e635]/20 [&::-webkit-search-cancel-button]:hidden"
+            placeholder="Buscar productos keto"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             aria-label="Buscar productos keto"
-            style={{
-              background: 'rgba(163, 230, 53, 0.05)',
-              border: '1px solid rgba(163, 230, 53, 0.2)',
-              color: '#ecf5e0',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-            }}
           />
           {searchQuery && (
             <button
               type="button"
+              aria-label="Borrar búsqueda"
               onClick={() => {
                 setSearchQuery('')
-                void loadTrending()
+                clearFilters()
+                searchRef.current?.focus()
               }}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#547856] hover:text-[#a3e635] transition-colors"
+              className={`absolute top-1/2 right-1 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-forest-300 hover:text-forest-50 ${focusRing}`}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           )}
         </form>
-      </div>
 
-      <div className="mb-5 -mx-4 px-4 overflow-x-auto hide-scrollbar">
-        <div className="flex gap-3 w-max pb-2">
-          {CATEGORIES.map(cat => {
-            const Icon = cat.icon
-            const active = selectedCategory === cat.key
-            return (
-              <button
-                key={cat.key}
-                onClick={() => void loadCategory(cat.key)}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl w-20 h-24 transition-all duration-300 active:scale-95 shrink-0"
-                style={active
-                  ? { background: '#a3e635', color: '#060e07', boxShadow: '0 8px 16px rgba(163, 230, 53, 0.18)' }
-                  : { background: '#142514', border: '1px solid #1c321d', color: '#a3e635' }
-                }
-              >
-                <Icon size={28} strokeWidth={active ? 2.5 : 1.5} />
-                <span className="text-[11px] font-medium tracking-wide" style={{ color: active ? '#060e07' : '#ecf5e0' }}>
-                  {cat.label}
-                </span>
-              </button>
-            )
-          })}
+        <div className="hide-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
+          <Chip active={!selectedCategory && !searchQuery} onClick={clearFilters}>
+            <LayoutGrid size={15} /> Todo
+          </Chip>
+          {CATEGORIES.map(({ key, label, icon: Icon }) => (
+            <Chip key={key} active={selectedCategory === key} onClick={() => void loadCategory(key)}>
+              <Icon size={15} /> {label}
+            </Chip>
+          ))}
         </div>
 
         {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-            {SUBCATEGORIES[selectedCategory].map(sub => {
-              const active = selectedSubcategory === sub.key
-              return (
-                <button
-                  key={sub.key}
-                  onClick={() => setSelectedSubcategory(active ? null : sub.key)}
-                  className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold shrink-0 transition-colors"
-                  style={active
-                    ? { background: '#a3e635', color: '#060e07' }
-                    : { background: '#142514', color: '#ecf5e0', border: '1px solid #1c321d' }}
-                >
-                  {sub.label}
-                </button>
-              )
-            })}
+          <div className="hide-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4">
+            {SUBCATEGORIES[selectedCategory].map(sub => (
+              <Chip
+                key={sub.key}
+                active={selectedSubcategory === sub.key}
+                onClick={() => setSelectedSubcategory(selectedSubcategory === sub.key ? null : sub.key)}
+              >
+                {sub.label}
+              </Chip>
+            ))}
           </div>
         )}
       </div>
 
-      <section className="mb-6">
-        <div className="flex items-end justify-between gap-3 mb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles size={20} className="text-[#a3e635]" />
-              <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-                Explorar productos
-              </h2>
-            </div>
-            <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
-              Explora y añade a tu compra
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setDetailProduct(visibleProducts[0] ?? null)
-              window.scrollTo({ top: 0, behavior: 'smooth' })
-            }}
-            className="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-            style={{ background: '#142514', color: '#a3e635', border: '1px solid #1c321d' }}
-          >
-            Ver todos <ChevronRight size={16} className="inline-block" />
-          </button>
-        </div>
-
+      <section className="mt-2" aria-live="polite">
         {loading ? (
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="w-56 h-[18rem] rounded-[28px] animate-pulse shrink-0" style={{ background: '#142514', border: '1px solid #1c321d' }} />
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-busy="true">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i}>
+                <Skeleton className="aspect-square" />
+                <Skeleton className="mt-2 h-4 w-3/4 rounded-md" />
+                <Skeleton className="mt-1.5 h-3 w-1/2 rounded-md" />
+              </div>
             ))}
           </div>
         ) : visibleProducts.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-2">
-            {visibleProducts.map(product => {
-              const qty = draftQuantities[product.id] ?? 1
-              return (
-                <div
-                  key={product.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setDetailProduct(product)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      setDetailProduct(product)
-                    }
-                  }}
-                  className="w-56 rounded-[28px] overflow-hidden shrink-0 snap-start text-left transition-transform active:scale-[0.99] cursor-pointer"
-                  style={{ background: '#111c12', border: '1px solid #1c321d', boxShadow: '0 10px 30px rgba(0,0,0,0.22)' }}
-                >
-                  <div className="relative bg-black">
-                    <div className="absolute top-3 left-3 z-10 rounded-2xl px-2.5 py-1.5" style={{ background: 'rgba(11,20,10,0.88)', border: '1px solid #a3e635' }}>
-                      <div className="text-xl leading-none font-black" style={{ color: '#a3e635' }}>
-                        {product.ketoScore}
-                      </div>
-                      <div className="text-[10px] uppercase tracking-widest" style={{ color: '#ecf5e0' }}>
-                        Keto
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center"
-                      style={{
-                        background: favoriteProductIds[product.id] ? '#a3e635' : 'rgba(11,20,10,0.72)',
-                        border: '1px solid rgba(236,245,224,0.12)',
-                        color: favoriteProductIds[product.id] ? '#060e07' : '#ecf5e0',
-                      }}
-                      aria-pressed={!!favoriteProductIds[product.id]}
-                      aria-label={favoriteProductIds[product.id] ? 'Quitar favorito' : 'Marcar favorito'}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setFavoriteProductIds(current => ({
-                          ...current,
-                          [product.id]: !current[product.id],
-                        }))
-                      }}
-                    >
-                      <Heart size={16} fill={favoriteProductIds[product.id] ? 'currentColor' : 'none'} />
-                    </button>
-                    <div className="aspect-[1.1] p-3">
+          <>
+            <p className="mb-3 text-xs text-forest-300">
+              {productosCount(visibleProducts.length)}
+              {searchQuery.trim() ? ` para “${searchQuery.trim()}”` : selectedCategory ? ` · ${CATEGORIES.find(c => c.key === selectedCategory)?.label}` : ' · Selección keto'}
+            </p>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {visibleProducts.map(product => {
+                const qty = qtyOf(product)
+                const busy = !!pending[product.mercadonaId]
+                const fav = !!favoriteProductIds[product.id]
+                return (
+                  <li key={product.id}>
+                    <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
                       {product.imageUrl ? (
-                        <Image src={product.imageUrl} alt={product.name} width={400} height={400} className="w-full h-full object-cover rounded-[24px]" />
+                        <Image
+                          src={product.imageUrl}
+                          alt=""
+                          fill
+                          sizes="(min-width: 640px) 200px, 50vw"
+                          className="object-cover"
+                        />
                       ) : (
-                        <div className="w-full h-full rounded-[24px]" style={{ background: '#1c321d' }} />
+                        <ShoppingBasket className="absolute inset-0 m-auto text-forest-500" size={32} strokeWidth={1.5} />
                       )}
-                    </div>
-                  </div>
-
-                  <div className="p-4 pt-0">
-                    <div className="text-[17px] font-semibold leading-tight line-clamp-2" style={{ color: '#ecf5e0' }}>
-                      {product.name}
-                    </div>
-                    <div className="text-sm mt-1" style={{ color: '#889c89' }}>
-                      {product.brand}
-                    </div>
-
-                    <div className="mt-3">
-                      <div className="text-[22px] font-black" style={{ color: '#a3e635' }}>
-                        {product.unitPrice != null ? `${product.unitPrice.toFixed(2)} €` : '—'}
-                      </div>
-                      {product.referencePrice && (
-                        <div className="text-xs mt-0.5" style={{ color: '#6f886f' }}>
-                          {product.referencePrice}
+                      {/* pointer-only hit area; the name below is the keyboard/AT entry to the detail */}
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-hidden
+                        onClick={() => setDetailProduct(product)}
+                        className="absolute inset-0"
+                      />
+                      <button
+                        type="button"
+                        aria-pressed={fav}
+                        aria-label={fav ? 'Quitar favorito' : 'Marcar favorito'}
+                        onClick={() => toggleFavorite(product.id)}
+                        className={`absolute top-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-forest-950/60 backdrop-blur-sm ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
+                      >
+                        <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
+                      </button>
+                      {/* "+" first; compact stepper once the product is in the list */}
+                      {qty === 0 ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          aria-label={`Añadir ${product.name} a la lista`}
+                          onClick={() => tap(product, 1)}
+                          className={`absolute right-1.5 bottom-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 shadow-md disabled:opacity-50 ${focusRing}`}
+                        >
+                          <Plus size={20} strokeWidth={2.5} />
+                        </button>
+                      ) : (
+                        <div className="absolute right-1.5 bottom-1.5 flex h-10 items-center rounded-full bg-[#a3e635] text-forest-950 shadow-md">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-label={`Quitar una unidad de ${product.name}`}
+                            onClick={() => tap(product, -1)}
+                            className={`flex h-10 w-9 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
+                          >
+                            <Minus size={16} strokeWidth={2.5} />
+                          </button>
+                          <span className="min-w-4 text-center text-sm font-bold" aria-live="polite">{qty}</span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-label={`Añadir otra unidad de ${product.name}`}
+                            onClick={() => tap(product, 1)}
+                            className={`flex h-10 w-9 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
+                          >
+                            <Plus size={16} strokeWidth={2.5} />
+                          </button>
                         </div>
                       )}
                     </div>
-
-                    <div className="mt-4 flex items-center rounded-full overflow-hidden" style={{ background: '#0d160d', border: '1px solid #223722' }}>
-                      <button
-                        type="button"
-                        className="w-12 h-12 flex items-center justify-center text-2xl"
-                        style={{ color: '#a3e635' }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          updateDraftQuantity(product.id, -1)
-                        }}
-                      >
-                        <Minus size={18} />
-                      </button>
-                      <div className="flex-1 text-center">
-                        <div className="text-2xl font-extrabold" style={{ color: '#ecf5e0' }}>{qty}</div>
-                      </div>
-                      <button
-                        type="button"
-                        className="w-12 h-12 flex items-center justify-center text-2xl"
-                        style={{ color: '#a3e635' }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          updateDraftQuantity(product.id, 1)
-                        }}
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="rounded-[28px] p-8 text-center" style={{ background: '#111c12', border: '1px solid #1c321d' }}>
-            <Search size={44} className="mx-auto mb-3 opacity-25 text-[#a3e635]" />
-            <p className="text-[#ecf5e0] font-medium mb-1">No se encontraron productos.</p>
-            <p className="text-sm" style={{ color: '#5f7f5f' }}>
-              Prueba con &quot;pollo&quot;, &quot;salmón&quot; o cambia de categoría.
-            </p>
-          </div>
-        )}
-      </section>
-
-      <section className="mb-6 rounded-[30px] p-4" style={{ background: 'linear-gradient(180deg, rgba(20,37,20,0.96), rgba(15,26,15,0.96))', border: '1px solid #223722', boxShadow: '0 18px 40px rgba(0,0,0,0.2)' }}>
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-              Detalle del producto
-            </h2>
-            <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
-              Elige la cantidad que necesitas
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setDetailProduct(null)}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: '#111c12', border: '1px solid #223722', color: '#ecf5e0' }}
-          >
-            <X size={22} />
-          </button>
-        </div>
-
-        {selectedProduct ? (
-          <>
-            <div className="flex gap-4">
-              <div className="w-36 shrink-0">
-                {selectedProduct.imageUrl ? (
-                  <Image src={selectedProduct.imageUrl} alt={selectedProduct.name} width={640} height={640} className="w-full aspect-square object-cover rounded-[24px]" />
-                ) : (
-                  <div className="w-full aspect-square rounded-[24px]" style={{ background: '#111c12' }} />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xl font-extrabold leading-tight" style={{ color: '#ecf5e0' }}>
-                  {selectedProduct.name}
-                </div>
-                <div className="text-sm mt-1" style={{ color: '#889c89' }}>
-                  {selectedProduct.brand}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full px-3 py-1.5 text-sm font-semibold" style={{ background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.25)', color: '#a3e635' }}>
-                    {selectedProduct.ketoScore} KETO
-                  </span>
-                  <span className="rounded-full px-3 py-1.5 text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #223722', color: '#889c89' }}>
-                    {selectedProduct.category}
-                  </span>
-                </div>
-                <div className="mt-4 text-[28px] font-black" style={{ color: '#a3e635' }}>
-                  {selectedProduct.unitPrice != null ? `${selectedProduct.unitPrice.toFixed(2)} €` : '—'}
-                </div>
-                {selectedProduct.referencePrice && (
-                  <div className="text-sm mt-0.5" style={{ color: '#6f886f' }}>
-                    {selectedProduct.referencePrice}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-[24px] p-4" style={{ background: '#111c12', border: '1px solid #223722' }}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-lg font-semibold" style={{ color: '#ecf5e0' }}>
-                  Cantidad
-                </div>
-                <div className="text-sm" style={{ color: '#889c89' }}>
-                  Unidad: {selectedProduct.referencePrice ? 'Paquete' : 'Unidad'}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-[1fr_1fr] gap-3">
-                <div className="rounded-[22px] p-3 flex items-center justify-between" style={{ background: '#0d160d', border: '1px solid #223722' }}>
-                  <button
-                    type="button"
-                    className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ color: '#a3e635' }}
-                    onClick={() => setDraftQuantity(selectedProduct.id, selectedQuantity - 1)}
-                  >
-                    <Minus size={22} />
-                  </button>
-                  <div className="text-center">
-                    <div className="text-4xl font-black leading-none" style={{ color: '#ecf5e0' }}>
-                      {selectedQuantity}
-                    </div>
-                    <div className="text-xs mt-1" style={{ color: '#889c89' }}>
-                      {selectedQuantity === 1 ? 'unidad' : 'unidades'}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ color: '#a3e635' }}
-                    onClick={() => setDraftQuantity(selectedProduct.id, selectedQuantity + 1)}
-                  >
-                    <Plus size={22} />
-                  </button>
-                </div>
-
-                <div className="rounded-[22px] p-4" style={{ background: '#0d160d', border: '1px solid #223722' }}>
-                  <div className="text-sm" style={{ color: '#889c89' }}>
-                    Total estimado
-                  </div>
-                  <div className="text-[28px] font-black mt-1" style={{ color: '#a3e635' }}>
-                    {selectedProduct.unitPrice != null ? `${(selectedProduct.unitPrice * selectedQuantity).toFixed(2)} €` : '—'}
-                  </div>
-                  {selectedProduct.unitPrice != null && (
-                    <div className="text-xs mt-1" style={{ color: '#889c89' }}>
-                      ({selectedQuantity} x {selectedProduct.unitPrice.toFixed(2)} €)
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-5 gap-2">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setDraftQuantity(selectedProduct.id, n)}
-                    className="rounded-xl py-2 text-sm font-semibold transition-colors"
-                    style={selectedQuantity === n
-                      ? { background: '#a3e635', color: '#060e07' }
-                      : { background: '#111c12', color: '#ecf5e0', border: '1px solid #223722' }}
-                  >
-                    {n}{n === 5 ? '+' : ''}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void handleAddToCart(selectedProduct, selectedQuantity)}
-                className="mt-4 w-full rounded-[22px] py-4 flex items-center justify-between gap-3"
-                style={{ background: '#c7f23a', color: '#09120a' }}
-              >
-                <span className="flex items-center gap-3 font-bold text-lg">
-                  <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-[#09120a]/10">
-                    <Search size={16} className="opacity-0" />
-                  </span>
-                  <span>Añadir a compra</span>
-                </span>
-                <span className="font-black text-lg">
-                  {selectedProduct.unitPrice != null ? `${(selectedProduct.unitPrice * selectedQuantity).toFixed(2)} €` : ''}
-                </span>
-              </button>
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailProduct(product)}
+                      className={`mt-2 block w-full rounded-lg text-left ${focusRing}`}
+                    >
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-[15px] font-bold text-forest-50">
+                          {product.unitPrice != null ? euros(product.unitPrice) : '—'}
+                        </span>
+                        {product.referencePrice && (
+                          <span className="truncate text-[11px] text-forest-300">{product.referencePrice}</span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 line-clamp-2 min-h-[2.75em] text-[13px] leading-snug text-forest-100">{product.name}</span>
+                      <span className="mt-1 flex items-center gap-1.5 overflow-hidden">
+                        <KetoBadge score={product.ketoScore} />
+                        {showBrand(product.brand) && <span className="truncate text-[11px] text-forest-400">· {product.brand}</span>}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
           </>
         ) : (
-          <div className="rounded-[24px] border border-dashed" style={{ borderColor: '#223722', color: '#6f886f' }}>
-            <div className="p-6 text-center">
-              Selecciona un producto para ver el detalle.
-            </div>
+          <div className="py-16 text-center">
+            <Search size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+            {loadFailed ? (
+              <>
+                <p className="font-medium text-forest-50">No se pudo cargar el catálogo</p>
+                <button type="button" onClick={clearFilters} className={`mt-3 rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
+                  Reintentar
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-forest-50">No se encontraron productos</p>
+                <p className="mt-1 text-sm text-forest-300">Prueba con “pollo”, “salmón” o cambia de categoría.</p>
+              </>
+            )}
           </div>
         )}
       </section>
 
-      <section className="rounded-[30px] p-4" style={{ background: '#111c12', border: '1px solid #223722', boxShadow: '0 18px 40px rgba(0,0,0,0.2)' }}>
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <h2 className="text-[17px] font-extrabold tracking-wide uppercase" style={{ color: '#ecf5e0' }}>
-              Tu lista de compra
-            </h2>
-            <p className="text-sm mt-1" style={{ color: '#5f7f5f' }}>
-              Revisa y ajusta las cantidades
-            </p>
-          </div>
+      {cartError && (
+        <p role="alert" className="mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {cartError}
+        </p>
+      )}
+
+      {cartCount > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-30 px-4">
           <Link
             href="/shopping-list"
-            className="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-            style={{ background: '#142514', color: '#a3e635', border: '1px solid #1c321d' }}
+            className={`pointer-events-auto mx-auto flex h-12 max-w-2xl items-center justify-between rounded-2xl bg-[#a3e635] px-5 text-[15px] font-bold text-forest-950 shadow-lg ${focusRing}`}
           >
-            Editar lista <ChevronRight size={16} className="inline-block" />
+            <span>Ver lista · {productosCount(cartCount)}</span>
+            <span>{subtotal > 0 ? euros(subtotal) : ''}</span>
           </Link>
-        </div>
-
-        {shoppingLoading ? (
-          <div className="rounded-[24px] h-32 animate-pulse" style={{ background: '#0d160d' }} />
-        ) : shoppingSummary.length > 0 ? (
-          <div className="rounded-[24px] overflow-hidden" style={{ background: '#0d160d', border: '1px solid #223722' }}>
-            {shoppingSummary.slice(0, 3).map(item => {
-              const qty = parseShoppingQuantity(item.quantity, 1)
-              return (
-                <div key={item.id} className="flex items-center gap-3 p-3 border-b border-[#223722] last:border-b-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#142514] flex items-center justify-center shrink-0" style={{ border: '1px solid #223722' }}>
-                    {item.product?.imageUrl ? (
-                      <Image src={item.product.imageUrl} alt={item.name} width={64} height={64} className="w-full h-full object-cover rounded-xl" />
-                    ) : (
-                      <span className="text-lg">🛒</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm truncate" style={{ color: '#ecf5e0' }}>{item.name}</div>
-                    <div className="text-xs mt-0.5" style={{ color: '#889c89' }}>
-                      {qty} {qty === 1 ? 'unidad' : 'unidades'}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-black" style={{ color: '#a3e635' }}>
-                      {item.product?.unitPrice != null ? `${(item.product.unitPrice * qty).toFixed(2)} €` : '—'}
-                    </div>
-                    {item.product?.unitPrice != null && (
-                      <div className="text-xs" style={{ color: '#889c89' }}>
-                        {qty} x {item.product.unitPrice.toFixed(2)} €
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-
-            <div className="flex items-center justify-between gap-3 px-3 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#ecf5e0' }}>
-                <span className="text-lg">🛒</span>
-                Subtotal
-                <span style={{ color: '#889c89' }}>({productosCount(shoppingSummary.length)})</span>
-              </div>
-              <div className="text-2xl font-black" style={{ color: '#a3e635' }}>
-                {subtotal > 0 ? `${subtotal.toFixed(2)} €` : '—'}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-[24px] p-6 text-center" style={{ background: '#0d160d', border: '1px solid #223722', color: '#6f886f' }}>
-            Tu lista está vacía.
-          </div>
-        )}
-      </section>
-
-      {!loading && visibleProducts.length === 0 && (
-        <div className="mt-5 rounded-[24px] p-4 text-center" style={{ background: 'rgba(20,37,20,0.72)', border: '1px solid #1c321d' }}>
-          <p className="text-sm text-[#ecf5e0] font-medium">No se encontraron productos.</p>
-          <p className="text-xs mt-1" style={{ color: '#5f7f5f' }}>
-            Prueba con &quot;pollo&quot;, &quot;salmon&quot; o cambia de categoría.
-          </p>
         </div>
       )}
 
+      {detailProduct && (
+        <ExploreProductSheet
+          product={detailProduct}
+          inCartQty={qtyOf(detailProduct)}
+          favorite={!!favoriteProductIds[detailProduct.id]}
+          onToggleFavorite={() => toggleFavorite(detailProduct.id)}
+          onAdd={quantity => changeQuantity(detailProduct, quantity)}
+          onClose={() => setDetailProduct(null)}
+        />
+      )}
     </main>
   )
 }

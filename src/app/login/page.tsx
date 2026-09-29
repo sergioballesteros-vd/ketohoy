@@ -110,7 +110,7 @@ export default function LoginPage() {
             <label className="block">
               <span className="mb-1.5 flex items-baseline justify-between text-xs font-medium" style={{ color: '#aac4ac' }}>
                 Contraseña
-                {mode === 'register' && <span style={{ color: '#547856' }}>mínimo 8 caracteres</span>}
+                {mode === 'register' && <span style={{ color: '#6c9070' }}>mínimo 8 caracteres</span>}
               </span>
               <span className="relative block">
                 <input
@@ -148,7 +148,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold transition-opacity disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-bold transition-opacity disabled:opacity-50"
               style={{ background: '#a3e635', color: '#060e07' }}
             >
               {busy && <Loader2 size={18} className="animate-spin" />}
@@ -174,7 +174,7 @@ export default function LoginPage() {
           ))}
         </ul>
 
-        <p className="mt-8 text-center text-[11px]" style={{ color: '#3b5e3c' }}>
+        <p className="mt-8 text-center text-[11px]" style={{ color: '#6c9070' }}>
           No sustituye consejo médico o nutricional profesional.
         </p>
       </div>

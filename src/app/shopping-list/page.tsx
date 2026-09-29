@@ -1,10 +1,13 @@
 'use client'
 import Image from 'next/image'
-import { useEffect, useState, useCallback } from 'react'
-import ShoppingListItem from '@/components/ShoppingListItem'
-import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
-import ProductDetailModal from '@/components/ProductDetailModal'
+import Link from 'next/link'
+import { useCallback, useEffect, useState } from 'react'
+import { Check, ChefHat, Compass, Minus, Plus, ShoppingBasket, Trash2 } from 'lucide-react'
+import AddProductSheet from '@/components/AddProductSheet'
+import { useToast } from '@/components/Toast'
+import { Skeleton, focusRing } from '@/components/ui'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
+import { pluralize } from '@/lib/pluralize'
 
 type ShoppingItem = {
   id: string
@@ -12,39 +15,35 @@ type ShoppingItem = {
   quantity: string | null
   checked: boolean
   reason: string | null
-  product: { unitPrice: number | null; category: string } | null
+  productId: string | null
+  product: { mercadonaId: string | null; unitPrice: number | null; imageUrl: string | null } | null
 }
 
-async function loadShoppingListItems() {
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+const euros = (n: number) => `${n.toFixed(2).replace('.', ',')} €`
+
+async function loadShoppingListItems(): Promise<ShoppingItem[]> {
   const res = await fetch('/api/shopping-list')
-  if (!res.ok) throw new Error('Error cargando lista')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : []
 }
+
+const isNumeric = (q: string | null) => q != null && q.trim() !== '' && Number.isFinite(Number(q))
 
 export default function ShoppingListPage() {
   const [items, setItems] = useState<ShoppingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [newItemName, setNewItemName] = useState('')
-  const [newItemQty, setNewItemQty] = useState('')
-  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [adding, setAdding] = useState<null | 'search' | 'manual'>(null)
+  const { toast, show } = useToast()
 
-  // Mercadona search
-  const [mercadonaQuery, setMercadonaQuery] = useState('')
-  const [mercadonaResults, setMercadonaResults] = useState<MercadonaResult[]>([])
-  const [mercadonaLoading, setMercadonaLoading] = useState(false)
-  const [mercadonaSearched, setMercadonaSearched] = useState(false)
-  const [addingId, setAddingId] = useState<string | null>(null)
-  const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
-
-  const fetchItems = useCallback(async () => {
+  const refresh = useCallback(async () => {
     try {
-      const data = await loadShoppingListItems()
-      setItems(data)
+      setItems(await loadShoppingListItems())
       setError(null)
     } catch {
-      setError('Error cargando la lista de compra')
+      setError('No se pudo cargar la lista de compra')
     } finally {
       setLoading(false)
     }
@@ -52,312 +51,268 @@ export default function ShoppingListPage() {
 
   useEffect(() => {
     void (async () => {
-      try {
-        const data = await loadShoppingListItems()
-        setItems(data)
-        setError(null)
-      } catch {
-        setError('Error cargando la lista de compra')
-      } finally {
-        setLoading(false)
-      }
+      await refresh()
     })()
-  }, [])
+  }, [refresh])
 
-  const handleToggle = async (id: string) => {
+  const pending = items.filter(i => !i.checked)
+  const bought = items.filter(i => i.checked)
+  const total = pending.reduce((sum, i) => sum + (i.product?.unitPrice ?? 0) * parseShoppingQuantity(i.quantity, 1), 0)
+
+  const owned: Record<string, number> = {}
+  for (const i of pending) if (i.product?.mercadonaId) owned[i.product.mercadonaId] = parseShoppingQuantity(i.quantity, 1)
+
+  const request = async (url: string, init?: RequestInit) => {
+    const res = await fetch(url, init)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  }
+
+  // Buying moves the item into the pantry on the server (see pantryTransfer). Optimistic so the tick feels instant.
+  const toggle = async (item: ShoppingItem) => {
+    setItems(list => list.map(i => (i.id === item.id ? { ...i, checked: !i.checked } : i)))
     try {
-      const item = items.find(i => i.id === id)
-      const res = await fetch(`/api/shopping-list/${id}/check`, { method: 'PATCH' })
-      if (!res.ok) throw new Error()
-      await fetchItems()
-      if (item && !item.checked && item.product) {
-        setToastMsg('✓ Añadido a tu despensa')
-        setTimeout(() => setToastMsg(null), 2000)
-      }
+      await request(`/api/shopping-list/${item.id}/check`, { method: 'PATCH' })
+      show(item.checked ? `${item.name} vuelve a la lista` : `${item.name} está en tu despensa`, item.checked ? undefined : { label: 'Ver', href: '/inventory' })
     } catch {
-      setError('No se pudo actualizar el producto')
+      show('No se pudo actualizar el producto')
     }
+    await refresh()
   }
 
-  const handleDelete = async (id: string) => {
+  const change = async (item: ShoppingItem, delta: number) => {
+    const next = parseShoppingQuantity(item.quantity, 1) + delta
+    setItems(list => (next <= 0 ? list.filter(i => i.id !== item.id) : list.map(i => (i.id === item.id ? { ...i, quantity: String(next) } : i))))
     try {
-      const res = await fetch(`/api/shopping-list/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      await fetchItems()
+      await request(`/api/shopping-list/${item.id}/quantity`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ delta }) })
+      if (next <= 0) undoable(item)
     } catch {
-      setError('No se pudo borrar el producto')
+      show('No se pudo cambiar la cantidad')
     }
+    await refresh()
   }
 
-  const handleQuantityChange = async (id: string, delta: number) => {
+  const remove = async (item: ShoppingItem) => {
+    setItems(list => list.filter(i => i.id !== item.id))
     try {
-      const res = await fetch(`/api/shopping-list/${id}/quantity`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delta }),
-      })
-      if (!res.ok) throw new Error()
-      await fetchItems()
+      await request(`/api/shopping-list/${item.id}`, { method: 'DELETE' })
+      undoable(item)
     } catch {
-      setError('No se pudo cambiar la cantidad')
+      show('No se pudo eliminar el producto')
     }
+    await refresh()
   }
 
-  const handleAddManual = async () => {
-    if (!newItemName.trim()) return
-    await fetch('/api/shopping-list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newItemName,
-        quantity: newItemQty ? parseShoppingQuantity(newItemQty, 1) : 1,
-      }),
+  // Removing is instant but reversible: the toast re-creates the item with the same data.
+  const undoable = (item: ShoppingItem) =>
+    show(`${item.name} eliminado`, {
+      label: 'Deshacer',
+      run: () =>
+        void (async () => {
+          await fetch('/api/shopping-list', {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ name: item.name, quantity: item.quantity ?? 1, productId: item.productId, reason: item.reason }),
+          })
+          await refresh()
+        })(),
     })
-    setNewItemName('')
-    setNewItemQty('')
-    await fetchItems()
+
+  // Bought items are already in the pantry; this only tidies the list.
+  const clearBought = async () => {
+    try {
+      await request('/api/shopping-list', { method: 'DELETE', headers: JSON_HEADERS, body: JSON.stringify({ ids: bought.map(i => i.id) }) })
+    } catch {
+      show('No se pudo limpiar la lista')
+    }
+    await refresh()
   }
-
-  const handleMoveAllToPantry = async () => {
-    const checkedIds = items.filter(i => i.checked).map(i => i.id)
-    await fetch('/api/shopping-list/mark-bought', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: checkedIds }),
-    })
-    await fetch('/api/shopping-list', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: checkedIds }),
-    })
-    setToastMsg(`✓ ${checkedIds.length} productos en despensa`)
-    setTimeout(() => setToastMsg(null), 2500)
-    await fetchItems()
-  }
-
-  const handleClearChecked = async () => {
-    const checkedIds = items.filter(i => i.checked).map(i => i.id)
-    if (checkedIds.length === 0) return
-    await fetch('/api/shopping-list', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: checkedIds }),
-    })
-    await fetchItems()
-  }
-
-  const handleMercadonaSearch = async () => {
-    if (!mercadonaQuery.trim()) return
-    setMercadonaLoading(true)
-    setMercadonaSearched(true)
-    const res = await fetch(`/api/mercadona/search?q=${encodeURIComponent(mercadonaQuery)}`)
-    const data = await res.json()
-    setMercadonaResults(data.products ?? [])
-    setMercadonaLoading(false)
-  }
-
-  const handleAddMercadonaToCart = async (p: MercadonaResult) => {
-    setAddingId(p.id)
-    await fetch('/api/mercadona/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mercadonaId: p.id.replace('mercadona_', ''),
-        addToShoppingList: true,
-        quantity: 1,
-      }),
-    })
-    setAddingId(null)
-    setMercadonaResults([])
-    setMercadonaQuery('')
-    setMercadonaSearched(false)
-    await fetchItems()
-  }
-
-  const unchecked = items.filter(i => !i.checked)
-  const checked = items.filter(i => i.checked)
-  const totalPrice = unchecked.reduce(
-    (sum, i) => sum + (i.product?.unitPrice ?? 0) * parseShoppingQuantity(i.quantity, 1),
-    0
-  )
-
-  if (loading) return <div className="p-4" style={{ color: '#547856' }}>Cargando...</div>
 
   return (
-    <main className="px-4 pt-4 pb-20">
-      <div className="flex flex-col gap-3 pt-2 pb-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
+      <header className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
-            Lista de compra
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: '#547856' }}>
-            {unchecked.length} {unchecked.length === 1 ? 'pendiente' : 'pendientes'}
-            {totalPrice > 0 && <span style={{ color: '#f59e0b' }}> · ~{totalPrice.toFixed(2)}€</span>}
+          <h1 className="text-2xl font-bold text-forest-50">Lista de compra</h1>
+          <p className="mt-0.5 text-sm text-forest-300">
+            {loading ? ' ' : `${pending.length} ${pluralize(pending.length, 'pendiente', 'pendientes')}`}
+            {total > 0 && <span> · {euros(total)}</span>}
           </p>
         </div>
-        {checked.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <button
-              onClick={handleMoveAllToPantry}
-              className="text-xs font-semibold px-3 py-2 rounded-xl"
-              style={{ background: '#a3e635', color: '#060e07' }}
-            >
-              → Despensa ({checked.length})
-            </button>
-            <button
-              onClick={handleClearChecked}
-              className="text-xs font-medium transition-colors hover:text-red-500"
-              style={{ color: '#3b5e3c' }}
-            >
-              Limpiar
-            </button>
-          </div>
-        )}
-      </div>
+        <button
+          type="button"
+          onClick={() => setAdding('search')}
+          className={`inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
+        >
+          <Plus size={16} strokeWidth={3} /> Añadir
+        </button>
+      </header>
 
-      {/* Mercadona search */}
-      <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514', border: '1px solid #1c321d' }}>
-        <p className="text-sm font-semibold mb-3" style={{ color: '#ecf5e0' }}>🔍 Buscar en Mercadona</p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-            style={{ background: '#1c321d', color: '#ecf5e0' }}
-            placeholder="ej: leche, pan, yogur..."
-            value={mercadonaQuery}
-            onChange={e => setMercadonaQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !mercadonaLoading && handleMercadonaSearch()}
-          />
-          <button
-            onClick={handleMercadonaSearch}
-            disabled={mercadonaLoading}
-            className="rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
-            style={{ background: '#f97316', color: '#fff' }}
-          >
-            {mercadonaLoading ? '...' : 'Buscar'}
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}{' '}
+          <button type="button" onClick={() => void refresh()} className="font-semibold underline">
+            Reintentar
           </button>
-        </div>
+        </p>
+      )}
 
-        {mercadonaResults.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {mercadonaResults.map(p => (
-              <div key={p.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#1c321d' }}>
-                <button
-                  className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                  onClick={() => setDetailProduct(p)}
-                >
-                  {p.imageUrl && (
-                    <Image src={p.imageUrl} alt={p.name} width={48} height={48} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate" style={{ color: '#ecf5e0' }}>{p.name}</div>
-                    <div className="text-xs flex gap-2 mt-0.5">
-                      {p.unitPrice && <span className="font-medium" style={{ color: '#f59e0b' }}>{p.unitPrice.toFixed(2)}€</span>}
-                      <span style={{ color: '#547856' }}>keto {p.ketoScore}/5</span>
-                    </div>
-                  </div>
-                </button>
-              <button
-                onClick={() => handleAddMercadonaToCart(p)}
-                disabled={addingId === p.id}
-                className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
-                  style={{ background: '#f97316', color: '#fff' }}
-                >
-                  {addingId === p.id ? '...' : '+ Carrito'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {mercadonaSearched && mercadonaResults.length === 0 && !mercadonaLoading && (
-          <p className="text-xs mt-3 text-center" style={{ color: '#264227' }}>Sin resultados</p>
-        )}
-      </div>
-
-      {/* Manual add */}
-      <div className="rounded-2xl p-4 mb-5" style={{ background: '#142514', border: '1px solid #1c321d' }}>
-        <p className="text-sm font-semibold mb-3" style={{ color: '#ecf5e0' }}>＋ Añadir manualmente</p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
-            style={{ background: '#1c321d', color: '#ecf5e0', border: '1px solid #1c321d' }}
-            placeholder="Producto"
-            value={newItemName}
-            onChange={e => setNewItemName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddManual()}
-          />
-          <input
-            className="w-20 rounded-xl px-2 py-2.5 text-sm outline-none text-center"
-            style={{ background: '#1c321d', color: '#ecf5e0', border: '1px solid #1c321d' }}
-            placeholder="cant."
-            type="number"
-            min="0"
-            step="0.5"
-            value={newItemQty}
-            onChange={e => setNewItemQty(e.target.value)}
-          />
-          <button
-            onClick={handleAddManual}
-            className="rounded-xl px-4 text-sm font-bold"
-            style={{ background: '#a3e635', color: '#060e07' }}
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      {error && <p className="text-sm text-center py-4" style={{ color: '#ef4444' }}>{error}</p>}
-
-      {/* List */}
-      {items.length === 0 ? (
-        <div className="text-center py-14">
-          <p className="text-5xl mb-4">🛒</p>
-          <p className="font-semibold" style={{ color: '#547856' }}>Lista vacía</p>
-          <p className="text-sm mt-1" style={{ color: '#3b5e3c' }}>Busca en Mercadona o añade manualmente</p>
+      {loading ? (
+        <div className="space-y-3" aria-busy="true">
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-14" />
+          ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          {unchecked.map(item => (
-            <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} onQuantityChange={handleQuantityChange} />
-          ))}
-          {checked.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#264227' }}>
-                Ya en el carrito
-              </p>
-              {checked.map(item => (
-                <ShoppingListItem key={item.id} item={item} onToggle={handleToggle} onDelete={handleDelete} onQuantityChange={handleQuantityChange} />
-              ))}
-            </div>
+        <>
+          {pending.length > 0 ? (
+            <ul className="divide-y divide-forest-800">
+              {pending.map(item => {
+                const qty = parseShoppingQuantity(item.quantity, 1)
+                const price = item.product?.unitPrice
+                return (
+                  <li key={item.id} className="flex min-h-16 items-center gap-2 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void toggle(item)}
+                      aria-label={`Marcar ${item.name} como comprado`}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${focusRing}`}
+                    >
+                      <span className="h-6 w-6 rounded-full border-2 border-forest-400" />
+                    </button>
+                    <span className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg ${item.product?.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
+                      {item.product?.imageUrl ? (
+                        <Image src={item.product.imageUrl} alt="" fill sizes="40px" className="object-cover" />
+                      ) : (
+                        <ShoppingBasket className="absolute inset-0 m-auto text-forest-300" size={18} strokeWidth={1.5} />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 pl-1">
+                      <span className="line-clamp-2 text-[15px] leading-snug font-medium text-forest-50">{item.name}</span>
+                      {(price != null || item.reason) && (
+                        <span className="mt-0.5 block truncate text-xs text-forest-300">
+                          {price != null ? (qty > 1 ? `${euros(price * qty)} · ${euros(price)} c/u` : euros(price)) : item.reason}
+                        </span>
+                      )}
+                    </span>
+                    {isNumeric(item.quantity) ? (
+                      <span className="flex shrink-0 items-center rounded-full bg-forest-800">
+                        <button
+                          type="button"
+                          onClick={() => void change(item, -1)}
+                          aria-label={qty <= 1 ? `Quitar ${item.name} de la lista` : `Reducir cantidad de ${item.name}`}
+                          className={`flex h-10 w-9 items-center justify-center rounded-full text-forest-50 ${focusRing}`}
+                        >
+                          {qty <= 1 ? <Trash2 size={16} className="text-red-300" /> : <Minus size={16} />}
+                        </button>
+                        <span className="min-w-5 text-center text-sm font-bold text-forest-50" aria-live="polite">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void change(item, 1)}
+                          aria-label={`Aumentar cantidad de ${item.name}`}
+                          className={`flex h-10 w-9 items-center justify-center rounded-full text-[#a3e635] ${focusRing}`}
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </span>
+                    ) : (
+                      <>
+                        {item.quantity && <span className="shrink-0 text-sm text-forest-200">{item.quantity}</span>}
+                        <button
+                          type="button"
+                          onClick={() => void remove(item)}
+                          aria-label={`Quitar ${item.name} de la lista`}
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest-400 hover:text-red-300 ${focusRing}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            !error && (
+              <div className="py-10 text-center">
+                <ShoppingBasket size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+                <p className="font-medium text-forest-50">{bought.length > 0 ? 'Todo comprado' : 'Lista vacía'}</p>
+                <p className="mt-1 text-sm text-forest-300">
+                  {bought.length > 0 ? 'Lo que has comprado ya está en tu despensa.' : 'No tienes productos pendientes.'}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  <Link
+                    href="/explore"
+                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-[#a3e635] px-5 text-sm font-bold text-forest-950 ${focusRing}`}
+                  >
+                    <Compass size={16} /> Explorar productos
+                  </Link>
+                  <Link
+                    href="/meals"
+                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-forest-800 px-5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                  >
+                    <ChefHat size={16} /> Ver recetas
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setAdding('manual')}
+                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-forest-800 px-5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                  >
+                    <Plus size={16} /> Añadir manualmente
+                  </button>
+                </div>
+              </div>
+            )
           )}
-        </div>
+
+          {bought.length > 0 && (
+            <section className="mt-6" aria-label="Comprado">
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <h2 className="text-xs font-semibold tracking-wider text-forest-300 uppercase">
+                  Comprado · en tu despensa
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => void clearBought()}
+                  aria-label="Quitar los comprados de la lista"
+                  className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-forest-300 hover:text-forest-50 ${focusRing}`}
+                >
+                  Limpiar
+                </button>
+              </div>
+              <ul className="divide-y divide-forest-800">
+                {bought.map(item => (
+                  <li key={item.id} className="flex min-h-14 items-center gap-2 py-1">
+                    <button
+                      type="button"
+                      onClick={() => void toggle(item)}
+                      aria-label={`Devolver ${item.name} a la lista`}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${focusRing}`}
+                    >
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#a3e635] text-forest-950">
+                        <Check size={14} strokeWidth={3} />
+                      </span>
+                    </button>
+                    <span className="min-w-0 flex-1 truncate text-[15px] text-forest-300 line-through">{item.name}</span>
+                    {item.quantity && <span className="shrink-0 text-sm text-forest-400">×{item.quantity}</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
 
-      <ProductDetailModal
-        product={detailProduct}
-        onClose={() => setDetailProduct(null)}
-        onAddToShoppingList={detailProduct ? async (quantity) => {
-          await fetch('/api/mercadona/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mercadonaId: detailProduct.mercadonaId,
-              addToShoppingList: true,
-              quantity,
-            }),
-          })
-          await fetchItems()
-        } : undefined}
-      />
-
-      {toastMsg && (
-        <div
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-semibold z-40"
-          style={{ background: '#a3e635', color: '#060e07' }}
-        >
-          {toastMsg}
-        </div>
+      {adding && (
+        <AddProductSheet
+          target="shopping"
+          owned={owned}
+          startManual={adding === 'manual'}
+          onChanged={refresh}
+          onClose={() => setAdding(null)}
+        />
       )}
+      {toast}
     </main>
   )
 }

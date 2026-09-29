@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { HomeIcon, MealsIcon, CartIcon, ExploreIcon, PantryIcon, CalendarIcon } from '@/components/icons'
+import { pageWidthClass } from '@/lib/pageWidth'
 
 const navItems = [
   { href: '/', label: 'Inicio', Icon: HomeIcon },
@@ -12,34 +13,35 @@ const navItems = [
   { href: '/shopping-list', label: 'Compra', Icon: CartIcon },
 ]
 
+// A recipe page belongs to "Recetas" for the tab bar.
+const isActive = (pathname: string, href: string) =>
+  href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`) || (href === '/meals' && pathname.startsWith('/recipes/'))
+
 export default function Navigation() {
   const pathname = usePathname()
   if (pathname === '/login') return null
 
+  // Full-bleed bar; the tabs sit in the same column as the page content so the two always line up.
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 max-w-2xl mx-auto bg-forest-900/95 backdrop-blur-md border-t border-forest-700 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
+      aria-label="Principal"
+      className="fixed right-0 bottom-0 left-0 z-40 border-t border-forest-700 bg-forest-900/95 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-md"
     >
-      <div className="flex px-1 pt-1">
+      <div className={`mx-auto flex px-1 pt-1 ${pageWidthClass(pathname)}`}>
         {navItems.map(({ href, label, Icon }) => {
-          const active = pathname === href
+          const active = isActive(pathname, href)
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all relative ${
-                active ? 'text-[#c7f23a]' : 'text-forest-500'
+              aria-current={active ? 'page' : undefined}
+              className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#a3e635] ${
+                active ? 'text-[#c7f23a]' : 'text-forest-300 hover:text-forest-50'
               }`}
             >
-              {active && (
-                <span
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-[#a3e635]"
-                />
-              )}
+              {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-b-full bg-[#a3e635]" />}
               <Icon size={19} />
-              <span className={`text-[10px] font-medium tracking-tight sm:block ${active ? 'opacity-100' : 'opacity-75'}`}>
-                {label}
-              </span>
+              <span className="text-[10px] font-medium tracking-tight">{label}</span>
             </Link>
           )
         })}

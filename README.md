@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.jpg" width="150" style="border-radius: 20px" alt="KetoHoy Logo">
+  <img src="public/brand/ketohoy-icon-192.png" width="120" style="border-radius: 20px" alt="KetoHoy Logo">
 </p>
 
 <h1 align="center">KetoHoy</h1>
@@ -16,10 +16,6 @@
   <img src="https://img.shields.io/badge/Next.js-16.2-black.svg" alt="Next.js">
   <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8.svg" alt="Tailwind">
   <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status">
-</p>
-
-<p align="center">
-  <img src="public/mockup_3d.jpg" width="600" style="border-radius: 20px; box-shadow: 0px 4px 20px rgba(0,0,0,0.5)" alt="KetoHoy App Mockup">
 </p>
 
 ---
@@ -85,3 +81,20 @@ pm2 restart <PM2_APP_NAME>
 ```
 
 
+
+
+## Imágenes de recetas (proceso manual)
+
+Las fotos de receta se guardan en la base de datos y **no** se tocan en los deploys ni al navegar.
+Para completar las que faltan hay que lanzarlo a propósito (usa el primer resultado de Unsplash, así que conviene revisarlas después):
+
+```bash
+cd <DEPLOY_PATH>                       # en el VPS: la carpeta de la app
+npm run images:backfill -- --dry-run   # lista las recetas sin foto; no llama a Unsplash ni escribe en la BD
+npm run images:backfill                # busca y guarda (RECIPE_IMAGE_BACKFILL_LIMIT=40 por defecto)
+```
+
+- Lee `UNSPLASH_ACCESS_KEY` del entorno, de `.env.local` o de `.env`. Si falta, el script falla con un mensaje claro y no cambia nada.
+- Unsplash (plan demo) permite 50 peticiones por hora.
+- Para corregir una foto: `sqlite3 dev.db "update Recipe set imageUrl=NULL where title='…'"` y volver a lanzar el script.
+- `RECIPE_IMAGE_AUTOFETCH=true` reactiva la descarga automática al ver recetas (desactivada por defecto).

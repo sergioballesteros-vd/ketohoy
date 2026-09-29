@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
+import { addBoughtToPantry } from '@/lib/pantryTransfer'
 
 const markBoughtSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
@@ -12,32 +13,16 @@ export const POST = withErrorHandling(async (request: Request) => {
   const userId = await requireUserId()
   const { ids } = markBoughtSchema.parse(await request.json())
 
-  await db.shoppingListItem.updateMany({
-    where: { id: { in: ids }, userId },
-    data: { checked: true },
-  })
-
-  // Add linked products to pantry
-  const items = await db.shoppingListItem.findMany({
-    where: { id: { in: ids }, userId, productId: { not: null } },
-  })
-
-  const productIds = items.map(i => i.productId).filter((id): id is string => id !== null)
-
-  if (productIds.length > 0) {
-    const existingPantry = await db.pantryItem.findMany({
-      where: { userId, productId: { in: productIds } },
-      select: { productId: true },
-    })
-    const alreadyInPantry = new Set(existingPantry.map(p => p.productId))
-    const toAdd = [...new Set(productIds)].filter(id => !alreadyInPantry.has(id))
-
-    if (toAdd.length > 0) {
-      await db.pantryItem.createMany({
-        data: toAdd.map(productId => ({ userId, productId })),
-      })
+  // Only items still pending: re-marking an already bought item must not add its quantity twice.
+  const pending = await db.shoppingListItem.findMany({ where: { id: { in: ids }, userId, checked: false } })
+  let marked = 0
+  for (const item of pending) {
+    const { count } = await db.shoppingListItem.updateMany({ where: { id: item.id, userId, checked: false }, data: { checked: true } })
+    if (count === 1) {
+      await addBoughtToPantry(userId, item)
+      marked++
     }
   }
 
-  return NextResponse.json({ marked: ids.length })
+  return NextResponse.json({ marked })
 })

@@ -1,14 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { LogoMark, SettingsIcon, CartIcon, MealsIcon, PantryIcon, CalendarIcon } from '@/components/icons'
+import Image from 'next/image'
+import { ChefHat, ChevronRight, Clock, Settings } from 'lucide-react'
+import { LogoMark, CartIcon, PantryIcon, CalendarIcon } from '@/components/icons'
 import { productosCount, pluralize } from '@/lib/pluralize'
+import type { HomeRecipe } from '@/app/page'
 
 type HomePageClientProps = {
   stats: {
     pantryCount: number
     recipesAvailable: number
     shoppingCount: number
+    featured: HomeRecipe | null
+    more: HomeRecipe[]
   }
   greeting: {
     text: string
@@ -16,162 +21,168 @@ type HomePageClientProps = {
   }
 }
 
-export default function HomePageClient({ stats, greeting }: HomePageClientProps) {
+const difficultyLabel: Record<string, string> = {
+  very_easy: 'Muy fácil',
+  easy: 'Fácil',
+  medium: 'Media',
+}
+
+function coverage(r: HomeRecipe) {
+  if (r.missingCount === 0) return 'Tienes todo'
+  if (r.missingCount === 1) return 'Te falta 1 ingrediente'
+  return `Te faltan ${r.missingCount} ingredientes`
+}
+
+function RecipePhoto({ recipe, sizes, className }: { recipe: HomeRecipe; sizes: string; className?: string }) {
   return (
-    <main className="min-h-screen">
-      {/* Hero */}
-      <div className="relative px-5 pt-12 pb-8 overflow-hidden">
-        {/* Glow blob animated with CSS */}
-        <div
-          className="absolute -top-8 -right-12 w-56 h-56 rounded-full pointer-events-none animate-blob-pulse"
-          style={{ background: 'radial-gradient(circle, #a3e635 0%, transparent 70%)' }}
-        />
-
-        <div className="flex items-start justify-between relative z-10">
-          <div className="animate-fade-left">
-            <div className="flex items-center gap-2.5 mb-3">
-              <LogoMark size={36} />
-              <h1 className="text-3xl font-bold leading-none font-syne text-forest-50">
-                KetoHoy
-              </h1>
-            </div>
-            <p className="text-lg font-semibold text-[#a3e635]">{greeting.text}</p>
-            <p className="text-sm mt-0.5 text-forest-300">{greeting.sub}</p>
-          </div>
-          <div className="animate-fade-scale">
-            <Link
-              href="/preferences"
-              className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors bg-forest-800 text-forest-400 hover:bg-forest-700"
-              aria-label="Preferencias"
-            >
-              <SettingsIcon size={18} />
-            </Link>
-          </div>
+    <div className={`relative overflow-hidden bg-forest-800 ${className ?? ''}`}>
+      {recipe.imageUrl ? (
+        <Image src={recipe.imageUrl} alt="" fill sizes={sizes} className="object-cover" />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-forest-500">
+          <ChefHat size={36} strokeWidth={1.5} />
         </div>
-      </div>
+      )}
+    </div>
+  )
+}
 
-      <div>
-        {/* Stats */}
-        <div className="px-5 mb-6 animate-stagger-1">
-          <div className="grid grid-cols-3 gap-2">
-            <Link
-              href="/meals"
-              className="rounded-2xl p-4 text-center transition-all hover:scale-[1.02] bg-forest-800 border border-forest-700 active:scale-95"
-            >
-              <div className="text-3xl font-bold mb-0.5 font-syne text-[#a3e635]">
-                {stats.recipesAvailable}
-              </div>
-              <div className="text-xs font-medium text-forest-400">listas ya</div>
-            </Link>
-            <Link
-              href="/inventory"
-              className="rounded-2xl p-4 text-center transition-all hover:scale-[1.02] bg-forest-800 border border-forest-700 active:scale-95"
-            >
-              <div className="text-3xl font-bold mb-0.5 font-syne text-forest-50">
-                {stats.pantryCount}
-              </div>
-              <div className="text-xs font-medium text-forest-400">en casa</div>
-            </Link>
-            <Link
-              href="/shopping-list"
-              className="rounded-2xl p-4 text-center transition-all hover:scale-[1.02] bg-forest-800 border border-forest-700 active:scale-95"
-            >
-              <div
-                className={`text-3xl font-bold mb-0.5 font-syne ${stats.shoppingCount > 0 ? 'text-amber-500' : 'text-forest-500'}`}
-              >
-                {stats.shoppingCount}
-              </div>
-              <div className="text-xs font-medium text-forest-400">por comprar</div>
-            </Link>
-          </div>
+export default function HomePageClient({ stats, greeting }: HomePageClientProps) {
+  const { featured, more } = stats
+
+  return (
+    <main className="min-h-screen px-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-6">
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <LogoMark size={24} />
+          <span className="font-syne text-base font-bold text-forest-50">KetoHoy</span>
         </div>
+        <Link
+          href="/preferences"
+          aria-label="Preferencias"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-forest-300 transition-colors hover:bg-forest-800 hover:text-forest-50"
+        >
+          <Settings size={20} />
+        </Link>
+      </header>
 
-        {/* Primary CTA */}
-        <div className="px-5 mb-3 animate-stagger-2">
-          <Link
-            href="/meals"
-            className="flex items-center gap-4 rounded-2xl p-5 transition-all hover:scale-[1.02] active:scale-[0.98] bg-[#a3e635]"
-          >
-            <span className="w-12 h-12 flex items-center justify-center rounded-xl flex-shrink-0 bg-forest-950/30">
-              <MealsIcon size={24} className="text-forest-600" />
-            </span>
-            <div className="flex-1">
-              <div className="font-bold text-lg leading-tight font-syne text-forest-950">
-                Dame ideas para hoy
-              </div>
-              <div className="text-sm font-medium mt-0.5 text-forest-600">
-                {stats.recipesAvailable > 0
-                  ? `${stats.recipesAvailable} recetas con lo que tienes`
-                  : 'Recetas keto disponibles'}
-              </div>
-            </div>
-            <span className="text-xl font-bold text-forest-600">→</span>
+      <section className="mt-6">
+        <p className="text-sm font-medium text-forest-300">{greeting.text}</p>
+        <h1 className="mt-1 text-[28px] leading-[1.1] font-extrabold text-forest-50">{greeting.sub}</h1>
+      </section>
+
+      {/* 1. Food first: today's pick */}
+      {featured ? (
+        <section className="mt-6" aria-label="Recomendación de hoy">
+          <Link href={`/recipes/${featured.id}`} className="group block">
+            <RecipePhoto
+              recipe={featured}
+              sizes="(min-width: 672px) 630px, 100vw"
+              className="aspect-[4/3] rounded-3xl sm:aspect-[2/1]"
+            />
+            <h2 className="mt-4 text-[22px] leading-tight font-bold text-forest-50 group-hover:underline">
+              {featured.title}
+            </h2>
           </Link>
-        </div>
-
-        {/* Secondary CTAs */}
-        <div className="px-5 space-y-2 animate-stagger-3">
-          <Link
-            href="/inventory"
-            className="flex items-center gap-4 rounded-2xl p-4 transition-colors bg-forest-800 border border-forest-700 hover:bg-forest-700/80 active:scale-[0.99]"
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0 bg-forest-700 text-forest-400">
-              <PantryIcon size={18} />
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-forest-300">
+            <span className="inline-flex items-center gap-1">
+              <Clock size={14} /> {featured.prepTimeMinutes} min
             </span>
-            <div className="flex-1">
-              <div className="font-semibold text-sm text-forest-50">Mi despensa</div>
-              <div className="text-xs mt-0.5 text-forest-400">
-                {stats.pantryCount > 0 ? `${productosCount(stats.pantryCount)} en casa` : 'Añade lo que tienes'}
-              </div>
-            </div>
-            <span className="text-forest-500">›</span>
+            <span aria-hidden>·</span>
+            <span>{difficultyLabel[featured.difficulty] ?? featured.difficulty}</span>
+            <span aria-hidden>·</span>
+            <span className={featured.missingCount === 0 ? 'font-semibold text-[#a3e635]' : ''}>{coverage(featured)}</span>
+          </p>
+          <Link
+            href={`/recipes/${featured.id}`}
+            className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl bg-[#a3e635] text-[15px] font-bold text-forest-950 transition-opacity hover:opacity-90 active:opacity-80"
+          >
+            Ver receta
           </Link>
+        </section>
+      ) : (
+        <section className="mt-6 rounded-3xl bg-forest-800 p-6 text-center">
+          <ChefHat size={32} strokeWidth={1.5} className="mx-auto text-forest-400" />
+          <p className="mt-3 font-semibold text-forest-50">Aún no hay recetas para sugerirte</p>
+          <p className="mt-1 text-sm text-forest-300">Revisa tus preferencias o añade productos a la despensa.</p>
+        </section>
+      )}
 
-          <Link
-            href="/shopping-list"
-            className="flex items-center gap-4 rounded-2xl p-4 transition-colors bg-forest-800 border border-forest-700 hover:bg-forest-700/80 active:scale-[0.99]"
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0 bg-forest-700 text-forest-400">
-              <CartIcon size={18} />
-            </span>
-            <div className="flex-1">
-              <div className="font-semibold text-sm text-forest-50">Lista de compra</div>
-              <div className="text-xs mt-0.5 text-forest-400">
-                {stats.shoppingCount > 0
-                  ? `${productosCount(stats.shoppingCount)} ${pluralize(stats.shoppingCount, 'pendiente', 'pendientes')}`
-                  : 'Sin pendientes'}
-              </div>
-            </div>
-            {stats.shoppingCount > 0 ? (
-              <span
-                className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-amber-500 text-forest-950"
-              >
-                {stats.shoppingCount}
-              </span>
+      {/* 2. Available ideas */}
+      <section className="mt-8">
+        <Link
+          href="/meals"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-forest-700 px-4 py-3.5 transition-colors hover:bg-forest-800"
+        >
+          <span>
+            {stats.recipesAvailable > 0 ? (
+              <>
+                <span className="font-syne text-2xl font-bold text-[#a3e635]">{stats.recipesAvailable}</span>{' '}
+                <span className="text-[15px] font-semibold text-forest-50">
+                  {pluralize(stats.recipesAvailable, 'receta que puedes hacer', 'recetas que puedes hacer')}
+                </span>
+              </>
             ) : (
-              <span className="text-forest-500">›</span>
+              <span className="text-[15px] font-semibold text-forest-50">Explora recetas keto</span>
             )}
-          </Link>
+          </span>
+          <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold whitespace-nowrap text-[#a3e635]">
+            Ver ideas <ChevronRight size={16} />
+          </span>
+        </Link>
 
-          <Link
-            href="/weekly-plan"
-            className="flex items-center gap-4 rounded-2xl p-4 transition-colors bg-forest-800 border border-forest-700 hover:bg-forest-700/80 active:scale-[0.99]"
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0 bg-forest-700 text-forest-400">
-              <CalendarIcon size={18} />
-            </span>
-            <div className="flex-1">
-              <div className="font-semibold text-sm text-forest-50">Plan semanal</div>
-              <div className="text-xs mt-0.5 text-forest-400">Menú de toda la semana</div>
-            </div>
-            <span className="text-forest-500">›</span>
-          </Link>
-        </div>
+        {more.length > 0 && (
+          <div className="hide-scrollbar -mx-5 mt-5 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
+            {more.map(r => (
+              <Link key={r.id} href={`/recipes/${r.id}`} className="w-40 shrink-0 snap-start">
+                <RecipePhoto recipe={r} sizes="160px" className="aspect-[4/3] rounded-2xl" />
+                <p className="mt-2 line-clamp-2 text-sm leading-snug font-semibold text-forest-50">{r.title}</p>
+                <p className="mt-0.5 text-xs text-forest-300">
+                  {r.prepTimeMinutes} min · {r.missingCount === 0 ? 'Tienes todo' : `Faltan ${r.missingCount}`}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
-        <p className="text-xs text-center mt-8 pb-2 px-5 text-forest-500 animate-stagger-4">
-          No sustituye consejo médico o nutricional profesional.
-        </p>
-      </div>
+      {/* 3. Management: quiet, one grouped list */}
+      <section className="mt-8" aria-label="Tu cocina">
+        <h2 className="mb-1 text-xs font-semibold tracking-wider text-forest-400 uppercase">Tu cocina</h2>
+        <ul className="divide-y divide-forest-800">
+          {[
+            {
+              href: '/inventory',
+              Icon: PantryIcon,
+              label: 'Despensa',
+              value: stats.pantryCount > 0 ? `${productosCount(stats.pantryCount)} en casa` : 'Añade lo que tienes',
+            },
+            {
+              href: '/shopping-list',
+              Icon: CartIcon,
+              label: 'Lista de compra',
+              value:
+                stats.shoppingCount > 0
+                  ? `${productosCount(stats.shoppingCount)} ${pluralize(stats.shoppingCount, 'pendiente', 'pendientes')}`
+                  : 'Sin pendientes',
+            },
+            { href: '/weekly-plan', Icon: CalendarIcon, label: 'Plan semanal', value: 'Menú de la semana' },
+          ].map(({ href, Icon, label, value }) => (
+            <li key={href}>
+              <Link href={href} className="flex min-h-14 items-center gap-3 py-2 transition-colors hover:text-forest-50">
+                <Icon size={20} className="text-forest-300" />
+                <span className="flex-1 text-[15px] font-medium text-forest-50">{label}</span>
+                <span className="text-sm text-forest-300">{value}</span>
+                <ChevronRight size={16} className="text-forest-500" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <p className="mt-8 px-2 text-center text-xs text-forest-400">
+        No sustituye consejo médico o nutricional profesional.
+      </p>
     </main>
   )
 }

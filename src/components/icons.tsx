@@ -86,19 +86,17 @@ export const ExploreIcon = icon(<>
   <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
 </>)
 
-/** Geometric avocado cross-section mark for the logo */
+/** KetoHoy isotipo (brand pack, public/brand/ketohoy-mark.svg). Geometry must not be altered; `size` is the height. */
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      {/* outer shape — avocado silhouette */}
-      <path
-        d="M16 2C10 2 6 8 6 15c0 7 4 13 10 13s10-6 10-13C26 8 22 2 16 2z"
-        fill="#142514" stroke="#a3e635" strokeWidth="1.5"
-      />
-      {/* inner pit */}
-      <circle cx="16" cy="17" r="4.5" fill="#a3e635"/>
-      {/* highlight dot */}
-      <circle cx="14.5" cy="15.5" r="1.2" fill="#264227"/>
+    <svg width={(size * 160) / 180} height={size} viewBox="0 0 160 180" fill="none" aria-hidden="true">
+      <g stroke="#a3e635" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M70 30C53 37 42 52 36 69C28 91 29 116 41 137C51 155 68 164 84 164" />
+        <path d="M113 40C126 55 134 76 135 98C136 122 126 145 108 156C101 160 93 163 84 164" />
+      </g>
+      <path d="M67 30C75 12 97 8 116 18C108 36 88 42 67 30Z" fill="#a3e635" />
+      <ellipse cx="82" cy="111" rx="24" ry="27" fill="#a3e635" />
+      <ellipse cx="82" cy="111" rx="6" ry="6.5" fill="#0c1a0d" />
     </svg>
   )
 }

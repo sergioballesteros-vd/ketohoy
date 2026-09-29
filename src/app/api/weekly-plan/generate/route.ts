@@ -80,15 +80,14 @@ export const POST = withErrorHandling(async () => {
     throw new ApiError('No hay suficientes recetas compatibles con tus preferencias y despensa', 422)
   }
 
-  // Delete existing plan only after proving that a replacement can be created.
-  const existing = await db.weeklyPlan.findFirst({ where: { weekStart: monday, userId } })
-  if (existing) {
-    await db.weeklyPlan.delete({ where: { id: existing.id } })
-  }
-
-  const plan = await db.weeklyPlan.create({ data: { weekStart: monday, userId } })
-  await db.weeklyMeal.createMany({
-    data: mealCandidates.map(meal => ({ ...meal, planId: plan.id })),
+  // Replace the plan atomically, and only after proving a replacement can be built. deleteMany (not
+  // delete) and one transaction keep simultaneous requests (double tap, two tabs) from leaving several
+  // or half-filled plans for the same week.
+  const plan = await db.$transaction(async tx => {
+    await tx.weeklyPlan.deleteMany({ where: { weekStart: monday, userId } })
+    const created = await tx.weeklyPlan.create({ data: { weekStart: monday, userId } })
+    await tx.weeklyMeal.createMany({ data: mealCandidates.map(meal => ({ ...meal, planId: created.id })) })
+    return created
   })
 
   const fullPlan = await db.weeklyPlan.findUnique({

@@ -28,11 +28,13 @@ for (const path of PAGES) {
 
 test('generate weekly plan produces a full, varied week', async ({ page }) => {
   await page.goto('/weekly-plan')
-  await page.getByRole('button', { name: /Generar/ }).first().click()
-  await expect(page.getByText('Sin asignar')).toHaveCount(0, { timeout: 15_000 })
+  await page.getByRole('button', { name: /Generar semana|Regenerar/ }).click()
+  const confirm = page.getByRole('dialog').getByRole('button', { name: 'Regenerar' })
+  if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
-  const dayHeadings = page.locator('text=/Lun|Mar|Mié|Jue|Vie|Sáb|Dom/i')
-  await expect(dayHeadings.first()).toBeVisible()
+  await expect(page.locator('main section li')).toHaveCount(28, { timeout: 20_000 })
+  await expect(page.getByText('Sin receta')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Lunes' })).toBeVisible()
 })
 
 test('favoriting a product in Explore persists across reload', async ({ page }) => {
@@ -51,36 +53,4 @@ test('favoriting a product in Explore persists across reload', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Quitar favorito', exact: true }).first()).toBeVisible({
     timeout: 15_000,
   })
-})
-
-test('shopping list: add a manual item, toggle it checked, then delete it', async ({ page }) => {
-  const name = `E2E Item ${Date.now()}`
-
-  await page.goto('/shopping-list')
-  await page.getByPlaceholder('Producto').fill(name)
-  await page.getByPlaceholder('cant.').fill('2')
-  await page.getByRole('button', { name: '+', exact: true }).click()
-
-  const row = page.locator('div', { hasText: name }).filter({ has: page.locator('button') }).last()
-  await expect(row).toBeVisible({ timeout: 10_000 })
-
-  // Toggle checked (round checkbox button is the row's first button) and
-  // confirm the API round-trip actually persisted it, not just local state.
-  await row.getByRole('button').first().click()
-  await expect
-    .poll(async () => {
-      const items = await (await page.request.get('/api/shopping-list')).json()
-      return items.find((i: { name: string }) => i.name === name)?.checked
-    })
-    .toBe(true)
-
-  // Delete (the row's last button, "×") and confirm it's gone from both UI and API.
-  await row.getByRole('button').last().click()
-  await expect(page.getByText(name)).toHaveCount(0)
-  await expect
-    .poll(async () => {
-      const items = await (await page.request.get('/api/shopping-list')).json()
-      return items.some((i: { name: string }) => i.name === name)
-    })
-    .toBe(false)
 })

@@ -1,438 +1,196 @@
 'use client'
 import Image from 'next/image'
-import { useEffect, useState, useCallback, useRef } from 'react'
-import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
-import ProductDetailModal from '@/components/ProductDetailModal'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronRight, Plus, ShoppingBasket } from 'lucide-react'
+import AddProductSheet from '@/components/AddProductSheet'
+import { useToast } from '@/components/Toast'
+import { KetoBadge, Skeleton, focusRing } from '@/components/ui'
+import { CATEGORIES, categoryOf } from '@/lib/categories'
+import { productosCount } from '@/lib/pluralize'
+import PantryItemSheet, { type PantryRow } from './PantryItemSheet'
 
-import InventoryNutritionModal, { type InventoryNutritionModalData } from '@/components/InventoryNutritionModal'
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
-type Product = {
-  id: string
-  name: string
-  brand: string | null
-  category: string
-  ketoScore: number
-  source: string
-  mercadonaId: string | null
-  unitPrice: number | null
-  imageUrl: string | null
-  tags: string
-  netCarbsPer100g: number | null
-  fatPer100g: number | null
-  proteinPer100g: number | null
-  caloriesPer100g: number | null
-}
-
-type PantryItem = {
-  id: string
-  productId: string
-  product: Product
-}
-
-async function loadPantryItems() {
+async function loadPantryItems(): Promise<PantryRow[]> {
   const res = await fetch('/api/pantry')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : []
 }
 
-const KETO_SCORE_LABEL: Record<number, { label: string; className: string; desc: string }> = {
-  5: { label: 'Muy keto', className: 'text-[#a3e635]', desc: 'Carne, pescado, huevos, aceites — base de la dieta keto' },
-  4: { label: 'Keto', className: 'text-[#a3e635]', desc: 'Lácteos, verduras bajas en carbos, frutos secos' },
-  3: { label: 'Low carb', className: 'text-[#f59e0b]', desc: 'Usar con moderación. Revisar etiqueta' },
-  2: { label: 'Dudoso', className: 'text-[#f97316]', desc: 'Puede tener azúcares ocultos o almidón' },
-  1: { label: 'Poco keto', className: 'text-[#ef4444]', desc: 'Alto en carbohidratos, evitar en keto estricto' },
-  0: { label: 'No keto', className: 'text-[#ef4444]', desc: 'Pan, pasta, azúcar, cereales — no compatibles' },
-}
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  meat: '🥩', fish: '🐟', eggs: '🥚', dairy: '🧀',
-  vegetables: '🥦', fruit: '🍓', nuts: '🌰', oils: '🫒',
-  sauces: '🥫', drinks: '🥤', other: '🍽️',
-}
-
-// Display-only labels — the `category` value itself stays in English since
-// it's a stored data model key shared with mercadona.ts/ketoRules.ts.
-const CATEGORY_LABEL: Record<string, string> = {
-  meat: 'Carne', fish: 'Pescado', eggs: 'Huevos', dairy: 'Lácteos',
-  vegetables: 'Verduras', fruit: 'Fruta', nuts: 'Frutos secos', oils: 'Aceites',
-  sauces: 'Salsas', drinks: 'Bebidas', other: 'Otros',
-}
+const quantityLabel = (item: PantryRow) =>
+  item.quantity != null ? `${item.quantity} ${item.unit ?? 'ud'}` : null
 
 export default function InventoryPage() {
-  const [pantryItems, setPantryItems] = useState<PantryItem[]>([])
+  const [items, setItems] = useState<PantryRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [mercadonaQuery, setMercadonaQuery] = useState('')
-  const [mercadonaResults, setMercadonaResults] = useState<MercadonaResult[]>([])
-  const [mercadonaLoading, setMercadonaLoading] = useState(false)
-  const [mercadonaSearched, setMercadonaSearched] = useState(false)
-  const [addingId, setAddingId] = useState<string | null>(null)
-  const [removingId, setRemovingId] = useState<string | null>(null)
-  const [modal, setModal] = useState<InventoryNutritionModalData | null>(null)
-  const [loadingNutrition, setLoadingNutrition] = useState(false)
-  const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
-  const modalCloseRef = useRef<HTMLButtonElement | null>(null)
-  const previousFocusRef = useRef<HTMLElement | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [selected, setSelected] = useState<PantryRow | null>(null)
+  const { toast, show } = useToast()
 
-  // Manual add
-  const [showManual, setShowManual] = useState(false)
-  const [manualName, setManualName] = useState('')
-  const [manualQty, setManualQty] = useState('')
-  const [manualUnit, setManualUnit] = useState('ud')
-
-  const fetchPantry = useCallback(async () => {
-    const data = await loadPantryItems()
-    setPantryItems(data)
-    setLoading(false)
+  const refresh = useCallback(async () => {
+    try {
+      setItems(await loadPantryItems())
+      setError(null)
+    } catch {
+      setError('No se pudo cargar la despensa')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
     void (async () => {
-      const data = await loadPantryItems()
-      setPantryItems(data)
-      setLoading(false)
+      await refresh()
     })()
-  }, [])
+  }, [refresh])
 
-  useEffect(() => {
-    if (!modal) return
-    previousFocusRef.current = document.activeElement as HTMLElement | null
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setModal(null)
+  const owned = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const i of items) if (i.product.mercadonaId) map[i.product.mercadonaId] = 1
+    return map
+  }, [items])
+
+  const groups = useMemo(() => {
+    const byCat = new Map<string, PantryRow[]>()
+    for (const item of items) {
+      const key = categoryOf(item.product.category).key
+      byCat.set(key, [...(byCat.get(key) ?? []), item])
     }
-    window.addEventListener('keydown', onKeyDown)
-    queueMicrotask(() => modalCloseRef.current?.focus())
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      previousFocusRef.current?.focus?.()
-    }
-  }, [modal])
+    return CATEGORIES.filter(c => byCat.has(c.key)).map(c => ({ ...c, items: byCat.get(c.key)! }))
+  }, [items])
 
-  const pantryMercadonaIds = new Set(
-    pantryItems.map(i => i.product.mercadonaId).filter(Boolean)
-  )
-
-  const handleMercadonaSearch = async () => {
-    if (!mercadonaQuery.trim()) return
-    setMercadonaLoading(true)
-    setMercadonaSearched(true)
-    const res = await fetch(`/api/mercadona/search?q=${encodeURIComponent(mercadonaQuery)}`)
-    const data = await res.json()
-    setMercadonaResults(data.products ?? [])
-    setMercadonaLoading(false)
+  const save = async (item: PantryRow, quantity: number | null, unit: string | null) => {
+    const res = await fetch(`/api/pantry/${item.id}`, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ quantity, unit }) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    await refresh()
   }
 
-  const handleAddMercadona = async (p: MercadonaResult) => {
-    setAddingId(p.id)
-    await fetch('/api/mercadona/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mercadonaId: p.id.replace('mercadona_', ''),
-        addToPantry: true,
-      }),
+  // Removing is instant but reversible: the toast re-creates the row with the same quantity.
+  const remove = async (item: PantryRow) => {
+    const res = await fetch(`/api/pantry/${item.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      show('No se pudo quitar el producto')
+      return
+    }
+    await refresh()
+    show(`${item.product.name} quitado`, {
+      label: 'Deshacer',
+      run: () =>
+        void (async () => {
+          await fetch('/api/pantry', {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ productId: item.productId, quantity: item.quantity, unit: item.unit }),
+          })
+          await refresh()
+        })(),
     })
-    setAddingId(null)
-    setMercadonaResults([])
-    setMercadonaSearched(false)
-    await fetchPantry()
   }
-
-  const handleRemoveFromPantry = async (pantryItemId: string) => {
-    setRemovingId(pantryItemId)
-    await fetch(`/api/pantry/${pantryItemId}`, { method: 'DELETE' })
-    setRemovingId(null)
-    await fetchPantry()
-  }
-
-  const handleAddManual = async () => {
-    if (!manualName.trim()) return
-    const saved = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: manualName, category: 'other', source: 'manual' }),
-    }).then(r => r.json())
-    await fetch('/api/pantry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        productId: saved.id,
-        quantity: manualQty ? parseFloat(manualQty) : null,
-        unit: manualUnit !== 'ud' ? manualUnit : null,
-      }),
-    })
-    setManualName('')
-    setManualQty('')
-    setManualUnit('ud')
-    setShowManual(false)
-    await fetchPantry()
-  }
-
-  // Open nutrition modal — fetch full detail if Mercadona product
-  const handleOpenNutrition = async (item: PantryItem) => {
-    const p = item.product
-    const base: InventoryNutritionModalData = {
-      name: p.name,
-      imageUrl: p.imageUrl,
-      ketoScore: p.ketoScore,
-      category: p.category,
-      unitPrice: p.unitPrice,
-      mercadonaId: p.mercadonaId,
-      carbs: p.netCarbsPer100g,
-      fat: p.fatPer100g,
-      protein: p.proteinPer100g,
-      calories: p.caloriesPer100g,
-    }
-    setModal(base)
-    if (p.mercadonaId) {
-      setLoadingNutrition(true)
-      const res = await fetch(`/api/mercadona/product/${p.mercadonaId}`)
-      if (res.ok) {
-        const detail = await res.json()
-        setModal({
-          ...base,
-          ingredients: detail.ingredients,
-          allergens: detail.allergens,
-          nutritionSource: base.carbs != null ? 'openfoodfacts' : 'category',
-        })
-      }
-      setLoadingNutrition(false)
-    }
-  }
-
-  if (loading) return <div className="p-4 text-[#547856]">Cargando...</div>
-
-  const ketoInfo = KETO_SCORE_LABEL[modal?.ketoScore ?? 3]
 
   return (
-    <main className="px-4 pt-4 pb-4">
-      <InventoryNutritionModal
-        modal={modal}
-        loadingNutrition={loadingNutrition}
-        ketoInfo={ketoInfo}
-        categoryEmoji={CATEGORY_EMOJI}
-        onClose={() => setModal(null)}
-        closeButtonRef={modalCloseRef}
-      />
-
-      <div className="flex items-center justify-between pt-2 pb-4">
+    <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
+      <header className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
-            Mi despensa
-          </h1>
-          <p className="text-sm mt-0.5 text-[#547856]">{pantryItems.length} productos</p>
+          <h1 className="text-2xl font-bold text-forest-50">Mi despensa</h1>
+          <p className="mt-0.5 text-sm text-forest-300">{loading ? ' ' : productosCount(items.length)}</p>
         </div>
         <button
-          onClick={() => setShowManual(!showManual)}
-          className="text-sm font-medium px-3 py-1.5 rounded-xl transition-colors"
-          style={{ background: '#142514', color: '#7a9e7c', border: '1px solid #1c321d' }}
+          type="button"
+          onClick={() => setAdding(true)}
+          className={`inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
         >
-          + Manual
+          <Plus size={16} strokeWidth={3} /> Añadir
         </button>
-      </div>
+      </header>
 
-      {showManual && (
-        <div className="rounded-2xl p-4 mb-4" style={{ background: '#142514', border: '1px solid #1c321d' }}>
-          <input
-            className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-2"
-            style={{ background: '#1c321d', color: '#ecf5e0' }}
-            placeholder="Nombre del producto"
-            value={manualName}
-            onChange={e => setManualName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddManual()}
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <input
-              className="w-20 rounded-xl px-3 py-2 text-sm outline-none"
-              style={{ background: '#1c321d', color: '#ecf5e0' }}
-              placeholder="Cant."
-              type="number"
-              min="0"
-              step="0.5"
-              value={manualQty}
-              onChange={e => setManualQty(e.target.value)}
-            />
-            <select
-              className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-              style={{ background: '#1c321d', color: '#ecf5e0' }}
-              value={manualUnit}
-              onChange={e => setManualUnit(e.target.value)}
-            >
-              <option value="ud">ud</option>
-              <option value="g">g</option>
-              <option value="kg">kg</option>
-              <option value="ml">ml</option>
-              <option value="l">l</option>
-              <option value="paquete">paquete</option>
-            </select>
-            <button
-              onClick={handleAddManual}
-              className="rounded-xl px-4 text-sm font-semibold"
-              style={{ background: '#a3e635', color: '#060e07' }}
-            >
-              Añadir
-            </button>
-          </div>
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}{' '}
+          <button type="button" onClick={() => void refresh()} className="font-semibold underline">
+            Reintentar
+          </button>
+        </p>
+      )}
+
+      {loading ? (
+        <div className="space-y-3" aria-busy="true">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Skeleton key={i} className="h-14" />
+          ))}
+        </div>
+      ) : items.length === 0 && !error ? (
+        <div className="py-14 text-center">
+          <ShoppingBasket size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+          <p className="font-medium text-forest-50">Tu despensa está vacía</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-forest-300">
+            Añade lo que tienes en casa y KetoHoy te dirá qué recetas puedes cocinar.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className={`mt-4 inline-flex h-11 items-center gap-1.5 rounded-full bg-[#a3e635] px-5 text-sm font-bold text-forest-950 ${focusRing}`}
+          >
+            <Plus size={16} strokeWidth={3} /> Añadir productos
+          </button>
+        </div>
+      ) : (
+        <div className="md:columns-2 md:gap-10">
+          {groups.map(({ key, label, icon: Icon, items: rows }) => (
+            <section key={key} className="mb-5 break-inside-avoid">
+              <h2 className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wider text-forest-300 uppercase">
+                <Icon size={14} /> {label}
+                <span className="font-normal text-forest-400">{rows.length}</span>
+              </h2>
+              <ul className="divide-y divide-forest-800">
+                {rows.map(item => {
+                  const qty = quantityLabel(item)
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(item)}
+                        className={`flex min-h-14 w-full items-center gap-3 rounded-lg py-2 text-left ${focusRing}`}
+                      >
+                        <span className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg ${item.product.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
+                          {item.product.imageUrl ? (
+                            <Image src={item.product.imageUrl} alt="" fill sizes="40px" className="object-cover" />
+                          ) : (
+                            <Icon className="absolute inset-0 m-auto text-forest-300" size={18} strokeWidth={1.5} />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px] font-medium text-forest-50">{item.product.name}</span>
+                          {(qty || item.product.ketoScore < 4) && (
+                            <span className="mt-0.5 flex items-center gap-2 text-xs text-forest-300">
+                              {qty && <span>{qty}</span>}
+                              {/* only when it is worth a warning: most of a keto pantry is Keto/Muy keto */}
+                              {item.product.ketoScore < 4 && <KetoBadge score={item.product.ketoScore} />}
+                            </span>
+                          )}
+                        </span>
+                        <ChevronRight size={16} className="shrink-0 text-forest-500" />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
 
-      {/* Mercadona search */}
-      <div className="rounded-2xl p-4 mb-6" style={{ background: '#142514', border: '1px solid #1c321d' }}>
-        <p className="text-sm font-semibold mb-3 text-[#ecf5e0]">🔍 Buscar en Mercadona</p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-            style={{ background: '#1c321d', color: '#ecf5e0' }}
-            placeholder="ej: huevos, salmón, queso..."
-            value={mercadonaQuery}
-            onChange={e => setMercadonaQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !mercadonaLoading && handleMercadonaSearch()}
-          />
-          <button
-            onClick={handleMercadonaSearch}
-            disabled={mercadonaLoading}
-            className="rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
-            style={{ background: '#f97316', color: '#fff' }}
-          >
-            {mercadonaLoading ? '...' : 'Buscar'}
-          </button>
-        </div>
-
-        {mercadonaResults.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {mercadonaResults.map(p => {
-              const mercId = p.id.replace('mercadona_', '')
-              const alreadyInPantry = pantryMercadonaIds.has(mercId)
-              const pantryItem = pantryItems.find(i => i.product.mercadonaId === mercId)
-              const score = KETO_SCORE_LABEL[p.ketoScore]
-              return (
-                <div key={p.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#1c321d' }}>
-                  <button
-                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                    onClick={() => setDetailProduct(p)}
-                  >
-                  {p.imageUrl && (
-                    <Image src={p.imageUrl} alt={p.name} width={48} height={48} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate text-[#ecf5e0]">{p.name}</div>
-                    <div className="text-xs flex gap-2 mt-0.5">
-                      {p.unitPrice && <span className="font-medium text-[#f59e0b]">{p.unitPrice.toFixed(2)}€</span>}
-                      <span className={KETO_SCORE_LABEL[p.ketoScore]?.className ?? 'text-[#547856]'}>
-                        {score?.label}
-                      </span>
-                    </div>
-                  </div>
-                  </button>
-                  {alreadyInPantry ? (
-                    <button
-                      onClick={() => pantryItem && handleRemoveFromPantry(pantryItem.id)}
-                      disabled={removingId === pantryItem?.id}
-                      className="text-xs flex-shrink-0 font-semibold transition-colors text-[#a3e635] hover:text-red-500"
-                    >
-                      ✓ En despensa
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleAddMercadona(p)}
-                      disabled={addingId === p.id}
-                      className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 font-semibold disabled:opacity-50"
-                      style={{ background: '#a3e635', color: '#060e07' }}
-                    >
-                      {addingId === p.id ? '...' : '+ Añadir'}
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {mercadonaSearched && mercadonaResults.length === 0 && !mercadonaLoading && (
-          <p className="text-xs mt-3 text-center text-[#264227]">Sin resultados</p>
-        )}
-      </div>
-
-      {/* Pantry items grouped by category */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-4 text-[#3b5e3c]">En casa</p>
-        {pantryItems.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-4xl mb-3">🧺</p>
-            <p className="font-semibold text-[#547856]">Despensa vacía</p>
-            <p className="text-sm mt-1 text-[#3b5e3c]">Busca productos en Mercadona para añadirlos</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {Object.entries(
-              pantryItems.reduce<Record<string, PantryItem[]>>((acc, item) => {
-                const cat = item.product.category
-                ;(acc[cat] ??= []).push(item)
-                return acc
-              }, {})
-            ).map(([category, items]) => (
-              <div key={category}>
-                <p className="text-xs font-semibold uppercase tracking-widest mb-2 flex items-center gap-1.5 text-[#3b5e3c]">
-                  <span>{CATEGORY_EMOJI[category] ?? '🍽️'}</span>
-                  <span>{CATEGORY_LABEL[category] ?? category}</span>
-                  <span className="text-[#264227]">({items.length})</span>
-                </p>
-                <div className="space-y-2">
-                  {items.map(item => {
-                    const ketoColor = KETO_SCORE_LABEL[item.product.ketoScore]?.className ?? 'text-[#547856]'
-                    const score = KETO_SCORE_LABEL[item.product.ketoScore]
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-3 rounded-xl p-3"
-                        style={{ background: '#142514', border: '1px solid #1c321d' }}
-                      >
-                        <button onClick={() => handleOpenNutrition(item)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                          {item.product.imageUrl ? (
-                            <Image src={item.product.imageUrl} alt={item.product.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                          ) : (
-                            <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                              style={{ background: '#1c321d' }}
-                            >
-                              {CATEGORY_EMOJI[item.product.category] ?? '🍽️'}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate text-[#ecf5e0]">
-                              {item.product.name}
-                            </div>
-                            <div className="text-xs flex gap-2 mt-0.5">
-                              {item.product.unitPrice && (
-                                <span className="text-[#f59e0b]">{item.product.unitPrice.toFixed(2)}€</span>
-                              )}
-                              <span className={ketoColor}>{score?.label}</span>
-                            </div>
-                          </div>
-                          <span className="text-xs flex-shrink-0 text-[#264227]">›</span>
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFromPantry(item.id)}
-                          disabled={removingId === item.id}
-                          className="text-xl flex-shrink-0 pl-2 leading-none transition-colors text-[#264227] hover:text-red-500"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <ProductDetailModal
-        product={detailProduct}
-        onClose={() => setDetailProduct(null)}
-        onAddToPantry={detailProduct ? async () => { await handleAddMercadona(detailProduct) } : undefined}
-      />
+      {adding && <AddProductSheet target="pantry" owned={owned} onChanged={refresh} onClose={() => setAdding(false)} />}
+      {selected && (
+        <PantryItemSheet
+          item={selected}
+          onClose={() => setSelected(null)}
+          onSave={(q, u) => save(selected, q, u)}
+          onRemove={() => void remove(selected)}
+        />
+      )}
+      {toast}
     </main>
   )
 }

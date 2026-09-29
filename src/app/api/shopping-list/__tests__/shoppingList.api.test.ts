@@ -39,23 +39,33 @@ describe('/api/shopping-list', () => {
     expect(items.some((i: { id: string }) => i.id === item.id)).toBe(true)
   })
 
-  it('check PATCH toggles checked and quantity PATCH increases quantity', async () => {
+  it('check PATCH toggles checked, quantity PATCH increases quantity and is refused once bought', async () => {
     const created = await POST(post('http://test/api/shopping-list', { name: 'Toggle Item', quantity: 1 }))
     const item = await created.json()
+    const bump = () =>
+      quantityPATCH(patch('http://test/api/shopping-list/' + item.id, { delta: 2 }), { params: Promise.resolve({ id: item.id }) })
+
+    const bumped = await bump()
+    expect(bumped.status).toBe(200)
+    expect((await bumped.json()).quantity).toBe('3')
 
     const checked = await checkPATCH(get('http://test/api/shopping-list/' + item.id), {
       params: Promise.resolve({ id: item.id }),
     })
     expect(checked.status).toBe(200)
-    const checkedItem = await checked.json()
-    expect(checkedItem.checked).toBe(true)
+    expect((await checked.json()).checked).toBe(true)
 
-    const bumped = await quantityPATCH(patch('http://test/api/shopping-list/' + item.id, { delta: 2 }), {
-      params: Promise.resolve({ id: item.id }),
-    })
-    expect(bumped.status).toBe(200)
-    const bumpedBody = await bumped.json()
-    expect(bumpedBody.quantity).toBe('3')
+    // bought: the pantry got exactly 3, so the list quantity is frozen until it is un-checked
+    expect((await bump()).status).toBe(409)
+  })
+
+  it('quantity PATCH decrements with a negative delta and deletes at zero', async () => {
+    const item = await (await POST(post('http://test/api/shopping-list', { name: 'Decrement Item', quantity: 3 }))).json()
+    const call = (delta: number) =>
+      quantityPATCH(patch('http://test/api/shopping-list/' + item.id, { delta }), { params: Promise.resolve({ id: item.id }) })
+
+    expect((await (await call(-1)).json()).quantity).toBe('2')
+    expect((await (await call(-2)).json()).deleted).toBe(true)
   })
 
   it('quantity PATCH rejects a non-numeric delta', async () => {

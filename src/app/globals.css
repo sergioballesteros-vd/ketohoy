@@ -7,8 +7,8 @@
   --color-forest-800: #142514;
   --color-forest-700: #1c321d;
   --color-forest-600: #264227;
-  --color-forest-500: #3b5e3c;
-  --color-forest-400: #547856;
+  --color-forest-500: #4d7550; /* graphics/placeholder icons: >=3:1 on forest-900 */
+  --color-forest-400: #6c9070; /* smallest text tone: >=4.5:1 on forest-900 */
   --color-forest-300: #7a9e7c;
   --color-forest-200: #aac4ac;
   --color-forest-100: #d5e6d6;

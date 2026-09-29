@@ -14,12 +14,20 @@ export const PATCH = withErrorHandling(
     const { id } = await params
     const userId = await requireUserId()
     const { delta: rawDelta } = quantityPatchSchema.parse(await request.json().catch(() => ({})))
-    const delta = parseShoppingQuantity(rawDelta, 1)
+    // Negative deltas are valid (decrement). parseShoppingQuantity() only accepts positives and
+    // used to turn -1 into +1, so the "−" button on the shopping list actually incremented.
+    const parsedDelta = rawDelta === undefined || rawDelta === '' ? 1 : Number(rawDelta)
+    if (!Number.isFinite(parsedDelta) || parsedDelta === 0) throw new ApiError('Invalid delta', 400)
+    const delta = parsedDelta
 
     const item = await db.shoppingListItem.findFirst({ where: { id, userId } })
     if (!item) {
       throw new ApiError('Not found', 404)
     }
+
+    // The pantry received exactly this quantity when it was bought; changing it now would make
+    // un-buying subtract a different amount.
+    if (item.checked) throw new ApiError('Un-check the item before changing its quantity', 409)
 
     const nextQuantity = parseShoppingQuantity(mergeShoppingQuantity(item.quantity, delta), 0)
     if (nextQuantity <= 0) {
