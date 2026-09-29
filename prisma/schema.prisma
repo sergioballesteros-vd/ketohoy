@@ -16,6 +16,10 @@ model UserPreferences {
   maxCookingMinutes Int      @default(20)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  userId            String? // null = legacy pre-multiuser row, claimed by the first registered user
+  user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Product {
@@ -24,7 +28,7 @@ model Product {
   brand           String?
   source          String   @default("manual") // manual, mercadona
   mercadonaId     String?  @unique
-  category        String   // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
+  category        String // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
   ketoScore       Int      @default(3) // 0-5
   netCarbsPer100g Float?
   proteinPer100g  Float?
@@ -37,9 +41,9 @@ model Product {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  pantryItems         PantryItem[]
-  recipeIngredients   RecipeIngredient[]
-  shoppingListItems   ShoppingListItem[]
+  pantryItems       PantryItem[]
+  recipeIngredients RecipeIngredient[]
+  shoppingListItems ShoppingListItem[]
 }
 
 model PantryItem {
@@ -51,24 +55,28 @@ model PantryItem {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Recipe {
   id              String   @id @default(cuid())
   title           String
   description     String
-  mealTypes       String   // JSON array: ["breakfast","lunch","dinner","snack"]
+  mealTypes       String // JSON array: ["breakfast","lunch","dinner","snack"]
   prepTimeMinutes Int
-  difficulty      String   // very_easy, easy, medium
-  ketoLevel       String   // strict, moderate, low_carb
+  difficulty      String // very_easy, easy, medium
+  ketoLevel       String // strict, moderate, low_carb
   tags            String   @default("[]") // JSON array
-  steps           String   // JSON array of strings
+  steps           String // JSON array of strings
   imageUrl        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  ingredients     RecipeIngredient[]
-  weeklyMeals     WeeklyMeal[]
+  ingredients RecipeIngredient[]
+  weeklyMeals WeeklyMeal[]
 }
 
 model RecipeIngredient {
@@ -92,23 +100,54 @@ model ShoppingListItem {
   reason    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model WeeklyPlan {
   id        String       @id @default(cuid())
-  weekStart DateTime     // Monday of the week
+  weekStart DateTime // Monday of the week
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   meals     WeeklyMeal[]
+  userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
+  user      User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model WeeklyMeal {
-  id         String     @id @default(cuid())
-  planId     String
-  plan       WeeklyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  recipeId   String?
-  recipe     Recipe?    @relation(fields: [recipeId], references: [id])
-  dayOfWeek  Int        // 0=Monday, 6=Sunday
-  mealType   String     // breakfast, lunch, dinner
-  createdAt  DateTime   @default(now())
+  id        String     @id @default(cuid())
+  planId    String
+  plan      WeeklyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  recipeId  String?
+  recipe    Recipe?    @relation(fields: [recipeId], references: [id])
+  dayOfWeek Int // 0=Monday, 6=Sunday
+  mealType  String // breakfast, lunch, dinner
+  createdAt DateTime   @default(now())
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sessions          Session[]
+  preferences       UserPreferences[]
+  pantryItems       PantryItem[]
+  shoppingListItems ShoppingListItem[]
+  weeklyPlans       WeeklyPlan[]
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token — a DB leak can't be replayed
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

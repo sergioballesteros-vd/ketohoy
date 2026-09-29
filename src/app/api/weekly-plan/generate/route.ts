@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
@@ -7,12 +8,13 @@ import { getMonday } from '@/lib/dateUtils'
 import { extendedPool } from '@/lib/weeklyPlanPool'
 
 export const POST = withErrorHandling(async () => {
+  const userId = await requireUserId()
   const monday = getMonday(new Date())
 
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
-    db.pantryItem.findMany({ include: { product: true } }),
-    db.userPreferences.findFirst(),
+    db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
+    db.userPreferences.findFirst({ where: { userId } }),
   ])
 
   if (recipes.length === 0) {
@@ -79,12 +81,12 @@ export const POST = withErrorHandling(async () => {
   }
 
   // Delete existing plan only after proving that a replacement can be created.
-  const existing = await db.weeklyPlan.findFirst({ where: { weekStart: monday } })
+  const existing = await db.weeklyPlan.findFirst({ where: { weekStart: monday, userId } })
   if (existing) {
     await db.weeklyPlan.delete({ where: { id: existing.id } })
   }
 
-  const plan = await db.weeklyPlan.create({ data: { weekStart: monday } })
+  const plan = await db.weeklyPlan.create({ data: { weekStart: monday, userId } })
   await db.weeklyMeal.createMany({
     data: mealCandidates.map(meal => ({ ...meal, planId: plan.id })),
   })

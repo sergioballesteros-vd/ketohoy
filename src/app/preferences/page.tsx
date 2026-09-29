@@ -163,6 +163,17 @@ export default function PreferencesPage() {
         {error && <p className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</p>}
       </div>
 
+      <button
+        onClick={async () => {
+          await fetch('/api/auth/logout', { method: 'POST' })
+          window.location.href = '/login'
+        }}
+        className="block mx-auto mt-6 text-sm"
+        style={{ color: '#547856' }}
+      >
+        Cerrar sesión
+      </button>
+
       <p className="text-xs text-center mt-4 px-4" style={{ color: '#264227' }}>
         No sustituye consejo médico o nutricional profesional.
       </p>

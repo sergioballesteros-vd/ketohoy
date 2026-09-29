@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { setupTestDb, get } from '@/lib/__tests__/testDb'
+
+vi.mock('@/lib/auth', async () => (await import('@/lib/__tests__/authMock')).authMock)
 
 let GET: typeof import('../route').GET
 let cleanup: () => void

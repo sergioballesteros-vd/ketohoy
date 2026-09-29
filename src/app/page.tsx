@@ -4,19 +4,21 @@ import HomePageClient from '@/components/HomePageClient'
 // request time, not a value baked into a static/ISR shell at build time
 // (that mismatch was causing a hydration error in production builds).
 export const dynamic = 'force-dynamic'
+import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/auth'
 import { unstable_cache } from 'next/cache'
 import { scoreRecipe } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
 const getStats = unstable_cache(
-  async () => {
+  async (userId: string) => {
   try {
     const [pantryItems, allRecipes, shoppingItems, prefs] = await Promise.all([
-      db.pantryItem.findMany({ include: { product: true } }),
+      db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
       db.recipe.findMany({ include: { ingredients: true } }),
-      db.shoppingListItem.findMany({ where: { checked: false } }),
-      db.userPreferences.findFirst(),
+      db.shoppingListItem.findMany({ where: { userId, checked: false } }),
+      db.userPreferences.findFirst({ where: { userId } }),
     ])
 
     const pantryProductIds = new Set(pantryItems.map(i => i.productId))
@@ -55,7 +57,9 @@ function getGreeting() {
 }
 
 export default async function HomePage() {
-  const stats = await getStats()
+  const user = await getSessionUser()
+  if (!user) redirect('/login')
+  const stats = await getStats(user.id)
   const greeting = getGreeting()
 
   return <HomePageClient stats={stats} greeting={greeting} />

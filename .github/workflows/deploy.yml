@@ -21,7 +21,7 @@ jobs:
             set -euo pipefail
             DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
-            DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/keto-mercadona}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/ketohoy}"
             TMP_DIR="$(mktemp -d)"
             trap 'rm -rf "$TMP_DIR"' EXIT
             echo "Deploying ${DEPLOY_SHA}"
@@ -36,7 +36,7 @@ jobs:
               "$TMP_DIR"/ "$DEPLOY_PATH"/
             cd "$DEPLOY_PATH"
             printf '%s\n' "$DEPLOY_SHA" > .deploy-sha
-            printf 'DATABASE_URL=file:./dev.db\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
+            printf 'DATABASE_URL=file:./dev.db\nCOOKIE_SECURE=true\nUNSPLASH_ACCESS_KEY=%s\n' "${{ secrets.UNSPLASH_ACCESS_KEY }}" > .env.local
             export DATABASE_URL="file:./dev.db"
             npm ci --include=dev --no-audit --no-fund
             # Requires `sqlite3` on the deploy host (apt install sqlite3 on
@@ -89,17 +89,17 @@ jobs:
               fuser -k 3000/tcp || true
               sleep 2
             fi
-            PORT=3000 pm2 start npm --name "$APP_NAME" -- start
+            PORT=3000 pm2 start npm --name "$APP_NAME" -- start -- -H 127.0.0.1
             pm2 save
             sleep 8
             pm2 describe "$APP_NAME"
             ss -ltnp | grep ':3000' || true
             test "$(cat .deploy-sha)" = "$DEPLOY_SHA"
+            # /login is public (everything else redirects there without a session).
             curl -fsSI --retry 5 --retry-delay 2 --max-time 15 \
               -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-              http://127.0.0.1:3000/explore | tee /tmp/explore-local.headers
-            ! grep -qi '^x-nextjs-prerender:' /tmp/explore-local.headers
-            curl -fsSI --max-time 15 \
-              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-              http://${{ secrets.SSH_HOST }}:3000/explore | tee /tmp/explore-public.headers
-            ! grep -qi '^x-nextjs-prerender:' /tmp/explore-public.headers
+              http://127.0.0.1:3000/login | tee /tmp/login-local.headers
+            head -1 /tmp/login-local.headers | grep -q ' 200'
+            curl -fsSI --retry 5 --retry-delay 3 --max-time 20 \
+              "https://${{ secrets.APP_DOMAIN }}/login" | tee /tmp/login-public.headers
+            head -1 /tmp/login-public.headers | grep -q ' 200'

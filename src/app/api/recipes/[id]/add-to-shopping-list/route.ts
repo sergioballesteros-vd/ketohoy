@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
@@ -7,6 +8,7 @@ import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } 
 export const POST = withErrorHandling(
   async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
+  const userId = await requireUserId()
 
   const recipe = await db.recipe.findUnique({
     where: { id },
@@ -16,7 +18,7 @@ export const POST = withErrorHandling(
     throw new ApiError('Not found', 404)
   }
 
-  const pantryItems = await db.pantryItem.findMany({ include: { product: true } })
+  const pantryItems = await db.pantryItem.findMany({ where: { userId }, include: { product: true } })
   const pantryProductIds = new Set(pantryItems.map(i => i.productId))
   const pantryProductNames = pantryItems.map(i => i.product.name)
 
@@ -27,7 +29,7 @@ export const POST = withErrorHandling(
   })
 
   const existingItems = await db.shoppingListItem.findMany({
-    where: { checked: false },
+    where: { userId, checked: false },
   })
 
   const created = []
@@ -75,7 +77,7 @@ export const POST = withErrorHandling(
   }
 
   if (newItems.length > 0) {
-    await db.shoppingListItem.createMany({ data: newItems })
+    await db.shoppingListItem.createMany({ data: newItems.map(i => ({ ...i, userId })) })
     created.push(...newItems)
   }
 

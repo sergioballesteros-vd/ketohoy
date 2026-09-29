@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { setupTestDb, get, post } from '@/lib/__tests__/testDb'
+
+vi.mock('@/lib/auth', async () => (await import('@/lib/__tests__/authMock')).authMock)
 
 let GET: typeof import('../route').GET
 let POST: typeof import('../route').POST
@@ -30,6 +32,11 @@ describe('/api/pantry', () => {
   it('POST rejects a body without productId', async () => {
     const res = await POST(post('http://test/api/pantry', {}))
     expect(res.status).toBe(400)
+  })
+
+  it('POST returns 404 for an unknown productId (not 500)', async () => {
+    const res = await POST(post('http://test/api/pantry', { productId: 'does-not-exist' }))
+    expect(res.status).toBe(404)
   })
 
   it('POST rejects malformed JSON', async () => {

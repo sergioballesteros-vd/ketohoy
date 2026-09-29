@@ -8,6 +8,15 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3100',
   },
+  projects: [
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    {
+      name: 'chromium',
+      testIgnore: /auth\.setup\.ts/,
+      dependencies: ['setup'],
+      use: { storageState: 'playwright/.auth/user.json' },
+    },
+  ],
   webServer: {
     command: 'npm run start -- -p 3100',
     url: 'http://127.0.0.1:3100',

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
 
-async function getOrCreatePreferences() {
-  const existing = await db.userPreferences.findFirst()
+async function getOrCreatePreferences(userId: string) {
+  const existing = await db.userPreferences.findFirst({ where: { userId } })
   if (existing) return existing
-  return db.userPreferences.create({ data: {} })
+  return db.userPreferences.create({ data: { userId } })
 }
 
 const patchPreferencesSchema = z.object({
@@ -19,14 +20,14 @@ const patchPreferencesSchema = z.object({
 
 // GET /api/preferences
 export const GET = withErrorHandling(async () => {
-  const prefs = await getOrCreatePreferences()
+  const prefs = await getOrCreatePreferences(await requireUserId())
   return NextResponse.json(prefs)
 })
 
 // PATCH /api/preferences
 export const PATCH = withErrorHandling(async (request: Request) => {
   const body = patchPreferencesSchema.parse(await request.json())
-  const prefs = await getOrCreatePreferences()
+  const prefs = await getOrCreatePreferences(await requireUserId())
 
   const updated = await db.userPreferences.update({
     where: { id: prefs.id },

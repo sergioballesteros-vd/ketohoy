@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
@@ -7,14 +8,15 @@ import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 export const PATCH = withErrorHandling(
   async (_request: Request, { params }: { params: Promise<{ mealId: string }> }) => {
   const { mealId } = await params
+  const userId = await requireUserId()
 
-  const meal = await db.weeklyMeal.findUnique({ where: { id: mealId } })
+  const meal = await db.weeklyMeal.findFirst({ where: { id: mealId, plan: { userId } } })
   if (!meal) throw new ApiError('Not found', 404)
 
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
-    db.pantryItem.findMany({ include: { product: true } }),
-    db.userPreferences.findFirst(),
+    db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
+    db.userPreferences.findFirst({ where: { userId } }),
   ])
 
   const preferences = {
@@ -30,7 +32,7 @@ export const PATCH = withErrorHandling(
 
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
   const recentMeals = await db.weeklyMeal.findMany({
-    where: { createdAt: { gte: threeDaysAgo }, recipeId: { not: null } },
+    where: { createdAt: { gte: threeDaysAgo }, recipeId: { not: null }, plan: { userId } },
     select: { recipeId: true },
   })
   const recentRecipeIds = recentMeals.map(m => m.recipeId).filter((id): id is string => id !== null)

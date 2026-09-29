@@ -14,6 +14,7 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname()
+  if (pathname === '/login') return null
 
   return (
     <nav

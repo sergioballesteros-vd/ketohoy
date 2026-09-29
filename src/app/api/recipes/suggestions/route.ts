@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
 import { ensureRecipeImage } from '@/lib/recipeImage'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
 export const GET = withErrorHandling(async (request: Request) => {
+  const userId = await requireUserId()
   const { searchParams } = new URL(request.url)
   const mealType = searchParams.get('mealType') ?? undefined
   const maxTime = searchParams.get('maxTime') ? parseInt(searchParams.get('maxTime')!) : undefined
@@ -15,8 +17,8 @@ export const GET = withErrorHandling(async (request: Request) => {
 
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
-    db.pantryItem.findMany({ include: { product: true } }),
-    db.userPreferences.findFirst(),
+    db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
+    db.userPreferences.findFirst({ where: { userId } }),
   ])
 
   const preferences: ScoringOptions['preferences'] = prefs

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
 import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
 
@@ -17,6 +18,7 @@ const deleteShoppingItemsSchema = z.object({
 
 export const GET = withErrorHandling(async () => {
   const items = await db.shoppingListItem.findMany({
+    where: { userId: await requireUserId() },
     include: { product: true },
     orderBy: [{ checked: 'asc' }, { createdAt: 'desc' }],
   })
@@ -24,12 +26,13 @@ export const GET = withErrorHandling(async () => {
 })
 
 export const POST = withErrorHandling(async (request: Request) => {
+  const userId = await requireUserId()
   const { name, quantity, productId, reason } = createShoppingItemSchema.parse(await request.json())
 
   const normalizedName = name.trim()
   const quantityValue = formatShoppingQuantity(parseShoppingQuantity(quantity, 1))
   const existing = await db.shoppingListItem.findFirst({
-    where: productId ? { productId: String(productId) } : { name: normalizedName },
+    where: { userId, ...(productId ? { productId: String(productId) } : { name: normalizedName }) },
     include: { product: true },
   })
 
@@ -47,6 +50,7 @@ export const POST = withErrorHandling(async (request: Request) => {
 
   const item = await db.shoppingListItem.create({
     data: {
+      userId,
       name: normalizedName,
       quantity: quantityValue,
       productId: productId ? String(productId) : null,
@@ -59,6 +63,6 @@ export const POST = withErrorHandling(async (request: Request) => {
 
 export const DELETE = withErrorHandling(async (request: Request) => {
   const { ids } = deleteShoppingItemsSchema.parse(await request.json())
-  await db.shoppingListItem.deleteMany({ where: { id: { in: ids } } })
+  await db.shoppingListItem.deleteMany({ where: { id: { in: ids }, userId: await requireUserId() } })
   return NextResponse.json({ deleted: ids.length })
 })

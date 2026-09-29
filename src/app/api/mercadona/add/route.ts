@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { getMercadonaProduct } from '@/lib/mercadona'
 import { fetchNutritionByEan, ketoScoreFromCarbs } from '@/lib/openFoodFacts'
@@ -27,6 +28,7 @@ export const POST = withErrorHandling(async (request: Request) => {
   const rl = rateLimit(request, { limit: 30, windowMs: 60_000 })
   if (!rl.ok) throw new ApiError('Too many requests', 429)
 
+  const userId = await requireUserId()
   const { mercadonaId, addToPantry, addToShoppingList, quantity } = addMercadonaProductSchema.parse(
     await request.json()
   )
@@ -108,10 +110,10 @@ export const POST = withErrorHandling(async (request: Request) => {
 
   // 5a. Add to pantry
   if (addToPantry) {
-    const existing = await db.pantryItem.findFirst({ where: { productId: product.id } })
+    const existing = await db.pantryItem.findFirst({ where: { userId, productId: product.id } })
     if (!existing) {
       pantryItem = await db.pantryItem.create({
-        data: { productId: product.id },
+        data: { userId, productId: product.id },
         include: { product: true },
       })
     } else {
@@ -123,7 +125,7 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (addToShoppingList) {
     const quantityValue = parseShoppingQuantity(quantity, 1)
     const existing = await db.shoppingListItem.findFirst({
-      where: { productId: product.id },
+      where: { userId, productId: product.id },
       include: { product: true },
     })
     if (existing) {
@@ -137,6 +139,7 @@ export const POST = withErrorHandling(async (request: Request) => {
     } else {
       shoppingItem = await db.shoppingListItem.create({
         data: {
+          userId,
           name: product.name,
           productId: product.id,
           quantity: formatShoppingQuantity(quantityValue),
