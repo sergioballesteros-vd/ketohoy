@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { claimLegacyData, createSession, hashPassword } from '@/lib/auth'
+import { sendVerificationEmail } from '@/lib/authMail'
 import { rateLimit } from '@/lib/rateLimit'
 
 const schema = z.object({
@@ -18,5 +19,7 @@ export const POST = withErrorHandling(async (request: Request) => {
   const user = await db.user.create({ data: { email, passwordHash: await hashPassword(password) } })
   await claimLegacyData(user.id)
   await createSession(user.id)
+  // Best effort: an unverified email never blocks the account; the user can resend from Preferences.
+  await sendVerificationEmail(user).catch(err => console.error('verification email failed', err))
   return NextResponse.json({ id: user.id, email: user.email }, { status: 201 })
 })

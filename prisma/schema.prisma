@@ -91,20 +91,20 @@ model RecipeIngredient {
 }
 
 model ShoppingListItem {
-  id        String   @id @default(cuid())
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id])
-  name      String
-  quantity  String?
-  checked   Boolean  @default(false)
-  reason    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id])
+  name          String
+  quantity      String?
+  checked       Boolean  @default(false)
+  reason        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String? // null = legacy pre-multiuser row, claimed by the first registered user
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   // What buying this item did to the pantry, so un-buying reverses exactly that (null = not bought / bought before tracking).
   pantryDelta   Float?
-  pantryCreated Boolean @default(false) // true if that purchase created the pantry row
+  pantryCreated Boolean  @default(false) // true if that purchase created the pantry row
 
   @@index([userId])
 }
@@ -133,12 +133,14 @@ model WeeklyMeal {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  createdAt       DateTime  @default(now())
+  emailVerifiedAt DateTime?
 
   sessions          Session[]
+  authTokens        AuthToken[]
   preferences       UserPreferences[]
   pantryItems       PantryItem[]
   shoppingListItems ShoppingListItem[]
@@ -153,4 +155,16 @@ model Session {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model AuthToken {
+  id        String    @id // sha256 of the emailed token — a DB leak can't be replayed
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // reset, verify
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type])
 }

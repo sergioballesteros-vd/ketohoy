@@ -32,9 +32,27 @@ export default function PreferencesPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [account, setAccount] = useState<{ email: string; emailVerified: boolean } | null>(null)
+  const [resend, setResend] = useState<'idle' | 'busy' | 'sent' | 'error'>('idle')
 
   useEffect(() => {
-    fetch('/api/preferences')
+    apiFetch('/api/auth/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(setAccount)
+      .catch(() => {})
+  }, [])
+
+  const resendVerification = async () => {
+    setResend('busy')
+    try {
+      setResend((await apiFetch('/api/auth/resend-verification', { method: 'POST' })).ok ? 'sent' : 'error')
+    } catch {
+      setResend('error')
+    }
+  }
+
+  useEffect(() => {
+    apiFetch('/api/preferences')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -194,6 +212,33 @@ export default function PreferencesPage() {
             </p>
           )}
         </>
+      )}
+
+      {account && (
+        <section className="mt-8" aria-labelledby="account">
+          <h2 id="account" className="text-xs font-semibold tracking-wider text-forest-300 uppercase">
+            Cuenta
+          </h2>
+          <p className="mt-2 text-[15px] break-all text-forest-50">{account.email}</p>
+          {account.emailVerified ? (
+            <p className="mt-1 text-sm text-forest-300">Email confirmado</p>
+          ) : (
+            <div className="mt-1 text-sm text-forest-300">
+              <p>Email sin confirmar.</p>
+              <button
+                type="button"
+                onClick={() => void resendVerification()}
+                disabled={resend === 'busy' || resend === 'sent'}
+                className={`-ml-1 mt-1 inline-flex h-11 items-center rounded-lg px-1 font-semibold text-[#a3e635] underline underline-offset-4 disabled:no-underline disabled:opacity-70 ${focusRing}`}
+              >
+                {resend === 'sent' ? 'Enlace enviado' : 'Reenviar enlace de confirmación'}
+              </button>
+              <p role="status" className="text-red-300">
+                {resend === 'error' ? 'No se pudo enviar. Inténtalo en un minuto.' : ''}
+              </p>
+            </div>
+          )}
+        </section>
       )}
 
       <button

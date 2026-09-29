@@ -13,13 +13,15 @@ const navItems = [
   { href: '/shopping-list', label: 'Compra', Icon: CartIcon },
 ]
 
+const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email']
+
 // A recipe page belongs to "Recetas" for the tab bar.
 const isActive = (pathname: string, href: string) =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`) || (href === '/meals' && pathname.startsWith('/recipes/'))
 
 export default function Navigation() {
   const pathname = usePathname()
-  if (pathname === '/login') return null
+  if (AUTH_PATHS.includes(pathname)) return null
 
   // Full-bleed bar; the tabs sit in the same column as the page content so the two always line up.
   return (
