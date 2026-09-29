@@ -172,7 +172,7 @@ export default function WeeklyPlanPage() {
       <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-forest-50">Plan semanal</h1>
+            <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Plan semanal</h1>
             <p className="mt-0.5 text-sm text-forest-300">{hasPlan ? (filled < 28 ? `${weekLabel} · ${filled} de 28 comidas` : weekLabel) : ' '}</p>
           </div>
           {!loading && generateButton}

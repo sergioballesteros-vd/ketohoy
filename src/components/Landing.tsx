@@ -33,7 +33,7 @@ export default async function Landing() {
       <header className="flex items-center justify-between">
         <span className="flex items-center gap-2">
           <LogoMark size={28} />
-          <span className="text-lg font-extrabold text-forest-50" style={{ fontFamily: 'Syne, sans-serif' }}>KetoHoy</span>
+          <span className="font-syne text-lg font-extrabold text-forest-50">KetoHoy</span>
         </span>
         <Link href="/login" className={`flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-forest-100 hover:text-forest-50 ${focusRing}`}>
           Entrar

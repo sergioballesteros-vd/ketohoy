@@ -62,7 +62,7 @@ export default function LoginForm({ initialMode }: { initialMode: Mode }) {
       <div className="relative mx-auto w-full max-w-sm">
         <div className="flex items-center justify-center gap-3">
           <LogoMark size={44} />
-          <span className="text-3xl font-extrabold" style={{ fontFamily: 'Syne, sans-serif', color: '#ecf5e0' }}>
+          <span className="font-syne text-3xl font-extrabold" style={{ color: '#ecf5e0' }}>
             KetoHoy
           </span>
         </div>

@@ -246,7 +246,7 @@ export default function ExplorePage() {
   return (
     <main className={`min-h-screen px-4 ${cartCount > 0 ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'pb-6'}`}>
       <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
-        <h1 className="mb-3 text-2xl font-bold text-forest-50">Descubrir</h1>
+        <h1 className="mb-3 text-xl min-[360px]:text-2xl font-bold text-forest-50">Catálogo</h1>
 
         <form
           role="search"

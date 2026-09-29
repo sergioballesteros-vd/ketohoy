@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
 @import "tailwindcss";
 
 @theme {
+  --font-syne: var(--nf-syne), sans-serif;
   --color-forest-950: #060e07;
   --color-forest-900: #0c1a0d;
   --color-forest-800: #142514;
@@ -23,13 +23,13 @@
   body {
     background: #0c1a0d;
     color: #ecf5e0;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: var(--nf-dm-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4 {
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-syne);
     letter-spacing: -0.025em;
   }
 

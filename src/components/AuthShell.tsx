@@ -14,7 +14,7 @@ export default function AuthShell({ title, children }: { title: string; children
       <div className="mx-auto w-full max-w-sm">
         <div className="flex items-center justify-center gap-3">
           <LogoMark size={40} />
-          <span className="text-2xl font-extrabold text-forest-50" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <span className="font-syne text-2xl font-extrabold text-forest-50">
             KetoHoy
           </span>
         </div>

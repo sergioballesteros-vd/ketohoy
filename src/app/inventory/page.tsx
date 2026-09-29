@@ -94,7 +94,7 @@ export default function InventoryPage() {
     <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <header className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-forest-50">Mi despensa</h1>
+          <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Mi despensa</h1>
           <p className="mt-0.5 text-sm text-forest-300">{loading ? ' ' : productosCount(items.length)}</p>
         </div>
         <button

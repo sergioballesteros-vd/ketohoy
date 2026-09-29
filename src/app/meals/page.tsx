@@ -119,7 +119,7 @@ export default function MealsPage() {
     <main className="min-h-screen px-4">
       <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-bold text-forest-50">Recetas</h1>
+          <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Recetas</h1>
           <p className={`text-xs ${error ? 'text-red-300' : 'text-forest-300'}`} aria-live="polite">
             {error ?? (loading ? 'Buscando…' : `${suggestions.length} de ${total}`)}
           </p>

@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from 'next'
+import { DM_Sans, Syne } from 'next/font/google'
 import './globals.css'
 import Navigation from '@/components/Navigation'
 import PageShell from '@/components/PageShell'
 import { cookies } from 'next/headers'
 import { appUrl } from '@/lib/appUrl'
+
+// Self-hosted at build time (no request to Google from the browser). Same weights as the old
+// Google Fonts URL: Syne 600-800, DM Sans is one variable file (wght + opsz axes), Syne only 600-800.
+const syne = Syne({ subsets: ['latin'], weight: ['600', '700', '800'], variable: '--nf-syne', display: 'swap' })
+const dmSans = DM_Sans({ subsets: ['latin'], axes: ['opsz'], variable: '--nf-dm-sans', display: 'swap' })
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),
@@ -21,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Cookie presence only (no DB hit): signed-out visitors don't get the app tab bar.
   const signedIn = (await cookies()).has('session')
   return (
-    <html lang="es">
+    <html lang="es" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="min-h-screen">
         <PageShell>{children}</PageShell>
         {signedIn && <Navigation />}

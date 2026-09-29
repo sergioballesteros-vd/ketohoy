@@ -91,7 +91,7 @@ export default function PreferencesPage() {
       >
         <ChevronLeft size={18} /> Inicio
       </Link>
-      <h1 className="mt-1 text-2xl font-bold text-forest-50">Preferencias</h1>
+      <h1 className="mt-1 text-xl min-[360px]:text-2xl font-bold text-forest-50">Preferencias</h1>
       <p className="mt-0.5 text-sm text-forest-300">Filtran las recetas y el plan semanal.</p>
 
       {!prefs ? (
