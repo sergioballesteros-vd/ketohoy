@@ -1,13 +1,15 @@
+import type { Metadata } from 'next'
 import HomePageClient from '@/components/HomePageClient'
+import Landing from '@/components/Landing'
 
 // Force dynamic rendering: the hour-based greeting must reflect the actual
 // request time, not a value baked into a static/ISR shell at build time
 // (that mismatch was causing a hydration error in production builds).
 export const dynamic = 'force-dynamic'
-import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { unstable_cache } from 'next/cache'
+import { getGreeting, getMealSlot } from '@/lib/mealSlot'
 import { scoreRecipe } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
@@ -27,12 +29,6 @@ const EMPTY_STATS = {
   shoppingCount: 0,
   featured: null as HomeRecipe | null,
   more: [] as HomeRecipe[],
-}
-
-function mealTypeForHour(hour: number) {
-  if (hour < 12) return 'breakfast'
-  if (hour < 17) return 'lunch'
-  return 'dinner'
 }
 
 const getStats = unstable_cache(
@@ -110,19 +106,20 @@ const getStats = unstable_cache(
 const madridHour = () =>
   Number(new Intl.DateTimeFormat('es-ES', { hour: 'numeric', hour12: false, timeZone: 'Europe/Madrid' }).format(new Date())) % 24
 
-function getGreeting() {
-  const hour = madridHour()
-  if (hour < 12) return { text: 'Buenos días', sub: '¿Qué te apetece desayunar?' }
-  if (hour < 15) return { text: 'Buenas tardes', sub: '¿Qué te apetece comer hoy?' }
-  if (hour < 21) return { text: 'Buenas tardes', sub: '¿Qué te apetece cenar?' }
-  return { text: 'Buenas noches', sub: '¿Ya sabes qué cenar?' }
+// Same URL serves the landing (signed out) and the app home (signed in); crawlers only ever see the landing.
+export const metadata: Metadata = {
+  title: { absolute: 'KetoHoy · Planificador de menú keto con productos de Mercadona' },
+  description: 'Genera tu menú keto semanal con lo que ya tienes en casa y compra solo lo que falta, con productos de Mercadona.',
+  alternates: { canonical: '/' },
+  robots: { index: true, follow: true },
 }
 
 export default async function HomePage() {
   const user = await getSessionUser()
-  if (!user) redirect('/login')
-  const stats = await getStats(user.id, mealTypeForHour(madridHour()))
-  const greeting = getGreeting()
+  if (!user) return <Landing />
+  const hour = madridHour()
+  const stats = await getStats(user.id, getMealSlot(hour))
+  const greeting = getGreeting(hour)
 
   return <HomePageClient stats={stats} greeting={greeting} />
 }

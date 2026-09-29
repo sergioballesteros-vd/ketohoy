@@ -8,6 +8,15 @@ test('anonymous visitors are redirected to /login and API returns 401', async ({
   expect((await request.get('/api/pantry')).status()).toBe(401)
 })
 
+test('signed-out home is the landing, with sign-up CTA and no app tab bar', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Tu semana keto')
+  await expect(page.getByRole('navigation', { name: 'Principal' })).toHaveCount(0)
+  await page.getByRole('link', { name: 'Crear cuenta gratis' }).first().click()
+  await expect(page.getByRole('tab', { name: 'Crear cuenta' })).toHaveAttribute('aria-selected', 'true')
+})
+
 test('register via UI, see own empty data, log out, log back in', async ({ page }) => {
   const email = `ui-${Date.now()}@example.com`
   await page.goto('/login')
