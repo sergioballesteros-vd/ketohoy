@@ -31,6 +31,12 @@ test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH wit
 })
 
 test('home: the hero recipe has a photo (no placeholder as the protagonist)', async ({ page }) => {
+  // Photos come from the manual backfill, so a freshly seeded DB (CI) has none to prefer.
+  const res = await page.request.get('/api/recipes/suggestions?limit=100')
+  const data = await res.json()
+  const items: { recipe: { imageUrl?: string | null } }[] = Array.isArray(data) ? data : data.items
+  test.skip(!items.some(s => s.recipe.imageUrl), 'no recipe photos in this database')
+
   await page.goto('/')
   const hero = page.getByRole('region', { name: 'Recomendación de hoy' })
   await expect(hero).toBeVisible()
