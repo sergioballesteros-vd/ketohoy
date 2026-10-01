@@ -138,7 +138,8 @@ model WeeklyMeal {
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
-  passwordHash    String
+  passwordHash    String? // null = Google-only account
+  googleId        String?   @unique // Google `sub`
   createdAt       DateTime  @default(now())
   emailVerifiedAt DateTime?
 
