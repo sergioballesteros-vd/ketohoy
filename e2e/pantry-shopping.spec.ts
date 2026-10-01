@@ -5,8 +5,9 @@ const dialog = (page: Page) => page.getByRole('dialog')
 // Own account: the shared e2e user is used by parallel specs, and these tests need an empty list/pantry.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
   const res = await page.request.post('/api/auth/register', {
+    headers: { 'X-Forwarded-For': `e2e-${testInfo.testId}` },
     data: { email: `flow-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'flow-password-123' },
   })
   expect(res.status()).toBe(201)

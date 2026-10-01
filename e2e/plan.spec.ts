@@ -3,8 +3,9 @@ import { test, expect } from '@playwright/test'
 // Own account: a fresh user has no plan yet, and generate/swap must not touch the shared e2e user.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
   const res = await page.request.post('/api/auth/register', {
+    headers: { 'X-Forwarded-For': `e2e-${testInfo.testId}` },
     data: { email: `plan-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'plan-password-123' },
   })
   expect(res.status()).toBe(201)
