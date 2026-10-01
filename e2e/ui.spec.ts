@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': '127.0.0.2' })
+})
+
 test('recipes: filter chips toggle, clear resets, a card opens its recipe', async ({ page }) => {
   await page.goto('/meals')
   const cards = page.locator('main ul li')
@@ -20,7 +24,10 @@ test('recipes: filter chips toggle, clear resets, a card opens its recipe', asyn
 
 test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH with negative delta)', async ({ page }) => {
   await page.goto('/explore')
+  const added = page.waitForResponse(response => response.url().endsWith('/api/mercadona/add'))
   await page.getByRole('button', { name: /^Añadir .* a la lista$/ }).first().click()
+  const response = await added
+  expect(response.status()).toBe(200)
   const minus = page.getByRole('button', { name: /^Quitar una unidad/ }).first()
   await expect(minus).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('link', { name: /Ver lista/ })).toBeVisible()
@@ -103,7 +110,10 @@ test('product sheet: a failed add stays visible in the dialog and can be retried
   await expect(dialog.getByRole('alert')).toContainText('No se pudo añadir')
   await expect(dialog.getByRole('button', { name: /Añadir a la lista/ })).toBeEnabled()
   await page.unroute('**/api/mercadona/add')
+  const added = page.waitForResponse(response => response.url().endsWith('/api/mercadona/add'))
   await dialog.getByRole('button', { name: /Añadir a la lista/ }).click()
+  const response = await added
+  expect(response.status()).toBe(200)
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('link', { name: /Ver lista/ })).toBeVisible()
 })
