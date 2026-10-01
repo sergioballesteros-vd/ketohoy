@@ -43,6 +43,7 @@ El contador vive en memoria de un solo proceso (un único PM2). Si algún día h
 | `APP_URL` | `https://<dominio>` | URL canónica, sitemap, enlaces de los emails y `upgrade-insecure-requests` en la CSP. Nunca se deriva de la cabecera `Host`. |
 | `COOKIE_SECURE` | `true` | Cookie de sesión con atributo `Secure`. |
 | `DATABASE_URL` | `file:./dev.db` | SQLite. |
+| `RESEND_API_KEY` | Secret de GitHub Actions | Envío de correos de verificación y recuperación mediante Resend. |
 
 ## Cabeceras de seguridad
 

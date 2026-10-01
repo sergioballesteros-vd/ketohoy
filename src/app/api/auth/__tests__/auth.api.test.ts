@@ -10,6 +10,7 @@ vi.mock('next/headers', () => ({
     delete: (name: string) => void jar.delete(name),
   }),
 }))
+vi.mock('@/lib/mailer', () => ({ sendMail: async () => {} }))
 
 let cleanup: () => void
 let register: typeof import('../register/route').POST

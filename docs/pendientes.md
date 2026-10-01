@@ -21,12 +21,13 @@ Nada de esta lista está resuelto. Se documenta para que no se dé por hecho.
 4. Comprobar tras el despliegue (ver `docs/deployment-proxy.md`): cabeceras `content-security-policy` y
    `strict-transport-security`, `/robots.txt` con el dominio real y `/sitemap.xml`.
 5. `prisma migrate deploy` aplica dos migraciones nuevas: `auth_tokens` y `product_nutrition_source`.
+6. Probar en producción el registro, la confirmación de email y la recuperación de contraseña
+   con buzones reales.
 
 ## Pendiente de producto o infraestructura
 
-- **Proveedor real de email.** Hoy `src/lib/mailer.ts` escribe el correo en la consola del servidor, incluidos
-  los enlaces de recuperación y de confirmación: tratar esos logs como sensibles hasta cambiarlo.
-- **Secrets y configuración del email** (API key, remitente, dominio verificado con SPF/DKIM). No existen aún.
+- **Email transaccional.** `src/lib/mailer.ts` envía con Resend desde `no-reply@ketohoy.es`.
+  Falta comprobar una entrega real.
 - **Límite de intentos por cuenta.** El limitador es solo por IP y en memoria (una instancia). No hay bloqueo
   por email ni por cuenta.
 - **Confirmación de email opcional.** No bloquea ninguna función; solo se ofrece desde Preferencias.
