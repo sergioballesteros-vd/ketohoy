@@ -23,6 +23,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
   const [detail, setDetail] = useState<{ ingredients?: string; allergens?: string } | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -55,13 +56,13 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
       }
       footer={
         <>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 items-center rounded-2xl bg-forest-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
+            <div className="flex h-12 items-center rounded-lg bg-forest-800">
               <button
                 type="button"
                 aria-label="Reducir cantidad"
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                className={`flex h-12 w-11 items-center justify-center rounded-2xl text-forest-50 ${focusRing}`}
+                className={`flex h-12 w-11 items-center justify-center rounded-lg text-forest-50 ${focusRing}`}
               >
                 <Minus size={18} />
               </button>
@@ -72,7 +73,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
                 type="button"
                 aria-label="Aumentar cantidad"
                 onClick={() => setQuantity(q => q + 1)}
-                className={`flex h-12 w-11 items-center justify-center rounded-2xl text-forest-50 ${focusRing}`}
+                className={`flex h-12 w-11 items-center justify-center rounded-lg text-forest-50 ${focusRing}`}
               >
                 <Plus size={18} />
               </button>
@@ -82,27 +83,29 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
               disabled={adding}
               onClick={async () => {
                 setAdding(true)
+                setAddError(false)
                 try {
                   await onAdd(quantity)
                   onClose()
                 } catch {
-                  // the page shows the error; keep the sheet open so the user can retry
+                  setAddError(true)
                 } finally {
                   setAdding(false)
                 }
               }}
-              className={`flex h-12 flex-1 items-center justify-between rounded-2xl bg-[#a3e635] px-5 font-bold text-forest-950 disabled:opacity-50 ${focusRing}`}
+              className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-lg sm:w-auto sm:flex-1 bg-[#a3e635] px-5 font-semibold text-forest-950 disabled:opacity-50 ${focusRing}`}
             >
-              <span>Añadir a la lista</span>
+              <span>{adding ? 'Añadiendo…' : 'Añadir a la lista'}</span>
               {total != null && <span>{euros(total)}</span>}
             </button>
           </div>
+          {addError && <p role="alert" className="mt-2 text-sm text-red-300">No se pudo añadir. Inténtalo de nuevo.</p>}
           {inCartQty > 0 && <p className="mt-2 text-center text-xs text-forest-400">Ya tienes {inCartQty} en tu lista</p>}
         </>
       }
     >
       <div className="flex gap-4">
-        <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-2xl bg-white">
+        <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-lg bg-white">
           {product.imageUrl ? (
             <Image src={product.imageUrl} alt="" fill sizes="112px" className="object-cover" />
           ) : (
@@ -110,12 +113,12 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 id="explore-sheet-title" className="text-lg leading-tight font-bold text-forest-50">
+          <h2 id="explore-sheet-title" className="text-lg leading-tight font-semibold text-forest-50">
             {product.name}
           </h2>
           {brand && <p className="mt-0.5 text-sm text-forest-300">{brand}</p>}
           <p className="mt-2 flex flex-wrap items-baseline gap-x-2">
-            <span className="font-syne text-2xl font-bold text-forest-50">
+            <span className="text-2xl font-semibold text-forest-50">
               {product.unitPrice != null ? euros(product.unitPrice) : '—'}
             </span>
             {product.referencePrice && <span className="text-sm text-forest-300">{product.referencePrice}</span>}

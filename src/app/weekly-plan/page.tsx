@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, ChefHat, Clock, ListPlus, Loader2, RefreshCw, Shuffle } from 'lucide-react'
+import { Check, ChefHat, ListPlus, Loader2, RefreshCw, Shuffle } from 'lucide-react'
 import Sheet from '@/components/Sheet'
 import { useToast } from '@/components/Toast'
 import { Skeleton, focusRing } from '@/components/ui'
@@ -161,21 +161,21 @@ export default function WeeklyPlanPage() {
       type="button"
       disabled={generating}
       onClick={() => (hasPlan ? setConfirmRegen(true) : void generate())}
-      className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold disabled:opacity-50 ${focusRing} ${
+      className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-semibold disabled:opacity-50 ${focusRing} ${
         hasPlan ? 'bg-forest-800 text-forest-50 hover:bg-forest-700' : 'bg-[#a3e635] text-forest-950'
       }`}
     >
       {generating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={15} />}
-      {generating ? 'Generando…' : hasPlan ? 'Regenerar' : 'Generar semana'}
+      {generating ? 'Generando…' : hasPlan ? 'Regenerar' : 'Generar menú'}
     </button>
   )
 
   return (
     <main className="min-h-screen px-4">
-      <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 bg-forest-900 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Plan semanal</h1>
+            <h1 className="text-xl min-[360px]:text-2xl font-semibold text-forest-50">Plan semanal</h1>
             <p className="mt-0.5 text-sm text-forest-300">{hasPlan ? (filled < 28 ? `${weekLabel} · ${filled} de 28 comidas` : weekLabel) : ' '}</p>
           </div>
           {!loading && generateButton}
@@ -190,12 +190,12 @@ export default function WeeklyPlanPage() {
                 aria-label={day}
                 aria-current={i === todayIndex ? 'date' : undefined}
                 onClick={() => document.getElementById(`day-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className={`flex h-12 min-w-0 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold ${focusRing} ${
-                  i === todayIndex ? 'bg-[#a3e635] text-forest-950' : 'bg-forest-800 text-forest-200 hover:bg-forest-700'
+                className={`flex h-12 min-w-0 flex-1 flex-col items-center justify-center rounded-xl text-xs font-semibold ${focusRing} ${
+                  i === todayIndex ? 'bg-[#a3e635] text-forest-950' : 'text-forest-200 hover:bg-forest-800'
                 }`}
               >
                 {DAY_SHORT[i]}
-                <span className="text-sm font-bold">{plan && dayDate(plan.weekStart, i).getUTCDate()}</span>
+                <span className="text-sm font-semibold">{plan && dayDate(plan.weekStart, i).getUTCDate()}</span>
               </button>
             ))}
           </nav>
@@ -219,11 +219,10 @@ export default function WeeklyPlanPage() {
         </div>
       ) : !hasPlan ? (
         !error && (
-          <div className="py-14 text-center">
-            <ChefHat size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+          <div className="py-6">
             <p className="font-medium text-forest-50">Aún no tienes plan esta semana</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-forest-300">
-              Generamos desayuno, comida, snack y cena para 7 días según tus preferencias y lo que tienes en la despensa.
+              Genera siete días de desayuno, comida, snack y cena según tu despensa y tus preferencias.
             </p>
           </div>
         )
@@ -234,7 +233,7 @@ export default function WeeklyPlanPage() {
               <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-forest-300 uppercase">
                 {day} {plan && dayDate(plan.weekStart, dayIndex).getUTCDate()}
                 {dayIndex === todayIndex && (
-                  <span className="rounded-full bg-[#a3e635] px-2 py-0.5 text-[10px] font-bold tracking-normal text-forest-950 normal-case">Hoy</span>
+                  <span className="text-xs tracking-normal text-forest-100 normal-case">Hoy</span>
                 )}
               </h2>
               <ul className="mt-1 divide-y divide-forest-800">
@@ -246,7 +245,7 @@ export default function WeeklyPlanPage() {
                     <li key={type} className={`flex min-h-[4.5rem] items-center gap-1 py-2 transition-opacity duration-150 ${replacingId === meal?.id ? 'opacity-60' : ''}`}>
                       {meal && recipe ? (
                         <>
-                          <Link key={recipe.id} href={`/recipes/${recipe.id}`} className={`enter flex min-w-0 flex-1 items-center gap-3 rounded-lg ${focusRing}`}>
+                          <Link key={recipe.id} href={`/recipes/${recipe.id}`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg ${focusRing}`}>
                             <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-forest-800 max-[359px]:h-12 max-[359px]:w-12">
                               {recipe.imageUrl ? (
                                 <Image src={recipe.imageUrl} alt="" fill sizes="56px" className="object-cover" />
@@ -255,11 +254,11 @@ export default function WeeklyPlanPage() {
                               )}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block text-[11px] font-semibold tracking-wider text-forest-400 uppercase">{MEAL_LABEL[type]}</span>
+                              <span className="block text-xs font-semibold tracking-wider text-forest-400 uppercase">{MEAL_LABEL[type]}</span>
                               <span className="line-clamp-3 text-[15px] leading-snug font-semibold text-forest-50 min-[400px]:line-clamp-2">{recipe.title}</span>
                               <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-forest-300">
                                 <span className="inline-flex items-center gap-1">
-                                  <Clock size={12} /> {recipe.prepTimeMinutes} min
+                                  {recipe.prepTimeMinutes} min
                                 </span>
                                 {av && <span className={av.ready ? 'font-semibold text-[#a3e635]' : ''}>{av.text}</span>}
                               </span>
@@ -291,7 +290,7 @@ export default function WeeklyPlanPage() {
                           <span className="flex min-w-0 flex-1 items-center gap-3">
                             <span className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-forest-600" />
                             <span>
-                              <span className="block text-[11px] font-semibold tracking-wider text-forest-400 uppercase">{MEAL_LABEL[type]}</span>
+                              <span className="block text-xs font-semibold tracking-wider text-forest-400 uppercase">{MEAL_LABEL[type]}</span>
                               <span className="text-sm text-forest-300">Sin receta</span>
                             </span>
                           </span>
@@ -338,14 +337,14 @@ export default function WeeklyPlanPage() {
               <button
                 type="button"
                 onClick={() => setConfirmRegen(false)}
-                className={`h-12 flex-1 rounded-2xl bg-forest-800 font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                className={`h-12 flex-1 rounded-lg bg-forest-800 font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={() => void generate()}
-                className={`h-12 flex-1 rounded-2xl bg-[#a3e635] font-bold text-forest-950 ${focusRing}`}
+                className={`h-12 flex-1 rounded-lg bg-[#a3e635] font-semibold text-forest-950 ${focusRing}`}
               >
                 Regenerar
               </button>

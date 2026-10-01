@@ -15,7 +15,7 @@ export default async function VerifyEmailPage({ searchParams }: { searchParams: 
         <p className="mt-3 text-sm text-forest-300">
           Falta el enlace. Puedes pedir otro desde{' '}
           <Link href="/preferences" className="font-semibold text-[#a3e635] underline underline-offset-4">
-            Ajustes
+            Preferencias
           </Link>
           .
         </p>

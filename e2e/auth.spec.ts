@@ -11,16 +11,16 @@ test('anonymous visitors are redirected to /login and API returns 401', async ({
 test('signed-out home is the landing, with sign-up CTA and no app tab bar', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Tu semana keto')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Menú keto semanal')
   await expect(page.getByRole('navigation', { name: 'Principal' })).toHaveCount(0)
   await page.getByRole('link', { name: 'Crear cuenta gratis' }).first().click()
-  await expect(page.getByRole('tab', { name: 'Crear cuenta' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('group', { name: 'Acceso a tu cuenta' }).getByRole('button', { name: 'Crear cuenta' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('register via UI, see own empty data, log out, log back in', async ({ page }) => {
   const email = `ui-${Date.now()}@example.com`
   await page.goto('/login')
-  await page.getByRole('tab', { name: 'Crear cuenta' }).click()
+  await page.getByRole('group', { name: 'Acceso a tu cuenta' }).getByRole('button', { name: 'Crear cuenta' }).click()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel(/^Contraseña/).fill('ui-password-123')
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
@@ -36,10 +36,10 @@ test('register via UI, see own empty data, log out, log back in', async ({ page 
 
   await page.getByLabel('Email').fill(email)
   await page.getByLabel(/^Contraseña/).fill('wrong-password')
-  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.locator('form').getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByText('Email o contraseña incorrectos')).toBeVisible()
 
   await page.getByLabel(/^Contraseña/).fill('ui-password-123')
-  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.locator('form').getByRole('button', { name: 'Entrar' }).click()
   await expect(page).toHaveURL(/\/$/)
 })

@@ -161,12 +161,12 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
 
   return (
     <Sheet labelId="add-product-title" title={target === 'pantry' ? 'Añadir a la despensa' : 'Añadir a la lista'} onClose={onClose}>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Chip active={tab === 'search'} onClick={() => setTab('search')}>
-          <Search size={15} /> Buscar en Mercadona
+          Buscar en Mercadona
         </Chip>
         <Chip active={tab === 'manual'} onClick={() => setTab('manual')}>
-          <Plus size={15} /> Manual
+          Manual
         </Chip>
       </div>
 
@@ -254,13 +254,13 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
             <span className="mb-1 block text-xs font-medium text-forest-200">Producto</span>
             <input ref={nameRef} autoFocus required value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del producto" className={field} />
           </label>
-          <div className="flex gap-3">
-            <label className="block w-24">
+          <div className="grid grid-cols-2 gap-3 sm:flex">
+            <label className="block min-w-0 sm:w-24">
               <span className="mb-1 block text-xs font-medium text-forest-200">Cantidad</span>
               <input type="number" min="0" step="0.5" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} className={field} />
             </label>
             {target === 'pantry' && (
-              <label className="block flex-1">
+              <label className="block min-w-0 flex-1">
                 <span className="mb-1 block text-xs font-medium text-forest-200">Unidad</span>
                 <select value={unit} onChange={e => setUnit(e.target.value)} className={field}>
                   {UNITS.map(u => (
@@ -269,7 +269,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
                 </select>
               </label>
             )}
-            <label className="block flex-1">
+            <label className="col-span-2 block min-w-0 flex-1">
               <span className="mb-1 block text-xs font-medium text-forest-200">Categoría</span>
               <select value={category} onChange={e => setCategory(e.target.value)} className={field}>
                 {CATEGORIES.map(c => (
@@ -283,7 +283,7 @@ export default function AddProductSheet({ target, owned, onChanged, onClose, sta
           <button
             type="submit"
             disabled={busy === 'manual' || !name.trim()}
-            className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#a3e635] font-bold text-forest-950 disabled:opacity-50 ${focusRing}`}
+            className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#a3e635] font-semibold text-forest-950 disabled:opacity-50 ${focusRing}`}
           >
             {busy === 'manual' && <Loader2 size={18} className="animate-spin" />} Añadir
           </button>

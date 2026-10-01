@@ -54,3 +54,56 @@ test('sheets: Escape closes, focus goes back to the trigger, page behind does no
   await expect(trigger).toBeFocused()
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('')
 })
+
+test('mobile: main screens and product sheets fit at 320 and 390px; keto radios support arrow keys', async ({ page }) => {
+  const assertFits = async () => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    for (const route of ['/', '/meals', '/inventory', '/shopping-list', '/weekly-plan', '/preferences', '/explore']) {
+      await page.goto(route)
+      await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 15_000 })
+      await assertFits()
+    }
+    await page.locator('main ul li').first().getByRole('button').filter({ hasText: '€' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await assertFits()
+    await page.keyboard.press('Escape')
+
+    await page.goto('/inventory')
+    await page.getByRole('button', { name: 'Añadir', exact: true }).click()
+    await page.getByRole('button', { name: 'Manual', exact: true }).click()
+    await expect(page.getByLabel('Categoría')).toBeVisible()
+    expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await assertFits()
+    await page.keyboard.press('Escape')
+  }
+  await page.goto('/preferences')
+  const strict = page.getByRole('radio', { name: /^Keto estricto/ })
+  await strict.check()
+  await strict.focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('radio', { name: /^Keto flexible/ })).toBeChecked()
+})
+
+test('product sheet: a failed add stays visible in the dialog and can be retried', async ({ page }) => {
+  const registered = await page.request.post('/api/auth/register', {
+    headers: { 'X-Forwarded-For': '127.0.0.2' },
+    data: { email: `sheet-${Date.now()}@example.com`, password: 'e2e-password-123' },
+  })
+  expect(registered.status()).toBe(201)
+  await page.goto('/explore')
+  await page.locator('main ul li').first().getByRole('button').filter({ hasText: '€' }).click()
+  const dialog = page.getByRole('dialog')
+  await page.route('**/api/mercadona/add', route => route.fulfill({ status: 500, json: { error: 'Test failure' } }))
+  await dialog.getByRole('button', { name: /Añadir a la lista/ }).click()
+  await expect(dialog.getByRole('alert')).toContainText('No se pudo añadir')
+  await expect(dialog.getByRole('button', { name: /Añadir a la lista/ })).toBeEnabled()
+  await page.unroute('**/api/mercadona/add')
+  await dialog.getByRole('button', { name: /Añadir a la lista/ }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Ver lista/ })).toBeVisible()
+})

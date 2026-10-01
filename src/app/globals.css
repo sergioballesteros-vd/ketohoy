@@ -8,7 +8,7 @@
   --color-forest-700: #1c321d;
   --color-forest-600: #264227;
   --color-forest-500: #4d7550; /* graphics/placeholder icons: >=3:1 on forest-900 */
-  --color-forest-400: #6c9070; /* smallest text tone: >=4.5:1 on forest-900 */
+  --color-forest-400: #729674; /* secondary text: >=4.5:1 on forest-800 */
   --color-forest-300: #7a9e7c;
   --color-forest-200: #aac4ac;
   --color-forest-100: #d5e6d6;
@@ -19,7 +19,6 @@
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --duration-fast: 140ms;
   --duration-normal: 200ms;
-  --duration-slow: 280ms;
 
   /* Softer skeleton pulse than Tailwind's default (opacity .5). */
   --animate-pulse: skeleton-pulse 1.8s ease-in-out infinite;
@@ -34,6 +33,7 @@
   }
 
   body {
+    color-scheme: dark;
     background: #0c1a0d;
     color: #ecf5e0;
     font-family: var(--nf-dm-sans), system-ui, sans-serif;
@@ -42,7 +42,7 @@
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-syne);
+    font-family: var(--nf-dm-sans), system-ui, sans-serif;
     letter-spacing: -0.025em;
   }
 
@@ -81,26 +81,14 @@
   }
 }
 
-/* ---- Motion -------------------------------------------------------------------------------
-   Only transform/opacity. Unlayered on purpose: beats Tailwind's `transition-colors` so every
-   button/link shares the same transition list and the press scale is never dropped. */
+/* Short transitions for controls and functional feedback. */
 button,
 a {
-  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+  transition-property: color, background-color, border-color, opacity;
   transition-duration: var(--duration-fast);
   transition-timing-function: var(--ease-out);
 }
-button:not(:disabled):active {
-  transform: scale(0.97);
-}
-/* Links styled as buttons/cards have rounded-*; plain text links do not scale. */
-a[class*='rounded-']:active {
-  transform: scale(0.98);
-}
 
-@keyframes enter {
-  from { opacity: 0; transform: translateY(6px); }
-}
 @keyframes fade-in {
   from { opacity: 0; }
 }
@@ -113,29 +101,10 @@ a[class*='rounded-']:active {
 @keyframes sheet-out {
   to { opacity: 0; transform: translateY(32px); }
 }
-@keyframes strike {
-  from { background-size: 0% 1.5px; }
-}
-@keyframes pop {
-  from { opacity: 0; transform: scale(0.5); }
-}
-
-/* Short entrance for rows/cards that appear or change (list items, swapped recipe, values). */
-.enter { animation: enter var(--duration-normal) var(--ease-out) backwards; }
-.tick { animation: fade-in var(--duration-fast) var(--ease-out) backwards; }
-.pop { animation: pop var(--duration-fast) var(--ease-out) backwards; }
-/* Route change (template.tsx, React ViewTransition): short cross-fade, tab bar excluded. */
-::view-transition-group(root) { animation-duration: var(--duration-normal); animation-timing-function: var(--ease-out); }
-.tab-bar { view-transition-name: tab-bar; }
-::view-transition-group(tab-bar) { animation-duration: 0s; }
 /* Leaving row: it is removed from state right after (see useLeaving). */
 .leaving { opacity: 0; transform: translateX(-8px); transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in); pointer-events: none; }
 
-/* Progressive strike-through: a gradient line that grows across the (inline) text. */
-.strike {
-  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 100% 1.5px;
-  animation: strike var(--duration-slow) var(--ease-out) backwards;
-}
+.strike { text-decoration: line-through; }
 
 .sheet-overlay { animation: fade-in var(--duration-normal) var(--ease-out) both; }
 .sheet-panel { animation: sheet-in var(--duration-normal) var(--ease-out) both; }
@@ -153,33 +122,9 @@ a[class*='rounded-']:active {
   transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in), visibility 0s var(--duration-fast);
 }
 
-/* Hover-only lift for cards (desktop). Touch gets the press scale instead. */
-@media (hover: hover) {
-  .card-lift { transition: transform var(--duration-normal) var(--ease-out); }
-  .card-lift:hover { transform: translateY(-2px); }
-  .card-lift .card-media { transition: box-shadow var(--duration-normal) var(--ease-out); }
-  .card-lift:hover .card-media { box-shadow: 0 0 0 1px var(--color-forest-500), 0 8px 20px -8px rgb(0 0 0 / 0.5); }
-  .card-lift .card-img { transition: transform var(--duration-slow) var(--ease-out); }
-  .card-lift:hover .card-img { transform: scale(1.03); }
-}
-
-/* Landing: one consistent reveal, native scroll-driven (no JS). Browsers without support show
-   the content as-is, so nothing is ever hidden. */
-@supports (animation-timeline: view()) {
-  .reveal {
-    animation: enter linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 35%;
-  }
-}
-.hero-in { animation: enter var(--duration-slow) var(--ease-out) backwards; }
-
 @media (prefers-reduced-motion: reduce) {
-  .enter, .tick, .pop, .hero-in, .strike, .reveal, .sheet-overlay, .sheet-panel { animation: none !important; }
-  button:not(:disabled):active, a[class*='rounded-']:active { transform: none; }
-  .card-lift:hover, .card-lift:hover .card-img { transform: none; }
+  .sheet-overlay, .sheet-panel { animation: none !important; }
   .leaving, .toast[data-open='false'] { transform: none; }
-  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* Invisible 44px-minimum touch target centred on the element; its visual size is unchanged.

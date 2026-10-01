@@ -2,14 +2,12 @@ import type { Metadata } from 'next'
 import HomePageClient from '@/components/HomePageClient'
 import Landing from '@/components/Landing'
 
-// Force dynamic rendering: the hour-based greeting must reflect the actual
-// request time, not a value baked into a static/ISR shell at build time
-// (that mismatch was causing a hydration error in production builds).
+// The recommended meal must reflect the current request time.
 export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { unstable_cache } from 'next/cache'
-import { getGreeting, getMealSlot } from '@/lib/mealSlot'
+import { getMealSlot } from '@/lib/mealSlot'
 import { scoreRecipe } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
@@ -98,7 +96,7 @@ const getStats = unstable_cache(
   { revalidate: 60 }
 )
 
-// TIMEZONE (beta limitation): greeting and the breakfast/lunch/dinner pick use a fixed Europe/Madrid
+// TIMEZONE (beta limitation): the breakfast/lunch/dinner pick uses a fixed Europe/Madrid
 // clock, computed with Intl so it does NOT depend on the VPS timezone (which is UTC). Users outside
 // Spain will see the wrong meal. Proper fix: a tiny client effect stores
 // Intl.DateTimeFormat().resolvedOptions().timeZone in a `tz` cookie; read it here via cookies()
@@ -119,7 +117,6 @@ export default async function HomePage() {
   if (!user) return <Landing />
   const hour = madridHour()
   const stats = await getStats(user.id, getMealSlot(hour))
-  const greeting = getGreeting(hour)
 
-  return <HomePageClient stats={stats} greeting={greeting} />
+  return <HomePageClient stats={stats} />
 }

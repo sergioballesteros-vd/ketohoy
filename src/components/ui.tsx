@@ -6,7 +6,7 @@ import { ketoExplanation, ketoLabel, type KetoTone } from '@/lib/ketoLabel'
 
 export const focusRing = 'focus-visible:outline-2 focus-visible:outline-[#a3e635] focus-visible:outline-offset-2'
 
-/** Small pill used for filters/categories. Active = lime fill. */
+/** Filter control; only the selected option gets a filled background. */
 export function Chip({
   active = false,
   onClick,
@@ -23,10 +23,10 @@ export function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`relative hit-area inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors ${focusRing} ${
+      className={`relative hit-area inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors ${focusRing} ${
         active
-          ? 'bg-[#a3e635] text-forest-950'
-          : 'bg-forest-800 text-forest-100 hover:bg-forest-700 active:bg-forest-700'
+          ? 'bg-forest-700 text-forest-50'
+          : 'text-forest-200 hover:bg-forest-800'
       } ${className}`}
     >
       {children}
@@ -40,11 +40,10 @@ const TONE: Record<KetoTone, string> = {
   bad: 'text-red-300',
 }
 
-/** Dot + label, colored by tone. Shared by product and recipe keto indicators. */
+/** Shared text classification for products and recipes. */
 export function ToneLabel({ tone, label, title }: { tone: KetoTone; label: string; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center gap-1 text-[11px] font-semibold ${TONE[tone]}`}>
-      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
+    <span title={title} className={`inline-flex items-center text-xs ${TONE[tone]}`}>
       {label}
     </span>
   )
@@ -62,5 +61,5 @@ export function KetoNote({ score, source, netCarbs }: { score: number; source: s
 }
 
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-2xl bg-forest-800 ${className}`} />
+  return <div className={`animate-pulse rounded-lg bg-forest-800 ${className}`} />
 }

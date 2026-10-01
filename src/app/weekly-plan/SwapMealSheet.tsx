@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { ChefHat, Clock, Loader2, Shuffle } from 'lucide-react'
+import { ChefHat, Loader2, Shuffle } from 'lucide-react'
 import Sheet from '@/components/Sheet'
 import { focusRing } from '@/components/ui'
 import { apiFetch } from '@/lib/apiFetch'
@@ -66,7 +66,7 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
         <button
           type="button"
           onClick={onAuto}
-          className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-forest-800 font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+          className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-forest-800 font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
         >
           <Shuffle size={16} /> Elegir por mí
         </button>
@@ -114,7 +114,7 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
                     <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-forest-50">{recipe.title}</span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-forest-300">
                       <span className="inline-flex items-center gap-1">
-                        <Clock size={12} /> {recipe.prepTimeMinutes} min
+                        {recipe.prepTimeMinutes} min
                       </span>
                       <span className={missing === 0 ? 'font-semibold text-[#a3e635]' : ''}>
                         {missing === 0 ? 'Tienes todo' : missing === 1 ? 'Te falta 1' : `Te faltan ${missing}`}

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ChevronLeft, Check, Clock } from 'lucide-react'
+import { ChevronLeft, Check } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { ensureRecipeImage } from '@/lib/recipeImage'
@@ -99,15 +99,15 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
       </Link>
 
       {recipe.imageUrl && (
-        <div className="relative mt-2 aspect-[16/9] overflow-hidden rounded-3xl bg-forest-800">
+        <div className="relative mt-2 aspect-[16/9] overflow-hidden rounded-xl bg-forest-800">
           <Image src={recipe.imageUrl} alt="" fill sizes="(min-width: 672px) 640px, 100vw" className="object-cover" priority />
         </div>
       )}
 
-      <h1 className="mt-4 text-[26px] leading-tight font-extrabold text-forest-50">{recipe.title}</h1>
+      <h1 className="mt-4 text-[26px] leading-tight font-semibold text-forest-50">{recipe.title}</h1>
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-forest-300">
         <span className="inline-flex items-center gap-1">
-          <Clock size={14} /> {recipe.prepTimeMinutes} min
+          {recipe.prepTimeMinutes} min
         </span>
         <span aria-hidden>·</span>
         <span>{difficultyLabel[recipe.difficulty] ?? recipe.difficulty}</span>
@@ -130,7 +130,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
 
       <section className="mt-6" aria-labelledby="ingredients-title">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 id="ingredients-title" className="text-lg font-bold text-forest-50">
+          <h2 id="ingredients-title" className="text-lg font-semibold text-forest-50">
             Ingredientes
           </h2>
           {user && required.length > 0 && (
@@ -169,13 +169,13 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
       </section>
 
       <section className="mt-6" aria-labelledby="steps-title">
-        <h2 id="steps-title" className="text-lg font-bold text-forest-50">
+        <h2 id="steps-title" className="text-lg font-semibold text-forest-50">
           Preparación
         </h2>
         <ol className="mt-3 space-y-4">
           {steps.map((step, i) => (
             <li key={i} className="flex gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#a3e635]/60 text-sm font-bold text-[#a3e635]">
+              <span className="w-5 shrink-0 pt-0.5 text-[15px] text-forest-300">
                 {i + 1}
               </span>
               <p className="pt-0.5 text-[15px] leading-relaxed text-forest-100">{step}</p>
@@ -188,12 +188,12 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
         {user ? (
           <AddMissingButton recipeId={recipe.id} allInPantry={required.length > 0 && have === required.length} />
         ) : (
-          <div className="rounded-3xl border border-forest-700 bg-forest-900/80 p-5 text-center">
-            <p className="font-bold text-forest-50">¿Qué te falta para cocinarla?</p>
-            <p className="mt-1 text-sm text-forest-300">Crea una cuenta gratis, guarda tu despensa y añade a tu lista lo que falte.</p>
+          <div className="py-3">
+            <p className="font-semibold text-forest-50">Guarda tu despensa</p>
+            <p className="mt-1 text-sm text-forest-300">Entra o crea una cuenta para añadir los ingredientes que faltan a la lista de compra.</p>
             <Link
               href="/login"
-              className="mt-4 flex h-12 items-center justify-center rounded-2xl bg-[#a3e635] font-bold text-forest-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a3e635]"
+              className="mt-4 flex h-12 items-center justify-center rounded-lg bg-[#a3e635] font-semibold text-forest-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a3e635]"
             >
               Crear cuenta o entrar
             </Link>

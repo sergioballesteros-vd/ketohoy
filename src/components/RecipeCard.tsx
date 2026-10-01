@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Check, ChefHat, Clock, ListPlus, Loader2 } from "lucide-react";
+import { Check, ChefHat, ListPlus, Loader2 } from "lucide-react";
 import { ToneLabel, focusRing } from "@/components/ui";
 
 type RecipeCardProps = {
@@ -61,15 +61,15 @@ export default function RecipeCard({
   };
 
   return (
-    <li className="enter card-lift min-w-0">
-      <div className="card-media relative aspect-[4/3] overflow-hidden rounded-2xl bg-forest-800">
+    <li className="min-w-0">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-forest-800">
         {recipe.imageUrl ? (
           <Image
             src={recipe.imageUrl}
             alt=""
             fill
             sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"
-            className="card-img object-cover"
+            className="object-cover"
           />
         ) : (
           <ChefHat
@@ -85,18 +85,6 @@ export default function RecipeCard({
           aria-hidden
           className="absolute inset-0"
         />
-
-        {missing === 0 ? (
-          hideReady ? null : (
-            <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-[#a3e635] px-2.5 py-1 text-xs font-bold text-forest-950">
-              <Check size={13} strokeWidth={3} /> Tienes todo
-            </span>
-          )
-        ) : (
-          <span className="absolute top-2 left-2 rounded-full bg-forest-950/75 px-2.5 py-1 text-xs font-semibold text-forest-50 backdrop-blur-sm">
-            {missing === 1 ? "Te falta 1" : `Te faltan ${missing}`}
-          </span>
-        )}
 
         {missing > 0 && onAddMissingToCart && (
           <button
@@ -115,12 +103,12 @@ export default function RecipeCard({
                 ? "No se pudo añadir. Reintentar"
                 : "Añadir faltantes a la lista"
             }
-            className={`absolute right-2 bottom-2 hit-area flex h-10 w-10 items-center justify-center rounded-full shadow-md ${focusRing} ${
+            className={`absolute right-2 bottom-2 hit-area flex h-10 w-10 items-center justify-center rounded-full ${focusRing} ${
               state === "done"
                 ? "bg-[#a3e635] text-forest-950"
                 : state === "error"
                   ? "bg-red-500/90 text-white"
-                  : "bg-forest-950/70 text-forest-50 backdrop-blur-sm hover:bg-forest-950"
+                  : "bg-forest-950 text-forest-50 hover:bg-forest-950"
             }`}
           >
             {state === "busy" ? (
@@ -134,16 +122,22 @@ export default function RecipeCard({
         )}
       </div>
 
+      {(missing > 0 || !hideReady) && (
+        <p className="mt-2 text-xs text-forest-200">
+          {missing === 0 ? "Tienes todo" : missing === 1 ? "Te falta 1 ingrediente" : `Te faltan ${missing} ingredientes`}
+        </p>
+      )}
+
       <Link
         href={`/recipes/${recipe.id}`}
         className={`mt-2 block rounded-lg ${focusRing}`}
       >
-        <h2 className="line-clamp-2 min-h-[2.5em] text-[15px] leading-tight font-bold text-forest-50">
+        <h2 className="line-clamp-2 min-h-[2.5em] text-[15px] leading-tight font-semibold text-forest-50">
           {recipe.title}
         </h2>
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-forest-300">
           <span className="inline-flex items-center gap-1">
-            <Clock size={12} /> {recipe.prepTimeMinutes} min
+            {recipe.prepTimeMinutes} min
           </span>
           <span aria-hidden>·</span>
           <span>{difficultyLabel[recipe.difficulty] ?? recipe.difficulty}</span>

@@ -28,7 +28,7 @@ for (const path of PAGES) {
 
 test('generate weekly plan produces a full, varied week', async ({ page }) => {
   await page.goto('/weekly-plan')
-  await page.getByRole('button', { name: /Generar semana|Regenerar/ }).click()
+  await page.getByRole('button', { name: /Generar menú|Regenerar/ }).click()
   const confirm = page.getByRole('dialog').getByRole('button', { name: 'Regenerar' })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
 

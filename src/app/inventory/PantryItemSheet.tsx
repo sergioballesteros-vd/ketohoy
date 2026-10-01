@@ -102,7 +102,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
                 setSaving(false)
               }
             }}
-            className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#a3e635] font-bold text-forest-950 disabled:opacity-50 ${focusRing}`}
+            className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#a3e635] font-semibold text-forest-950 disabled:opacity-50 ${focusRing}`}
           >
             {saving && <Loader2 size={18} className="animate-spin" />} Guardar cambios
           </button>
@@ -110,7 +110,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
       }
     >
       <div className="flex gap-4">
-        <div className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl ${p.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
+        <div className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-lg ${p.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
           {p.imageUrl ? (
             <Image src={p.imageUrl} alt="" fill sizes="80px" className="object-cover" />
           ) : (
@@ -118,7 +118,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 id="pantry-item-title" className="text-lg leading-tight font-bold text-forest-50">
+          <h2 id="pantry-item-title" className="text-lg leading-tight font-semibold text-forest-50">
             {p.name}
           </h2>
           <p className="mt-1 flex items-center gap-2 text-sm text-forest-300">
@@ -167,7 +167,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
                 {macros.map(([label, value, unitLabel]) =>
                   value != null ? (
                     <div key={label}>
-                      <dd className="font-syne text-lg font-bold text-forest-50">
+                      <dd className="text-lg font-semibold text-forest-50">
                         {num(value)}
                         <span className="text-xs font-normal text-forest-300"> {unitLabel}</span>
                       </dd>
@@ -177,7 +177,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
                 )}
                 {p.caloriesPer100g != null && (
                   <div>
-                    <dd className="font-syne text-lg font-bold text-forest-50">{Math.round(p.caloriesPer100g)}</dd>
+                    <dd className="text-lg font-semibold text-forest-50">{Math.round(p.caloriesPer100g)}</dd>
                     <dt className="text-xs text-forest-300">kcal</dt>
                   </div>
                 )}

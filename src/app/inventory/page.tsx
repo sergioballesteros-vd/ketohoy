@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Plus, ShoppingBasket } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import AddProductSheet from '@/components/AddProductSheet'
 import { useToast } from '@/components/Toast'
 import { KetoBadge, Skeleton, focusRing } from '@/components/ui'
@@ -94,13 +94,13 @@ export default function InventoryPage() {
     <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <header className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Mi despensa</h1>
-          <p className="mt-0.5 text-sm text-forest-300">{loading ? ' ' : <span key={items.length} className="tick inline-block">{productosCount(items.length)}</span>}</p>
+          <h1 className="text-xl min-[360px]:text-2xl font-semibold text-forest-50">Despensa</h1>
+          <p className="mt-0.5 text-sm text-forest-300">{loading ? ' ' : <span key={items.length} className="inline-block">{productosCount(items.length)}</span>}</p>
         </div>
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
+          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-semibold text-forest-950 ${focusRing}`}
         >
           <Plus size={16} strokeWidth={3} /> Añadir
         </button>
@@ -122,33 +122,26 @@ export default function InventoryPage() {
           ))}
         </div>
       ) : items.length === 0 && !error ? (
-        <div className="py-14 text-center">
-          <ShoppingBasket size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+        <div className="py-6">
           <p className="font-medium text-forest-50">Tu despensa está vacía</p>
           <p className="mx-auto mt-1 max-w-xs text-sm text-forest-300">
-            Añade lo que tienes en casa y KetoHoy te dirá qué recetas puedes cocinar.
+            Añade lo que tienes en casa para descontarlo de la lista de compra.
           </p>
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className={`mt-4 inline-flex h-11 items-center gap-1.5 rounded-full bg-[#a3e635] px-5 text-sm font-bold text-forest-950 ${focusRing}`}
-          >
-            <Plus size={16} strokeWidth={3} /> Añadir productos
-          </button>
+
         </div>
       ) : (
         <div className="md:columns-2 md:gap-10">
           {groups.map(({ key, label, icon: Icon, items: rows }) => (
             <section key={key} className="mb-5 break-inside-avoid">
               <h2 className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wider text-forest-300 uppercase">
-                <Icon size={14} /> {label}
+                {label}
                 <span className="font-normal text-forest-400">{rows.length}</span>
               </h2>
               <ul className="divide-y divide-forest-800">
                 {rows.map(item => {
                   const qty = quantityLabel(item)
                   return (
-                    <li key={item.id} className="enter">
+                    <li key={item.id}>
                       <button
                         type="button"
                         onClick={() => setSelected(item)}

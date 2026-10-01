@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="es" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="min-h-screen">
-        <PageShell>{children}</PageShell>
+        <PageShell signedIn={signedIn}>{children}</PageShell>
         {signedIn && <Navigation />}
       </body>
     </html>

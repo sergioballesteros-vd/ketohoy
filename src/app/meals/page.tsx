@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Check, ChefHat, Coffee, Cookie, LayoutGrid, Moon, Sun, Zap } from 'lucide-react'
 import RecipeCard from '@/components/RecipeCard'
 import { Chip, Skeleton, focusRing } from '@/components/ui'
 import { apiFetch } from '@/lib/apiFetch'
@@ -31,11 +30,11 @@ type SuggestionsResponse =
     }
 
 const MEAL_TYPES = [
-  { value: '', label: 'Todas', Icon: LayoutGrid },
-  { value: 'breakfast', label: 'Desayuno', Icon: Coffee },
-  { value: 'lunch', label: 'Comida', Icon: Sun },
-  { value: 'dinner', label: 'Cena', Icon: Moon },
-  { value: 'snack', label: 'Snack', Icon: Cookie },
+  { value: '', label: 'Todas' },
+  { value: 'breakfast', label: 'Desayuno' },
+  { value: 'lunch', label: 'Comida' },
+  { value: 'dinner', label: 'Cena' },
+  { value: 'snack', label: 'Snack' },
 ]
 
 const GRID = 'grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4'
@@ -117,27 +116,27 @@ export default function MealsPage() {
 
   return (
     <main className="min-h-screen px-4">
-      <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 bg-forest-900 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Recetas</h1>
+          <h1 className="text-xl min-[360px]:text-2xl font-semibold text-forest-50">Recetas</h1>
           <p className={`text-xs ${error ? 'text-red-300' : 'text-forest-300'}`} aria-live="polite">
             {error ?? (loading ? 'Buscando…' : `${suggestions.length} de ${total}`)}
           </p>
         </div>
 
-        <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
-          {MEAL_TYPES.map(({ value, label, Icon }) => (
+        <div className="hide-scrollbar -mx-4 flex gap-2 py-1 overflow-x-auto px-4">
+          {MEAL_TYPES.map(({ value, label }) => (
             <Chip key={value} active={mealType === value} onClick={() => setMealType(value)}>
-              <Icon size={15} /> {label}
+              {label}
             </Chip>
           ))}
         </div>
-        <div className="hide-scrollbar -mx-4 mt-2 flex items-center gap-2 overflow-x-auto px-4">
+        <div className="hide-scrollbar -mx-4 mt-2 flex py-1 items-center gap-2 overflow-x-auto px-4">
           <Chip active={onlyAvailable} onClick={() => setOnlyAvailable(v => !v)}>
-            <Check size={15} /> Con lo que tengo
+            Con lo que tengo
           </Chip>
           <Chip active={quickOnly} onClick={() => setQuickOnly(v => !v)}>
-            <Zap size={15} /> Menos de 15 min
+            Menos de 15 min
           </Chip>
           {hasFilters && (
             <button
@@ -163,8 +162,7 @@ export default function MealsPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="py-16 text-center">
-            <ChefHat size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+          <div className="py-6">
             <p className="font-medium text-forest-50">{error}</p>
             <p className="mt-1 text-sm text-forest-300">Revisa la conexión e inténtalo de nuevo.</p>
             <button
@@ -176,8 +174,7 @@ export default function MealsPage() {
             </button>
           </div>
         ) : suggestions.length === 0 ? (
-          <div className="py-16 text-center">
-            <ChefHat size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+          <div className="py-6">
             {onlyAvailable ? (
               <>
                 <p className="font-medium text-forest-50">No tienes ingredientes para ninguna receta</p>

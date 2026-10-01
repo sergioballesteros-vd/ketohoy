@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { Check, ChefHat, Compass, Minus, Plus, ShoppingBasket, Trash2 } from 'lucide-react'
+import { Check, Minus, Plus, ShoppingBasket, Trash2 } from 'lucide-react'
 import AddProductSheet from '@/components/AddProductSheet'
 import { useToast } from '@/components/Toast'
 import { Skeleton, focusRing } from '@/components/ui'
@@ -145,16 +145,16 @@ export default function ShoppingListPage() {
     <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
       <header className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl min-[360px]:text-2xl font-bold text-forest-50">Lista de compra</h1>
+          <h1 className="text-xl min-[360px]:text-2xl font-semibold text-forest-50">Lista de compra</h1>
           <p className="mt-0.5 text-sm text-forest-300">
-            {loading ? ' ' : <span key={pending.length} className="tick inline-block">{`${pending.length} ${pluralize(pending.length, 'pendiente', 'pendientes')}`}</span>}
-            {total > 0 && <span> · <span key={total} className="tick inline-block">{euros(total)}</span></span>}
+            {loading ? ' ' : <span key={pending.length} className="inline-block">{`${pending.length} ${pluralize(pending.length, 'pendiente', 'pendientes')}`}</span>}
+            {total > 0 && <span> · <span key={total} className="inline-block">{euros(total)} estimados</span></span>}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setAdding('search')}
-          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-bold text-forest-950 ${focusRing}`}
+          className={`relative hit-area inline-flex h-10 items-center gap-1.5 rounded-full bg-[#a3e635] px-4 text-sm font-semibold text-forest-950 ${focusRing}`}
         >
           <Plus size={16} strokeWidth={3} /> Añadir
         </button>
@@ -183,7 +183,7 @@ export default function ShoppingListPage() {
                 const qty = parseShoppingQuantity(item.quantity, 1)
                 const price = item.product?.unitPrice
                 return (
-                  <li key={item.id} className={`enter flex min-h-16 items-center gap-2 py-1.5 ${leaving.has(item.id) ? 'leaving' : ''}`}>
+                  <li key={item.id} className={`flex min-h-16 items-center gap-2 py-1.5 ${leaving.has(item.id) ? 'leaving' : ''}`}>
                     <button
                       type="button"
                       onClick={() => void toggle(item)}
@@ -192,7 +192,7 @@ export default function ShoppingListPage() {
                     >
                       <span className="h-6 w-6 rounded-full border-2 border-forest-400" />
                     </button>
-                    <span className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg ${item.product?.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
+                    <span className={`relative hidden h-10 w-10 shrink-0 overflow-hidden rounded-lg min-[360px]:block ${item.product?.imageUrl ? 'bg-white' : 'bg-forest-800'}`}>
                       {item.product?.imageUrl ? (
                         <Image src={item.product.imageUrl} alt="" fill sizes="40px" className="object-cover" />
                       ) : (
@@ -217,8 +217,8 @@ export default function ShoppingListPage() {
                         >
                           {qty <= 1 ? <Trash2 size={16} className="text-red-300" /> : <Minus size={16} />}
                         </button>
-                        <span className="min-w-5 text-center text-sm font-bold text-forest-50" aria-live="polite">
-                          <span key={item.quantity} className="tick inline-block">{item.quantity}</span>
+                        <span className="min-w-5 text-center text-sm font-semibold text-forest-50" aria-live="polite">
+                          <span key={item.quantity} className="inline-block">{item.quantity}</span>
                         </span>
                         <button
                           type="button"
@@ -248,31 +248,30 @@ export default function ShoppingListPage() {
             </ul>
           ) : (
             !error && (
-              <div className="py-10 text-center">
-                <ShoppingBasket size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+              <div className="py-6">
                 <p className="font-medium text-forest-50">{bought.length > 0 ? 'Todo comprado' : 'Lista vacía'}</p>
                 <p className="mt-1 text-sm text-forest-300">
                   {bought.length > 0 ? 'Lo que has comprado ya está en tu despensa.' : 'No tienes productos pendientes.'}
                 </p>
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
                   <Link
                     href="/explore"
-                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-[#a3e635] px-5 text-sm font-bold text-forest-950 ${focusRing}`}
+                    className={`inline-flex min-h-11 items-center text-sm text-forest-100 underline underline-offset-4 ${focusRing}`}
                   >
-                    <Compass size={16} /> Explorar productos
+                    Explorar productos
                   </Link>
                   <Link
                     href="/meals"
-                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-forest-800 px-5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                    className={`inline-flex min-h-11 items-center text-sm text-forest-100 underline underline-offset-4 ${focusRing}`}
                   >
-                    <ChefHat size={16} /> Ver recetas
+                    Ver recetas
                   </Link>
                   <button
                     type="button"
                     onClick={() => setAdding('manual')}
-                    className={`inline-flex h-11 items-center gap-2 rounded-full bg-forest-800 px-5 text-sm font-semibold text-forest-50 hover:bg-forest-700 ${focusRing}`}
+                    className={`inline-flex min-h-11 items-center text-sm text-forest-100 underline underline-offset-4 ${focusRing}`}
                   >
-                    <Plus size={16} /> Añadir manualmente
+                    Añadir manualmente
                   </button>
                 </div>
               </div>
@@ -296,14 +295,14 @@ export default function ShoppingListPage() {
               </div>
               <ul className="divide-y divide-forest-800">
                 {bought.map(item => (
-                  <li key={item.id} className="enter flex min-h-14 items-center gap-2 py-1">
+                  <li key={item.id} className="flex min-h-14 items-center gap-2 py-1">
                     <button
                       type="button"
                       onClick={() => void toggle(item)}
                       aria-label={`Devolver ${item.name} a la lista`}
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${focusRing}`}
                     >
-                      <span className="pop flex h-6 w-6 items-center justify-center rounded-full bg-[#a3e635] text-forest-950">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#a3e635] text-forest-950">
                         <Check size={14} strokeWidth={3} />
                       </span>
                     </button>

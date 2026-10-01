@@ -14,7 +14,7 @@ test('plan: empty state, generate 28 meals, swap a meal to a chosen alternative,
   await page.goto('/weekly-plan')
   await expect(page.getByText('Aún no tienes plan esta semana')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Generar semana' }).click()
+  await page.getByRole('button', { name: 'Generar menú' }).click()
   const rows = page.locator('main section li')
   await expect(rows).toHaveCount(28, { timeout: 20_000 })
   for (const day of ['Lunes', 'Miércoles', 'Domingo']) {
@@ -49,7 +49,7 @@ test('plan: empty state, generate 28 meals, swap a meal to a chosen alternative,
 
 test('plan: "Elegir por mí" swaps without picking, regenerate asks first and replaces the plan', async ({ page }) => {
   await page.goto('/weekly-plan')
-  await page.getByRole('button', { name: 'Generar semana' }).click()
+  await page.getByRole('button', { name: 'Generar menú' }).click()
   const rows = page.locator('main section li')
   await expect(rows).toHaveCount(28, { timeout: 20_000 })
 

@@ -81,13 +81,13 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
     >
       <div
         ref={dialogRef}
-        className="sheet-panel flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-forest-900 sm:rounded-3xl"
+        className="sheet-panel flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-xl bg-forest-900 sm:rounded-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-3">
           <div className="flex items-center justify-between gap-2">
             {title ? (
-              <h2 id={labelId} className="text-lg font-bold text-forest-50">
+              <h2 id={labelId} className="text-lg font-semibold text-forest-50">
                 {title}
               </h2>
             ) : (

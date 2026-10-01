@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Heart, LayoutGrid, Minus, Plus, Search, ShoppingBasket, X } from 'lucide-react'
+import { Heart, Minus, Plus, Search, ShoppingBasket, X } from 'lucide-react'
 import { CATEGORIES } from '@/lib/categories'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
 import { parseShoppingQuantity } from '@/lib/shoppingList'
@@ -245,8 +245,8 @@ export default function ExplorePage() {
 
   return (
     <main className={`min-h-screen px-4 ${cartCount > 0 ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'pb-6'}`}>
-      <div className="sticky top-0 z-10 -mx-4 bg-forest-900/95 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur">
-        <h1 className="mb-3 text-xl min-[360px]:text-2xl font-bold text-forest-50">Catálogo</h1>
+      <div className="sticky top-0 z-10 -mx-4 bg-forest-900 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
+        <h1 className="mb-3 text-xl min-[360px]:text-2xl font-semibold text-forest-50">Catálogo</h1>
 
         <form
           role="search"
@@ -283,19 +283,19 @@ export default function ExplorePage() {
           )}
         </form>
 
-        <div className="hide-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
+        <div className="hide-scrollbar -mx-4 mt-3 flex gap-2 py-1 overflow-x-auto px-4">
           <Chip active={!selectedCategory && !searchQuery} onClick={clearFilters}>
-            <LayoutGrid size={15} /> Todo
+            Todo
           </Chip>
-          {CATEGORIES.map(({ key, label, icon: Icon }) => (
+          {CATEGORIES.map(({ key, label }) => (
             <Chip key={key} active={selectedCategory === key} onClick={() => void loadCategory(key)}>
-              <Icon size={15} /> {label}
+              {label}
             </Chip>
           ))}
         </div>
 
         {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
-          <div className="hide-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4">
+          <div className="hide-scrollbar -mx-4 mt-2 flex gap-2 py-1 overflow-x-auto px-4">
             {SUBCATEGORIES[selectedCategory].map(sub => (
               <Chip
                 key={sub.key}
@@ -332,15 +332,15 @@ export default function ExplorePage() {
                 const busy = !!pending[product.mercadonaId]
                 const fav = !!favoriteProductIds[product.id]
                 return (
-                  <li key={product.id} className="card-lift">
-                    <div className="card-media relative aspect-square overflow-hidden rounded-2xl bg-white">
+                  <li key={product.id} className="min-w-0">
+                    <div className="relative aspect-square overflow-hidden rounded-lg bg-white">
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
                           alt=""
                           fill
                           sizes="(min-width: 640px) 200px, 50vw"
-                          className="card-img object-cover"
+                          className="object-cover"
                         />
                       ) : (
                         <ShoppingBasket className="absolute inset-0 m-auto text-forest-500" size={32} strokeWidth={1.5} />
@@ -358,7 +358,7 @@ export default function ExplorePage() {
                         aria-pressed={fav}
                         aria-label={fav ? 'Quitar favorito' : 'Marcar favorito'}
                         onClick={() => toggleFavorite(product.id)}
-                        className={`absolute top-1 right-1 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-forest-950/60 backdrop-blur-sm ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
+                        className={`absolute top-1 right-1 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-forest-950 ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
                       >
                         <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
                       </button>
@@ -369,12 +369,12 @@ export default function ExplorePage() {
                           disabled={busy}
                           aria-label={`Añadir ${product.name} a la lista`}
                           onClick={() => tap(product, 1)}
-                          className={`absolute right-1.5 bottom-1.5 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-[#a3e635] text-forest-950 shadow-md disabled:opacity-50 ${focusRing}`}
+                          className={`absolute right-1.5 bottom-1.5 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-forest-950 text-forest-50 disabled:opacity-50 ${focusRing}`}
                         >
                           <Plus size={20} strokeWidth={2.5} />
                         </button>
                       ) : (
-                        <div className="absolute right-1.5 bottom-1.5 flex h-11 items-center rounded-full bg-[#a3e635] text-forest-950 shadow-md">
+                        <div className="absolute right-1.5 bottom-1.5 flex h-11 items-center rounded-full bg-forest-950 text-forest-50">
                           <button
                             type="button"
                             disabled={busy}
@@ -384,7 +384,7 @@ export default function ExplorePage() {
                           >
                             <Minus size={16} strokeWidth={2.5} />
                           </button>
-                          <span className="min-w-4 text-center text-sm font-bold" aria-live="polite"><span key={qty} className="tick inline-block">{qty}</span></span>
+                          <span className="min-w-4 text-center text-sm font-semibold" aria-live="polite"><span key={qty} className="inline-block">{qty}</span></span>
                           <button
                             type="button"
                             disabled={busy}
@@ -403,17 +403,17 @@ export default function ExplorePage() {
                       className={`mt-2 block w-full rounded-lg text-left ${focusRing}`}
                     >
                       <span className="flex items-baseline gap-1.5">
-                        <span className="text-[15px] font-bold text-forest-50">
+                        <span className="text-[15px] font-semibold text-forest-50">
                           {product.unitPrice != null ? euros(product.unitPrice) : '—'}
                         </span>
                         {product.referencePrice && (
-                          <span className="truncate text-[11px] text-forest-300">{product.referencePrice}</span>
+                          <span className="truncate text-xs text-forest-300">{product.referencePrice}</span>
                         )}
                       </span>
                       <span className="mt-0.5 line-clamp-2 min-h-[2.75em] text-[13px] leading-snug text-forest-100">{product.name}</span>
                       <span className="mt-1 flex items-center gap-1.5 overflow-hidden">
                         <KetoBadge score={product.ketoScore} />
-                        {showBrand(product.brand) && <span className="truncate text-[11px] text-forest-400">· {product.brand}</span>}
+                        {showBrand(product.brand) && <span className="truncate text-xs text-forest-400">· {product.brand}</span>}
                       </span>
                     </button>
                   </li>
@@ -422,8 +422,7 @@ export default function ExplorePage() {
             </ul>
           </>
         ) : (
-          <div className="py-16 text-center">
-            <Search size={36} strokeWidth={1.5} className="mx-auto mb-3 text-forest-500" />
+          <div className="py-6">
             {loadFailed ? (
               <>
                 <p className="font-medium text-forest-50">No se pudo cargar el catálogo</p>
@@ -451,7 +450,7 @@ export default function ExplorePage() {
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-30 px-4">
           <Link
             href="/shopping-list"
-            className={`pointer-events-auto mx-auto flex h-12 max-w-2xl items-center justify-between rounded-2xl bg-[#a3e635] px-5 text-[15px] font-bold text-forest-950 shadow-lg ${focusRing}`}
+            className={`pointer-events-auto mx-auto flex h-12 max-w-2xl items-center justify-between rounded-lg bg-[#a3e635] px-5 text-[15px] font-semibold text-forest-950 ${focusRing}`}
           >
             <span>Ver lista · {productosCount(cartCount)}</span>
             <span>{subtotal > 0 ? euros(subtotal) : ''}</span>

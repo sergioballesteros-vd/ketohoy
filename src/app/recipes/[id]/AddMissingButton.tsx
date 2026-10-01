@@ -40,7 +40,7 @@ export default function AddMissingButton({ recipeId, allInPantry }: { recipeId: 
         type="button"
         onClick={() => void add()}
         disabled={state === 'busy' || allInPantry}
-        className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#a3e635] font-bold text-forest-950 disabled:opacity-50 ${focusRing}`}
+        className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#a3e635] font-semibold text-forest-950 disabled:opacity-50 ${focusRing}`}
       >
         {state === 'busy' ? <Loader2 size={18} className="animate-spin" /> : <ListPlus size={18} />}
         {allInPantry ? 'Tienes todos los ingredientes' : 'Añadir lo que falta a la lista'}

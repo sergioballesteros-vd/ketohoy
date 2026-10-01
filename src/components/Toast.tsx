@@ -6,7 +6,7 @@ import { focusRing } from '@/components/ui'
 type ToastAction = { label: string; run: () => void } | { label: string; href: string }
 type ToastState = { message: string; action?: ToastAction }
 
-const actionClass = `rounded-lg px-2 py-1 font-bold text-[#a3e635] hover:bg-forest-600 ${focusRing}`
+const actionClass = `rounded-lg px-2 py-1 font-semibold text-[#a3e635] hover:bg-forest-600 ${focusRing}`
 
 /**
  * One transient message above the tab bar, with an optional action (e.g. "Deshacer").
@@ -53,7 +53,7 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
     >
       <div
         data-open={open}
-        className="toast pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-forest-700 py-2.5 pr-2 pl-4 text-sm text-forest-50 shadow-lg"
+        className="toast pointer-events-auto flex max-w-md items-center gap-3 rounded-lg bg-forest-700 py-2.5 pr-2 pl-4 text-sm text-forest-50"
       >
         {state && <span>{state.message}</span>}
         {action && 'href' in action && (
