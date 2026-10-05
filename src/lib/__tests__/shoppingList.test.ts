@@ -10,6 +10,8 @@ describe('shoppingList quantity helpers', () => {
   it('formats clean integers and decimals', () => {
     expect(formatShoppingQuantity(2)).toBe('2')
     expect(formatShoppingQuantity(1.5)).toBe('1.5')
+    expect(formatShoppingQuantity(.0001)).toBe('0.0001')
+    expect(formatShoppingQuantity(1.2345)).toBe('1.2345')
   })
 
   it('merges quantities', () => {

@@ -9,7 +9,7 @@ import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 const swapSchema = z.object({ recipeId: z.string().min(1).optional() })
 
 // PATCH /api/weekly-plan/:mealId
-//   body { recipeId }  -> put that recipe in the slot (must fit the slot's meal type)
+//   body { recipeId }  -> put that recipe in the slot (must fit the slot's meal type and saved preferences)
 //   no body            -> "choose for me": best-scoring recipe different from the current one
 export const PATCH = withErrorHandling(
   async (request: Request, { params }: { params: Promise<{ mealId: string }> }) => {
@@ -20,19 +20,6 @@ export const PATCH = withErrorHandling(
   if (!meal) throw new ApiError('Not found', 404)
 
   const { recipeId: chosenId } = swapSchema.parse(await request.json().catch(() => ({})))
-  if (chosenId) {
-    const chosen = await db.recipe.findUnique({ where: { id: chosenId } })
-    if (!chosen) throw new ApiError('Recipe not found', 404)
-    const types: string[] = JSON.parse(chosen.mealTypes)
-    if (!types.includes(meal.mealType)) throw new ApiError('Recipe does not fit this meal type', 400)
-    const updatedChosen = await db.weeklyMeal.update({
-      where: { id: mealId },
-      data: { recipeId: chosen.id },
-      include: { recipe: true },
-    })
-    return NextResponse.json(updatedChosen)
-  }
-
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
     db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
@@ -44,9 +31,9 @@ export const PATCH = withErrorHandling(
       prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
         ? prefs.ketoMode
         : DEFAULT_PREFERENCES.ketoMode,
-    avoidFish: prefs?.avoidFish ?? false,
-    avoidPork: prefs?.avoidPork ?? false,
-    avoidDairy: prefs?.avoidDairy ?? false,
+    avoidFish: prefs?.avoidFish ?? DEFAULT_PREFERENCES.avoidFish,
+    avoidPork: prefs?.avoidPork ?? DEFAULT_PREFERENCES.avoidPork,
+    avoidDairy: prefs?.avoidDairy ?? DEFAULT_PREFERENCES.avoidDairy,
     maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
   }
 
@@ -58,14 +45,30 @@ export const PATCH = withErrorHandling(
   const recentRecipeIds = recentMeals.map(m => m.recipeId).filter((id): id is string => id !== null)
 
   const opts: ScoringOptions = {
-    pantryProductIds: new Set(pantryItems.map(i => i.productId)),
-    pantryProductNames: pantryItems.map(i => i.product.name.toLowerCase()),
+    pantry: pantryItems,
+    userId,
     preferences,
     mealType: meal.mealType,
     recentRecipeIds,
     // like generate: pantry only ranks candidates. With the default 0.6 threshold a small pantry left
     // no candidates and "swap" answered 404.
     minAvailability: 0,
+  }
+
+  if (chosenId) {
+    const chosen = recipes.find(recipe => recipe.id === chosenId)
+    if (!chosen) throw new ApiError('Recipe not found', 404)
+    const types: string[] = JSON.parse(chosen.mealTypes)
+    if (!types.includes(meal.mealType)) throw new ApiError('Recipe does not fit this meal type', 400)
+    if (!scoreRecipe(chosen, opts)) {
+      throw new ApiError('Esta receta no es compatible con tus preferencias. Elige otra receta o revisa Preferencias.', 422)
+    }
+    const updatedChosen = await db.weeklyMeal.update({
+      where: { id: mealId },
+      data: { recipeId: chosen.id },
+      include: { recipe: true },
+    })
+    return NextResponse.json(updatedChosen)
   }
 
   const suggestions = recipes

@@ -111,6 +111,15 @@ a {
 [data-closing] .sheet-overlay, .sheet-overlay[data-closing] { animation: overlay-out 180ms var(--ease-in) both; }
 [data-closing] .sheet-panel { animation: sheet-out 180ms var(--ease-in) both; }
 
+/* Widen only the opt-in shopping-list experiment; the everyday shell keeps its mobile column. */
+@media (min-width: 768px) {
+  body:has(main[data-shopping-redesign="true"]) > div:first-child,
+  body:has(main[data-shopping-redesign="true"]) .tab-bar > div {
+    max-width: 56rem;
+    padding-inline: 1.5rem;
+  }
+}
+
 /* Toast stays mounted so it can transition; hidden = not focusable, not clickable. */
 .toast {
   transition: opacity var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out), visibility 0s;

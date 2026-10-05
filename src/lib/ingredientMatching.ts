@@ -1,24 +1,13 @@
-/**
- * Returns true if a pantry product name can satisfy an ingredient requirement.
- * Stricter than substring: avoids "queso rallado" matching "queso curado".
- */
+const consonantPlurals: Record<string, string> = { atunes: 'atun', salmones: 'salmon', limones: 'limon', nueces: 'nuez', vegetales: 'vegetal' }
+const stopWords = new Set(['de', 'del', 'el', 'la', 'los', 'las'])
+function tokens(name: string): string[] {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .split(/[^a-z0-9]+/).filter(w => w && !stopWords.has(w))
+    .map(w => consonantPlurals[w] ?? (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).sort()
+}
+// Small, explicit equivalence already exercised by the scoring contract. No generic containment.
+const equivalents: Record<string, string> = { 'pechuga pollo': 'pollo' }
 export function ingredientMatchesProduct(ingredientName: string, productName: string): boolean {
-  const ing = ingredientName.toLowerCase().trim()
-  const prod = productName.toLowerCase().trim()
-
-  // Exact or full containment
-  if (prod.includes(ing) || ing.includes(prod)) return true
-
-  // Word-level: filter out short stop words (de, el, la, un, con, sin, etc.)
-  const significant = (s: string) => s.split(/\s+/).filter(w => w.length > 2)
-  const ingWords = significant(ing)
-  const prodWords = significant(prod)
-
-  if (ingWords.length === 0 || prodWords.length === 0) return false
-
-  // All ingredient words must appear in product name OR all product words in ingredient
-  const allIngInProd = ingWords.every(w => prod.includes(w))
-  const allProdInIng = prodWords.every(w => ing.includes(w))
-
-  return allIngInProd || allProdInIng
+  const a = tokens(ingredientName).join(' '), b = tokens(productName).join(' ')
+  return !!a && !!b && (equivalents[a] ?? a) === (equivalents[b] ?? b)
 }

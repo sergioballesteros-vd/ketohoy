@@ -1,3 +1,4 @@
+import { registrationData } from './registration'
 import { test, expect } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
@@ -28,7 +29,7 @@ test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH wit
   await page.getByRole('button', { name: /^Añadir .* a la lista$/ }).first().click()
   const response = await added
   expect(response.status()).toBe(200)
-  const minus = page.getByRole('button', { name: /^Quitar una unidad/ }).first()
+  const minus = page.getByRole('button', { name: /^Quitar un paquete/ }).first()
   await expect(minus).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('link', { name: /Ver lista/ })).toBeVisible()
 
@@ -99,7 +100,7 @@ test('mobile: main screens and product sheets fit at 320 and 390px; keto radios 
 test('product sheet: a failed add stays visible in the dialog and can be retried', async ({ page }) => {
   const registered = await page.request.post('/api/auth/register', {
     headers: { 'X-Forwarded-For': '127.0.0.2' },
-    data: { email: `sheet-${Date.now()}@example.com`, password: 'e2e-password-123' },
+    data: registrationData(),
   })
   expect(registered.status()).toBe(201)
   await page.goto('/explore')

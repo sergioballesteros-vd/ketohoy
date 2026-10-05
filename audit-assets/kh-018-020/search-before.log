@@ -1,0 +1,81 @@
+[WebServer] (node:42318) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 2 workers
+
+(node:42367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+  ✓  1 [setup] › e2e/auth.setup.ts:7:6 › register a test user (167ms)
+(node:42561) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42559) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /inventory (6.7s)
+  ✘  3 [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /shopping-list (6.7s)
+
+
+  1) [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /inventory 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('dialog').locator('.animate-spin')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByRole('dialog').locator('.animate-spin') with timeout 5000ms
+      - waiting for getByRole('dialog').locator('.animate-spin')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      19 |     await expect(dialog.locator('.animate-spin')).toHaveCount(1)
+      20 |     await input.fill('p')
+    > 21 |     await expect(dialog.locator('.animate-spin')).toHaveCount(0)
+         |                                                   ^
+      22 |     release()
+      23 |     await page.waitForTimeout(500)
+      24 |     await expect(dialog.getByText(/Sin resultados/)).toHaveCount(0)
+        at /Users/sergioballesteros/ketohoy/e2e/search-recovery.spec.ts:21:51
+
+    Error Context: test-results/search-recovery-KH-018-cle-2e47c-acement-and-Enter-inventory-chromium/error-context.md
+
+  2) [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /shopping-list 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('dialog').locator('.animate-spin')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByRole('dialog').locator('.animate-spin') with timeout 5000ms
+      - waiting for getByRole('dialog').locator('.animate-spin')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      19 |     await expect(dialog.locator('.animate-spin')).toHaveCount(1)
+      20 |     await input.fill('p')
+    > 21 |     await expect(dialog.locator('.animate-spin')).toHaveCount(0)
+         |                                                   ^
+      22 |     release()
+      23 |     await page.waitForTimeout(500)
+      24 |     await expect(dialog.getByText(/Sin resultados/)).toHaveCount(0)
+        at /Users/sergioballesteros/ketohoy/e2e/search-recovery.spec.ts:21:51
+
+    Error Context: test-results/search-recovery-KH-018-cle-43de8-ent-and-Enter-shopping-list-chromium/error-context.md
+
+  2 failed
+    [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /inventory 
+    [chromium] › e2e/search-recovery.spec.ts:4:7 › KH-018 clear/short/error/replacement and Enter /shopping-list 
+  1 passed (9.2s)

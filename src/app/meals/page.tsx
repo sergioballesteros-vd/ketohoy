@@ -5,7 +5,10 @@ import RecipeCard from '@/components/RecipeCard'
 import { Chip, Skeleton, focusRing } from '@/components/ui'
 import { apiFetch } from '@/lib/apiFetch'
 
+import type { RecipeAvailability } from '@/lib/recipeAvailability'
+
 type Suggestion = {
+  availability: RecipeAvailability
   recipe: {
     id: string
     title: string
@@ -133,7 +136,7 @@ export default function MealsPage() {
         </div>
         <div className="hide-scrollbar -mx-4 mt-2 flex py-1 items-center gap-2 overflow-x-auto px-4">
           <Chip active={onlyAvailable} onClick={() => setOnlyAvailable(v => !v)}>
-            Con lo que tengo
+            Cantidad suficiente
           </Chip>
           <Chip active={quickOnly} onClick={() => setQuickOnly(v => !v)}>
             Menos de 15 min
@@ -177,8 +180,8 @@ export default function MealsPage() {
           <div className="py-6">
             {onlyAvailable ? (
               <>
-                <p className="font-medium text-forest-50">No tienes ingredientes para ninguna receta</p>
-                <p className="mt-1 text-sm text-forest-300">Añade productos a tu despensa o quita el filtro.</p>
+                <p className="font-medium text-forest-50">No hay recetas con cantidad suficiente verificada</p>
+                <p className="mt-1 text-sm text-forest-300">Revisa cantidades en tu despensa o quita el filtro.</p>
                 <Link href="/inventory" className={`mt-3 inline-block rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
                   Ir a la despensa
                 </Link>
@@ -203,7 +206,7 @@ export default function MealsPage() {
                 <Link href="/inventory" className={`font-semibold text-[#a3e635] underline-offset-2 hover:underline ${focusRing}`}>
                   Añade lo que tienes
                 </Link>{' '}
-                para ver cuáles puedes cocinar ya.
+                para ver ingredientes presentes y comprobar cantidades.
               </p>
             )}
             <ul className={GRID}>
@@ -211,6 +214,7 @@ export default function MealsPage() {
                 <RecipeCard
                   key={s.recipe.id}
                   recipe={s.recipe}
+                  availability={s.availability}
                   availableIngredients={s.availableIngredients}
                   missingIngredients={s.missingIngredients}
                   hideReady={onlyAvailable}

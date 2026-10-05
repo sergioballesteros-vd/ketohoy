@@ -6,6 +6,7 @@ import { Loader2, ShoppingBasket, Trash2 } from 'lucide-react'
 import { KetoBadge, KetoNote, focusRing } from '@/components/ui'
 import Sheet from '@/components/Sheet'
 import { apiFetch } from '@/lib/apiFetch'
+import { persistedNutritionSource } from '@/lib/ketoLabel'
 
 export type PantryProduct = {
   id: string
@@ -17,6 +18,7 @@ export type PantryProduct = {
   imageUrl: string | null
   netCarbsPer100g: number | null
   nutritionSource: string
+  nutritionConvention?: string
   fatPer100g: number | null
   proteinPer100g: number | null
   caloriesPer100g: number | null
@@ -41,15 +43,18 @@ type Props = {
   item: PantryRow
   onClose: () => void
   onSave: (quantity: number | null, unit: string | null) => Promise<void>
-  onRemove: () => void
+  onRemove: () => Promise<boolean>
 }
 
 export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Props) {
   const p = item.product
+  const nutritionSource = persistedNutritionSource(p)
   const [qty, setQty] = useState(item.quantity != null ? String(item.quantity) : '')
   const [unit, setUnit] = useState(item.unit ?? 'ud')
+  const units = item.unit && !UNITS.includes(item.unit) ? [...UNITS, item.unit] : UNITS
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [removeError, setRemoveError] = useState(false)
   const [detail, setDetail] = useState<{ ingredients?: string; allergens?: string } | null>(null)
 
   useEffect(() => {
@@ -65,12 +70,12 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
   }, [p.mercadonaId])
 
   const nextQty = qty.trim() === '' ? null : Number(qty)
-  const nextUnit = unit === 'ud' ? null : unit
+  const nextUnit = nextQty === null ? null : unit
   const invalid = nextQty !== null && !(nextQty > 0)
   const dirty = nextQty !== item.quantity || nextUnit !== item.unit
 
   const macros = [
-    ['Carbos netos', p.netCarbsPer100g, 'g'],
+    ['Carbos disponibles', nutritionSource === 'unknown' ? null : p.netCarbsPer100g, 'g'],
     ['Grasa', p.fatPer100g, 'g'],
     ['Proteína', p.proteinPer100g, 'g'],
   ] as const
@@ -123,7 +128,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
           </h2>
           <p className="mt-1 flex items-center gap-2 text-sm text-forest-300">
             {p.unitPrice != null && <span>{euros(p.unitPrice)}</span>}
-            <KetoBadge score={p.ketoScore} />
+            <KetoBadge score={p.ketoScore} source={nutritionSource} />
           </p>
         </div>
       </div>
@@ -146,7 +151,7 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
         <label className="block flex-1">
           <span className="mb-1 block text-xs font-medium text-forest-200">Unidad</span>
           <select value={unit} onChange={e => setUnit(e.target.value)} className={`${field} w-full`}>
-            {UNITS.map(u => (
+            {units.map(u => (
               <option key={u}>{u}</option>
             ))}
           </select>
@@ -155,14 +160,14 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
       {invalid && <p className="mt-1 text-xs text-red-300">La cantidad debe ser mayor que 0 (o vacía).</p>}
 
       <div className="mt-4">
-        <KetoNote score={p.ketoScore} source={p.nutritionSource} netCarbs={p.netCarbsPer100g} />
+        <KetoNote score={p.ketoScore} source={nutritionSource} netCarbs={p.netCarbsPer100g} />
       </div>
 
       {(hasMacros || detail?.ingredients || detail?.allergens || !p.mercadonaId) && (
         <div className="mt-4 divide-y divide-forest-800 border-t border-forest-800">
           {hasMacros && (
             <section className="py-4">
-              <h3 className="text-xs font-semibold tracking-wider text-forest-400 uppercase">Por 100 g</h3>
+              <h3 className="text-xs font-semibold tracking-wider text-forest-400 uppercase">Por 100 g/ml</h3>
               <dl className="mt-2 grid grid-cols-4 gap-2">
                 {macros.map(([label, value, unitLabel]) =>
                   value != null ? (
@@ -200,11 +205,15 @@ export default function PantryItemSheet({ item, onClose, onSave, onRemove }: Pro
         </div>
       )}
 
+      {removeError && <p role="alert" className="mt-3 text-sm text-red-300">No se pudo quitar. Vuelve a pulsar Quitar para reintentar.</p>}
       <button
         type="button"
-        onClick={() => {
-          onRemove()
-          onClose()
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true)
+          setRemoveError(false)
+          try { if (await onRemove()) onClose(); else setRemoveError(true) }
+          finally { setSaving(false) }
         }}
         className={`mt-2 flex h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-red-300 hover:bg-red-500/10 ${focusRing}`}
       >

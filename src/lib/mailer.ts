@@ -1,4 +1,4 @@
-export async function sendMail(msg: { to: string; subject: string; text: string }): Promise<void> {
+export async function sendMail(msg: { to: string; subject: string; text: string; html?: string }): Promise<void> {
   const key = process.env.RESEND_API_KEY
   if (!key) throw new Error('RESEND_API_KEY is missing')
 

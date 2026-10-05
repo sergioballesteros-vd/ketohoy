@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
-import { ApiError, withErrorHandling } from '@/lib/apiError'
+import { withErrorHandling } from '@/lib/apiError'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 import { getMonday } from '@/lib/dateUtils'
@@ -17,22 +17,16 @@ export const POST = withErrorHandling(async () => {
     db.userPreferences.findFirst({ where: { userId } }),
   ])
 
-  if (recipes.length === 0) {
-    throw new ApiError('No hay recetas cargadas para generar el plan semanal', 409)
-  }
-
   const preferences = {
     ketoMode:
       prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
         ? prefs.ketoMode
         : DEFAULT_PREFERENCES.ketoMode,
-    avoidFish: prefs?.avoidFish ?? false,
-    avoidPork: prefs?.avoidPork ?? false,
-    avoidDairy: prefs?.avoidDairy ?? false,
+    avoidFish: prefs?.avoidFish ?? DEFAULT_PREFERENCES.avoidFish,
+    avoidPork: prefs?.avoidPork ?? DEFAULT_PREFERENCES.avoidPork,
+    avoidDairy: prefs?.avoidDairy ?? DEFAULT_PREFERENCES.avoidDairy,
     maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
   }
-  const pantryProductIds = new Set(pantryItems.map(i => i.productId))
-  const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
 
   const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner']
 
@@ -48,8 +42,8 @@ export const POST = withErrorHandling(async () => {
     // so pantry match only ranks candidates (via score), it must never
     // exclude a recipe outright or a small pantry starves whole meal slots.
     const opts: ScoringOptions = {
-      pantryProductIds,
-      pantryProductNames,
+      pantry: pantryItems,
+      userId,
       preferences,
       mealType,
       minAvailability: 0,
@@ -76,8 +70,18 @@ export const POST = withErrorHandling(async () => {
     }
   }
 
-  if (mealCandidates.length === 0) {
-    throw new ApiError('No hay suficientes recetas compatibles con tus preferencias y despensa', 422)
+  const missingMealTypes = mealTypes.filter(type => poolsByType[type].length === 0)
+  if (missingMealTypes.length > 0) {
+    const labels: Record<string, string> = { breakfast: 'desayuno', lunch: 'comida', snack: 'snack', dinner: 'cena' }
+    const missingLabels = missingMealTypes.map(type => labels[type])
+    const names = new Intl.ListFormat('es', { style: 'long', type: 'conjunction' }).format(missingLabels)
+    return NextResponse.json({
+      status: mealCandidates.length === 0 ? 'no_candidates' : 'incomplete',
+      error: `No encontramos recetas compatibles para ${names} con tus preferencias actuales.`,
+      missingMealTypes,
+      availableSlots: mealCandidates.length,
+      expectedSlots: 28,
+    }, { status: 422 })
   }
 
   // Replace the plan atomically, and only after proving a replacement can be built. deleteMany (not
@@ -87,18 +91,16 @@ export const POST = withErrorHandling(async () => {
     await tx.weeklyPlan.deleteMany({ where: { weekStart: monday, userId } })
     const created = await tx.weeklyPlan.create({ data: { weekStart: monday, userId } })
     await tx.weeklyMeal.createMany({ data: mealCandidates.map(meal => ({ ...meal, planId: created.id })) })
-    return created
-  })
-
-  const fullPlan = await db.weeklyPlan.findUnique({
-    where: { id: plan.id },
-    include: {
-      meals: {
-        include: { recipe: true },
-        orderBy: [{ dayOfWeek: 'asc' }, { mealType: 'asc' }],
+    return tx.weeklyPlan.findUniqueOrThrow({
+      where: { id: created.id },
+      include: {
+        meals: {
+          include: { recipe: true },
+          orderBy: [{ dayOfWeek: 'asc' }, { mealType: 'asc' }],
+        },
       },
-    },
+    })
   })
 
-  return NextResponse.json(fullPlan)
+  return NextResponse.json({ ...plan, status: 'complete' })
 })

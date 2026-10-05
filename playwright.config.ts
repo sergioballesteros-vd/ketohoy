@@ -1,4 +1,11 @@
 import { defineConfig } from '@playwright/test'
+import path from 'node:path'
+import { resolveSqlitePath } from './src/lib/sqliteUrl'
+
+const database = resolveSqlitePath(process.env.DATABASE_URL, true)
+if (!process.env.CI && database === path.resolve('dev.db')) {
+  throw new Error('E2E requires a disposable DATABASE_URL; refusing to write to the original dev.db')
+}
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,9 +25,16 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run start -- -p 3100',
+    command: 'node -e "require(\'node:fs\').closeSync(require(\'node:fs\').openSync(process.env.DATABASE_URL.slice(5), \'a\'))" && ./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx prisma/seed.ts && npm run start -- -p 3100',
     url: 'http://127.0.0.1:3100',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    env: {
+      DATABASE_URL: `file:${database}`,
+      COOKIE_SECURE: 'false',
+      APP_URL: 'http://127.0.0.1:3100',
+      RECIPE_IMAGE_AUTOFETCH: 'false',
+      RESEND_API_KEY: '',
+    },
     timeout: 60_000,
   },
 })

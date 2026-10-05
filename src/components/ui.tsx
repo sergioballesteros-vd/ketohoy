@@ -1,3 +1,4 @@
+import type { ProductClassification } from '@/lib/productClassification'
 import type { ReactNode } from 'react'
 import { ketoExplanation, ketoLabel, type KetoTone } from '@/lib/ketoLabel'
 
@@ -50,9 +51,12 @@ export function ToneLabel({ tone, label, title }: { tone: KetoTone; label: strin
 }
 
 /** Text badge for a product's keto score; the label is the meaning, the tooltip has the scale. */
-export function KetoBadge({ score }: { score: number }) {
+export function KetoBadge({ score, classification, source }: { score: number; classification?: ProductClassification; source?: string }) {
+  const estimated = classification?.source === 'category_estimate' || source === 'category'
+  const unknown = classification?.source === 'unknown' || source === 'unknown'
+  if (estimated || unknown) return <ToneLabel tone="ok" label={classification?.label ?? (unknown ? 'Sin datos nutricionales' : 'Estimación por categoría')} title={`Sin nutrición conocida del producto · ${score}/5`} />
   const { label, tone, hint } = ketoLabel(score)
-  return <ToneLabel tone={tone} label={label} title={hint} />
+  return <ToneLabel tone={tone} label={classification?.label ?? label} title={classification?.source === 'nutrition' ? `${hint} · Datos nutricionales de Open Food Facts` : hint} />
 }
 
 /** Visible (not tooltip-only, so it works on touch) explanation of how the keto label was obtained. */

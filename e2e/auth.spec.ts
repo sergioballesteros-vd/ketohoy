@@ -23,7 +23,14 @@ test('register via UI, see own empty data, log out, log back in', async ({ page 
   await page.getByRole('group', { name: 'Acceso a tu cuenta' }).getByRole('button', { name: 'Crear cuenta' }).click()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel(/^Contraseña/).fill('ui-password-123')
-  await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
+  const submit = page.getByRole('button', { name: 'Crear mi cuenta' })
+  await submit.click()
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByRole('checkbox', { name: /18/ }).check()
+  await submit.click()
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByRole('checkbox', { name: /Acepto los/ }).check()
+  await submit.click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('Añade lo que tienes')).toBeVisible()
 
@@ -42,4 +49,12 @@ test('register via UI, see own empty data, log out, log back in', async ({ page 
   await page.getByLabel(/^Contraseña/).fill('ui-password-123')
   await page.locator('form').getByRole('button', { name: 'Entrar' }).click()
   await expect(page).toHaveURL(/\/$/)
+})
+
+test('registration without explicit consent is rejected', async ({ request }) => {
+  const response = await request.post('/api/auth/register', {
+    data: { email: `no-consent-${Date.now()}@example.com`, password: 'e2e-password-123' },
+  })
+  expect(response.status()).toBe(400)
+  expect((await request.get('/api/auth/me')).status()).toBe(401)
 })

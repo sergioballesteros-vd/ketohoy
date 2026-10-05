@@ -1,4 +1,5 @@
-import { ketoScoreByCategory } from '@/lib/ketoRules'
+import { classifyProduct, matchesProductTerm, type ProductClassification } from './productClassification'
+import { fetchNutritionByEan, type NutritionalData } from './openFoodFacts'
 import type { ProductCategory } from '@/lib/ketoRules'
 
 export type MercadonaProduct = {
@@ -9,6 +10,9 @@ export type MercadonaProduct = {
   mercadonaId: string
   category: string
   ketoScore: number
+  classification: ProductClassification
+  nutrition?: NutritionalData | null
+  netCarbsPer100g?: number | null
   unitPrice: number | null
   referencePrice: string | null
   imageUrl: string | null
@@ -31,7 +35,7 @@ export const TRENDING_MERCADONA_QUERIES = [
   'brócoli',
 ]
 
-export const DEMO_MERCADONA_PRODUCTS: MercadonaProduct[] = [
+export const DEMO_MERCADONA_PRODUCTS: MercadonaProduct[] = ([
   {
     id: 'mercadona_demo_salmon',
     name: 'Salmón fresco',
@@ -152,7 +156,11 @@ export const DEMO_MERCADONA_PRODUCTS: MercadonaProduct[] = [
     ingredients: 'Leche, sal, cuajo',
     allergens: 'LECHE',
   },
-]
+] satisfies Array<Omit<MercadonaProduct, 'classification'>>).map(product => {
+  const classification = classifyProduct({ name: product.name, category: product.category as ProductCategory })
+  return { ...product, ketoScore: classification.score, classification }
+})
+
 
 const API = 'https://tienda.mercadona.es/api'
 // Top-level category ids of tienda.mercadona.es (GET /api/categories) that can hold
@@ -228,7 +236,7 @@ export function searchCatalog(hits: RawHit[], query: string, limit: number): Raw
 export async function searchMercadonaProducts(query: string, limit = 12): Promise<MercadonaProduct[]> {
   try {
     const products = normalizeMercadonaProducts(searchCatalog(await loadCatalog(), query, limit))
-    if (products.length > 0) return products
+    if (products.length > 0) return Promise.all(products.map(async product => await getMercadonaProduct(product.mercadonaId) ?? product))
     // Real catalog loaded but nothing matched: don't show demo items for a real search.
     return []
   } catch (err) {
@@ -242,18 +250,31 @@ export async function searchMercadonaProductsByQueries(queries: string[]): Promi
   return dedupeMercadonaProducts(results.flat())
 }
 
+// Share a canonical snapshot for search/detail/import so evidence cannot vary by path.
+const productSnapshots = new Map<string, { at: number; product: Promise<MercadonaProduct | null> }>()
 export async function getMercadonaProduct(id: string): Promise<MercadonaProduct | null> {
   const numericId = id.startsWith('mercadona_') ? id.slice('mercadona_'.length) : id
-  try {
-    const detail = (await fetchJson(`/products/${encodeURIComponent(numericId)}/`)) as RawHit
-    const fromCatalog = (await loadCatalog().catch(() => [])).find(p => String(p.id) === numericId)
-    const [product] = normalizeMercadonaProducts([
-      { ...detail, categories: fromCatalog?.categories ?? detail.categories },
-    ])
-    return product ?? getDemoMercadonaProduct(id)
-  } catch {
-    return getDemoMercadonaProduct(id)
-  }
+  const demo = getDemoMercadonaProduct(id)
+  if (demo) return demo
+  const cached = productSnapshots.get(numericId)
+  if (cached && Date.now() - cached.at < CATALOG_TTL_MS) return cached.product
+  const product = resolveMercadonaProduct(numericId)
+  productSnapshots.set(numericId, { at: Date.now(), product })
+  const result = await product
+  if (!result) productSnapshots.delete(numericId)
+  return result
+}
+
+async function resolveMercadonaProduct(id: string): Promise<MercadonaProduct | null> {
+  const fromCatalog = (await loadCatalog().catch(() => [])).find(p => String(p.id) === id)
+  let detail: RawHit | undefined
+  try { detail = (await fetchJson(`/products/${encodeURIComponent(id)}/`)) as RawHit } catch { /* Catalog snapshot still provides an honest estimate. */ }
+  if (!detail && !fromCatalog) return null
+  const [product] = normalizeMercadonaProducts([{ ...fromCatalog, ...detail, categories: fromCatalog?.categories ?? detail?.categories }])
+  const nutrition = product.ean ? await fetchNutritionByEan(product.ean) : null
+  const netCarbs = nutrition?.availableCarbsPer100g ?? null
+  const classification = classifyProduct({ name: product.name, category: product.category as ProductCategory, netCarbs })
+  return { ...product, nutrition, netCarbsPer100g: netCarbs, classification, ketoScore: classification.score }
 }
 
 export type RawHit = {
@@ -292,6 +313,7 @@ export function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
       // Strip HTML tags from ingredients/allergens
       const stripHtml = (s?: string) => s?.replace(/<[^>]+>/g, '') ?? undefined
 
+      const classification = classifyProduct({ name: item.display_name ?? '', category: mappedCategory })
       return {
         id: `mercadona_${item.id}`,
         name: item.display_name ?? '',
@@ -299,7 +321,8 @@ export function normalizeMercadonaProducts(raw: unknown[]): MercadonaProduct[] {
         source: 'mercadona' as const,
         mercadonaId: String(item.id ?? ''),
         category: mappedCategory,
-        ketoScore: ketoScoreByCategory(mappedCategory),
+        ketoScore: classification.score,
+        classification,
         unitPrice: price != null ? parseFloat(String(price)) : null,
         referencePrice: refPrice != null ? `${formatEuros(refPrice)}/${refFormat ?? 'ud'}` : null,
         imageUrl: item.thumbnail ?? null,
@@ -317,28 +340,18 @@ function formatEuros(value: string | number): string {
   return Number.isFinite(n) ? `${n.toFixed(2).replace('.', ',')} €` : `${value} €`
 }
 
-function mapMercadonaCategory(raw: string): string {
-  const lower = normalizeText(raw)
-  if (lower.includes('carne') || lower.includes('pollo') || lower.includes('pavo') || lower.includes('ternera') || lower.includes('cerdo') || lower.includes('bacon') || lower.includes('jamon') || lower.includes('embutido') || lower.includes('salchicha') || lower.includes('chorizo')) return 'meat'
-  if (lower.includes('pescado') || lower.includes('marisco') || lower.includes('atun') || lower.includes('salmon') || lower.includes('bacalao')) return 'fish'
-  if (lower.includes('huevo')) return 'eggs'
-  if (lower.includes('lacteo') || lower.includes('queso') || lower.includes('yogur') || lower.includes('leche') || lower.includes('mantequilla') || lower.includes('nata')) return 'dairy'
-  if (lower.includes('frutos secos') || lower.includes('fruto seco') || lower.includes('nuez') || lower.includes('almendra') || lower.includes('avellana')) return 'nuts'
-  if (lower.includes('fruta') || lower.includes('manzana') || lower.includes('pera') || lower.includes('platano') || lower.includes('fresa') || lower.includes('frambuesa') || lower.includes('arandano')) return 'fruit'
-  if (lower.includes('verdura') || lower.includes('hortaliza')) return 'vegetables'
-  if (lower.includes('frutos secos') || lower.includes('fruto seco') || lower.includes('nuez') || lower.includes('almendra') || lower.includes('avellana')) return 'nuts'
-  if (lower.includes('aceite') || lower.includes('vinagre')) return 'oils'
-  if (lower.includes('salsa') || lower.includes('condimento') || lower.includes('aderezo')) return 'sauces'
-  if (lower.includes('bebida') || lower.includes('agua') || lower.includes('zumo') || lower.includes('refresco')) return 'drinks'
-  return 'other'
+export function mapMercadonaCategory(raw: string): ProductCategory {
+  // Drinks first: "bebida de almendras" is not a bag of nuts.
+  const order: ProductCategory[] = ['drinks', 'meat', 'fish', 'eggs', 'dairy', 'nuts', 'fruit', 'vegetables', 'oils', 'sauces']
+  return order.find(category => CATEGORY_KEYWORDS[category].some(term => matchesProductTerm(raw, term))) ?? 'other'
 }
 
 const CATEGORY_KEYWORDS: Record<ProductCategory, string[]> = {
-  meat: ['carne', 'pollo', 'pavo', 'ternera', 'cerdo', 'jamon', 'jamón', 'chorizo', 'lomo'],
+  meat: ['carne', 'pollo', 'pavo', 'ternera', 'cerdo', 'jamon', 'jamón', 'chorizo', 'lomo', 'bacon', 'embutido', 'salchicha'],
   fish: ['pescado', 'marisco', 'atun', 'atún', 'salmon', 'salmón', 'merluza', 'bacalao', 'sardina', 'gamba'],
   eggs: ['huevo', 'huevos'],
   dairy: ['lacteo', 'lácteo', 'queso', 'yogur', 'leche', 'nata', 'mantequilla', 'mozzarella'],
-  vegetables: ['verdura', 'hortaliza', 'espinaca', 'brocoli', 'brócoli', 'lechuga', 'calabacin', 'calabacín', 'tomate'],
+  vegetables: ['verdura', 'hortaliza', 'espinaca', 'brocoli', 'brócoli', 'lechuga', 'calabacin', 'calabacín', 'tomate', 'repollo', 'aguacate'],
   fruit: ['fruta', 'manzana', 'pera', 'platano', 'plátano', 'fresa', 'frambuesa', 'arándano', 'arandano'],
   nuts: ['fruto seco', 'nuez', 'almendra', 'avellana', 'pistacho', 'anacardo'],
   oils: ['aceite', 'vinagre', 'oliva', 'coco', 'girasol'],
@@ -350,7 +363,7 @@ const CATEGORY_KEYWORDS: Record<ProductCategory, string[]> = {
 export function productMatchesMercadonaCategory(product: MercadonaProduct, category: ProductCategory): boolean {
   if (product.category === category) return true
   const haystack = normalizeText([product.name, product.ingredients ?? '', product.allergens ?? '', product.brand].filter(Boolean).join(' '))
-  return CATEGORY_KEYWORDS[category].some(term => haystack.includes(normalizeText(term)))
+  return CATEGORY_KEYWORDS[category].some(term => matchesProductTerm(haystack, term))
 }
 
 function dedupeMercadonaProducts(products: MercadonaProduct[]): MercadonaProduct[] {

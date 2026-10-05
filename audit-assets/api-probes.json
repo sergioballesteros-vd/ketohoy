@@ -1,0 +1,94 @@
+{
+  "noCookieProducts": 401,
+  "fakeCookiePantry": 401,
+  "fakeCookieProducts": 200,
+  "fakeCookieCreateProduct": 201,
+  "registration": 201,
+  "globalManualProductVisible": true,
+  "recipeExample": {
+    "title": "Almejas al vapor con ajo",
+    "ingredients": [
+      {
+        "name": "Almejas",
+        "quantity": "400g"
+      },
+      {
+        "name": "Aceite de oliva virgen extra",
+        "quantity": "2 cdas"
+      }
+    ]
+  },
+  "repeatRecipeAdd": {
+    "first": [
+      {
+        "name": "Almejas",
+        "quantity": "1"
+      },
+      {
+        "name": "Aceite de oliva virgen extra",
+        "quantity": "1"
+      }
+    ],
+    "second": [
+      {
+        "name": "Almejas",
+        "quantity": "2"
+      },
+      {
+        "name": "Aceite de oliva virgen extra",
+        "quantity": "2"
+      }
+    ]
+  },
+  "readdBought": [
+    {
+      "checked": true,
+      "quantity": "2",
+      "pantryDelta": 1
+    }
+  ],
+  "readdBoughtPantry": {
+    "quantity": 1
+  },
+  "concurrentQuantity": {
+    "statuses": [
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "expected": 6,
+    "actual": "6"
+  },
+  "concurrentPreferenceGet": {
+    "statuses": [
+      200,
+      200,
+      200
+    ],
+    "rows": 1
+  },
+  "defaultPlan": {
+    "status": 200,
+    "meals": 28
+  },
+  "incompatibleSwap": {
+    "status": 200,
+    "title": "Atún con tomates cherry y aceite de oliva"
+  },
+  "restrictedPlan": {
+    "status": 200,
+    "meals": 7,
+    "types": [
+      "snack"
+    ]
+  },
+  "purchaseFailure": 500,
+  "purchaseAfterFailure": {
+    "checked": true,
+    "pantryDelta": null,
+    "pantryRows": 0
+  },
+  "invalidShoppingProduct": 500
+}

@@ -1,12 +1,23 @@
-import { test, expect } from '@playwright/test'
+import { registrationData } from './registration'
+import { test, expect, type Page } from '@playwright/test'
 
 // Own account: a fresh user has no plan yet, and generate/swap must not touch the shared e2e user.
+const pageErrors = new WeakMap<Page, string[]>()
+test.beforeEach(({ page }) => {
+  const errors: string[] = []
+  pageErrors.set(page, errors)
+  page.on('pageerror', error => errors.push(error.message))
+})
+test.afterEach(({ page }) => {
+  expect(pageErrors.get(page)).toEqual([])
+})
+
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test.beforeEach(async ({ page }, testInfo) => {
   const res = await page.request.post('/api/auth/register', {
     headers: { 'X-Forwarded-For': `e2e-${testInfo.testId}` },
-    data: { email: `plan-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'plan-password-123' },
+    data: registrationData(),
   })
   expect(res.status()).toBe(201)
 })
@@ -69,3 +80,29 @@ test('plan: "Elegir por mí" swaps without picking, regenerate asks first and re
     .not.toBe(oldPlan)
   await expect(rows).toHaveCount(28)
 })
+
+for (const width of [320, 390, 1280]) {
+  test(`plan: insufficient candidates preserve plan and recover with keyboard at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const generated = await page.request.post('/api/weekly-plan/generate')
+    expect(generated.status()).toBe(200)
+    const before = await (await page.request.get('/api/weekly-plan')).json()
+    expect(before.meals).toHaveLength(28)
+    expect((await page.request.patch('/api/preferences', { data: { ketoMode: 'strict', avoidFish: true, avoidPork: true, avoidDairy: true, maxCookingMinutes: 5 } })).ok()).toBe(true)
+    await page.goto('/weekly-plan')
+    await page.getByRole('button', { name: 'Regenerar', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Regenerar', exact: true }).click()
+    const alert = page.locator('main').getByRole('alert')
+    await expect(alert).toContainText('No encontramos recetas compatibles para desayuno, comida y cena')
+    expect(await (await page.request.get('/api/weekly-plan')).json()).toEqual(before)
+    await expect(page.getByText('Plan generado', { exact: true })).toHaveCount(0)
+    const recovery = alert.getByRole('link', { name: 'Revisar preferencias' })
+    await recovery.scrollIntoViewIfNeeded()
+    await expect(recovery).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await recovery.focus()
+    await expect(recovery).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/preferences$/)
+  })
+}

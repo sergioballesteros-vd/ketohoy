@@ -1,86 +1,45 @@
+import { ingredientSourceKey } from '@/lib/shoppingSources'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
-import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
-import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
+import { ingredientAvailability } from '@/lib/recipeAvailability'
+import { accessibleProducts } from '@/lib/productAccess'
+import { parseIngredientQuantity } from '@/lib/quantities'
 
+const originSchema = z.object({ mealId: z.string().min(1).optional() }).strict()
 export const POST = withErrorHandling(
-  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params
-  const userId = await requireUserId()
-
-  const recipe = await db.recipe.findUnique({
-    where: { id },
-    include: { ingredients: true },
-  })
-  if (!recipe) {
-    throw new ApiError('Not found', 404)
-  }
-
-  const pantryItems = await db.pantryItem.findMany({ where: { userId }, include: { product: true } })
-  const pantryProductIds = new Set(pantryItems.map(i => i.productId))
-  const pantryProductNames = pantryItems.map(i => i.product.name)
-
-  const missingIngredients = recipe.ingredients.filter(ing => {
-    if (ing.optional) return false
-    if (ing.productId && pantryProductIds.has(ing.productId)) return false
-    return !pantryProductNames.some(name => ingredientMatchesProduct(ing.name, name))
-  })
-
-  const existingItems = await db.shoppingListItem.findMany({
-    where: { userId, checked: false },
-  })
-
-  const created = []
-  const existingByProductId = new Map(
-    existingItems.filter(item => item.productId).map(item => [item.productId as string, item])
-  )
-  const newItems: Array<{
-    name: string
-    quantity: string
-    productId: string | null
-    reason: string
-  }> = []
-
-  for (const ing of missingIngredients) {
-    const quantityValue = parseShoppingQuantity(ing.quantity, 1)
-    const existing = ing.productId
-      ? existingByProductId.get(ing.productId)
-      : existingItems.find(item => item.name.toLowerCase() === ing.name.toLowerCase())
-        ?? existingItems.find(item => ingredientMatchesProduct(ing.name, item.name))
-
-    if (existing) {
-      const item = await db.shoppingListItem.update({
-        where: { id: existing.id },
-        data: {
-          quantity: mergeShoppingQuantity(existing.quantity, quantityValue),
-          reason: existing.reason ?? `Para: ${recipe.title}`,
-        },
-      })
-      created.push(item)
-      continue
-    }
-
-    const dedupeKey = ing.name.toLowerCase()
-    const alreadyQueued = newItems.find(item => item.name.toLowerCase() === dedupeKey)
-    if (alreadyQueued) {
-      alreadyQueued.quantity = mergeShoppingQuantity(alreadyQueued.quantity, quantityValue)
-    } else {
-      newItems.push({
-        name: ing.name,
-        quantity: formatShoppingQuantity(quantityValue),
-        productId: ing.productId ?? null,
-        reason: `Para: ${recipe.title}`,
-      })
-    }
-  }
-
-  if (newItems.length > 0) {
-    await db.shoppingListItem.createMany({ data: newItems.map(i => ({ ...i, userId })) })
-    created.push(...newItems)
-  }
-
-  return NextResponse.json({ added: created.length, items: created, skipped: 0 })
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+    const { id } = await params
+    const userId = await requireUserId()
+    const raw = await request.text()
+    const { mealId } = originSchema.parse(raw ? JSON.parse(raw) : {})
+    const result = await db.$transaction(async tx => {
+      const recipe = await tx.recipe.findUnique({ where: { id }, include: { ingredients: true } })
+      if (!recipe) throw new ApiError('Not found', 404)
+      const meal = mealId ? await tx.weeklyMeal.findFirst({ where: { id: mealId, recipeId: id, plan: { userId } } }) : null
+      if (mealId && !meal) throw new ApiError('Meal not found', 404)
+      const pantry = await tx.pantryItem.findMany({ where: { userId }, include: { product: true } })
+      const missing = recipe.ingredients.filter(ing => !ing.optional && ingredientAvailability(ing, pantry, userId).status !== 'sufficient')
+      const items = []
+      let added = 0
+      for (const ing of missing) {
+        const sourceKey = ingredientSourceKey(id, ing.id, meal ?? undefined)
+        // Includes purchased history: retry is never a new cooking occasion or purchase.
+        const existing = await tx.shoppingListItem.findUnique({ where: { userId_sourceKey: { userId, sourceKey } } })
+        if (existing) { items.push(existing); continue }
+        const product = ing.productId ? await tx.product.findFirst({ where: { id: ing.productId, ...accessibleProducts(userId) } }) : null
+        items.push(await tx.shoppingListItem.create({ data: {
+          userId, name: ing.name, productId: product?.id ?? null,
+          ...parseIngredientQuantity(ing.quantity), originalIngredientText: ing.quantity,
+          sourceType: meal ? 'meal' : 'recipe', sourceKey, reason: `Para: ${recipe.title}`,
+          // Culinary needs do not imply any number of commercial packages.
+        } }))
+        added++
+      }
+      return { added, items, skipped: recipe.ingredients.length - missing.length }
+    })
+    return NextResponse.json(result)
   }
 )

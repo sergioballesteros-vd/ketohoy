@@ -84,7 +84,7 @@ describe('buy / un-buy invariants', () => {
 
   it('pantry 3 + buy 2 = 5, un-buy returns to exactly 3', async () => {
     const pid = await freshProduct()
-    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3 }))
+    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3, unit: 'paquete' }))
 
     const item = await bought(pid, 'Inv A', 2)
     await check(item.id)
@@ -119,7 +119,7 @@ describe('buy / un-buy invariants', () => {
   it('the purchase record is set on buy and cleared on un-buy', async () => {
     const { db } = await import('@/lib/db')
     const pid = await freshProduct()
-    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3 }))
+    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3, unit: 'paquete' }))
     const item = await bought(pid, 'Inv Record', 2)
 
     await check(item.id)
@@ -135,7 +135,7 @@ describe('buy / un-buy invariants', () => {
 
   it('un-buying restores the exact amount even if the pantry quantity was edited in between, and never goes negative', async () => {
     const pid = await freshProduct()
-    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3 }))
+    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3, unit: 'paquete' }))
     const item = await bought(pid, 'Inv Edit', 2)
     await check(item.id) // 5
     const row = (await pantry()).find(p => p.productId === pid)!
@@ -151,14 +151,14 @@ describe('buy / un-buy invariants', () => {
     expect(await qtyOf(pid)).toBeNull() // 1 - 6 <= 0 and the row pre-existed -> back to "no quantity", not negative
   })
 
-  it('bought items from before tracking (no pantryDelta) still un-buy using the list quantity', async () => {
+  it('untracked legacy un-buy preserves stock instead of guessing its dimension', async () => {
     const { db } = await import('@/lib/db')
     const pid = await freshProduct()
     await pantryPOST(post('http://t/p', { productId: pid, quantity: 5 }))
     const item = await bought(pid, 'Inv Legacy', 2)
     await db.shoppingListItem.update({ where: { id: item.id }, data: { checked: true } }) // legacy: bought, untracked
     await check(item.id) // un-buy
-    expect(await qtyOf(pid)).toBe(3)
+    expect(await qtyOf(pid)).toBe(5)
   })
 
   it('simultaneous taps never apply the purchase twice', async () => {
@@ -171,7 +171,7 @@ describe('buy / un-buy invariants', () => {
 
   it('simultaneous un-buy taps never subtract twice (E)', async () => {
     const pid = await freshProduct()
-    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3 }))
+    await pantryPOST(post('http://t/p', { productId: pid, quantity: 3, unit: 'paquete' }))
     const item = await bought(pid, 'Inv Double', 2)
     await check(item.id) // 5
     await Promise.all([check(item.id), check(item.id)])
@@ -204,5 +204,81 @@ describe('PATCH /api/pantry/:id', () => {
     expect(await (await call({ quantity: null, unit: null })).json()).toMatchObject({ quantity: null, unit: null })
     expect((await call({ quantity: -1 })).status).toBe(400)
     expect((await call({ quantity: 1 }, 'nope')).status).toBe(404)
+  })
+})
+
+
+describe('atomic transfer failures on real SQLite', () => {
+  it.each([
+    ['checked', 'BEFORE UPDATE OF checked ON ShoppingListItem'],
+    ['pantry insert', 'BEFORE INSERT ON PantryItem'],
+    ['pantry update', 'BEFORE UPDATE ON PantryItem'],
+    ['delta', 'BEFORE UPDATE OF pantryDelta ON ShoppingListItem'],
+  ])('rolls back the whole buy when %s fails', async (_label, event) => {
+    const { db } = await import('@/lib/db')
+    const product = await db.product.create({ data: { name: `Failure ${_label}`, category: 'other', source: 'mercadona' } })
+    const item = await (await listPOST(post('http://t/l', { name: product.name, productId: product.id, quantity: 2 }))).json()
+    if (_label === 'pantry update') await pantryPOST(post('http://t/p', { productId: product.id, quantity: 3, unit: 'paquete' }))
+    const beforeItem = await db.shoppingListItem.findUniqueOrThrow({ where: { id: item.id } })
+    const beforePantry = await db.pantryItem.findMany({ where: { productId: product.id } })
+    await db.$executeRawUnsafe(`CREATE TRIGGER fail_transfer ${event} BEGIN SELECT RAISE(ABORT, 'forced failure'); END`)
+    try {
+      expect((await check(item.id)).status).toBe(500)
+      expect(await db.shoppingListItem.findUniqueOrThrow({ where: { id: item.id } })).toEqual(beforeItem)
+      expect(await db.pantryItem.findMany({ where: { productId: product.id } })).toEqual(beforePantry)
+    } finally {
+      await db.$executeRawUnsafe('DROP TRIGGER fail_transfer')
+    }
+    const bought = await (await check(item.id)).json()
+    expect(bought).toMatchObject({ checked: true, pantryDelta: 2, productId: product.id })
+  })
+
+  it.each([
+    ['stock update', 'BEFORE UPDATE ON PantryItem', true],
+    ['stock deletion', 'BEFORE DELETE ON PantryItem', false],
+    ['delta reset', 'BEFORE UPDATE OF pantryDelta ON ShoppingListItem', true],
+  ])('rolls back un-buy when %s fails', async (_label, event, preexisting) => {
+    const { db } = await import('@/lib/db')
+    const product = await db.product.create({ data: { name: `Reverse ${_label}`, category: 'other', source: 'mercadona' } })
+    if (preexisting) await pantryPOST(post('http://t/p', { productId: product.id, quantity: 3, unit: 'paquete' }))
+    const item = await (await listPOST(post('http://t/l', { name: product.name, productId: product.id, quantity: 2 }))).json()
+    await check(item.id)
+    const beforeItem = await db.shoppingListItem.findUniqueOrThrow({ where: { id: item.id } })
+    const beforePantry = await db.pantryItem.findMany({ where: { productId: product.id } })
+    await db.$executeRawUnsafe(`CREATE TRIGGER fail_reverse ${event} BEGIN SELECT RAISE(ABORT, 'forced failure'); END`)
+    try {
+      expect((await check(item.id)).status).toBe(500)
+      expect(await db.shoppingListItem.findUniqueOrThrow({ where: { id: item.id } })).toEqual(beforeItem)
+      expect(await db.pantryItem.findMany({ where: { productId: product.id } })).toEqual(beforePantry)
+    } finally {
+      await db.$executeRawUnsafe('DROP TRIGGER fail_reverse')
+    }
+    expect((await check(item.id)).status).toBe(200)
+  })
+
+  it('rolls back every item in mark-bought when a later transfer fails, including manual product creation', async () => {
+    const { db } = await import('@/lib/db')
+    const items = await Promise.all(['Batch failure one', 'Batch failure two'].map(name =>
+      listPOST(post('http://t/l', { name, quantity: 2 })).then(r => r.json())))
+    const ids = items.map(item => item.id)
+    const before = await db.shoppingListItem.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' } })
+    const productsBefore = await db.product.count()
+    const pantryBefore = await db.pantryItem.count()
+    // The second delta update fails after the first item was fully transferred.
+    await db.$executeRawUnsafe(`CREATE TRIGGER fail_batch BEFORE UPDATE OF pantryDelta ON ShoppingListItem
+      WHEN (SELECT COUNT(*) FROM ShoppingListItem WHERE name LIKE 'Batch failure %' AND pantryDelta IS NOT NULL) = 1
+      BEGIN SELECT RAISE(ABORT, 'second transfer failure'); END`)
+    try {
+      expect((await markBought(post('http://t/m', { ids }))).status).toBe(500)
+      expect(await db.shoppingListItem.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' } })).toEqual(before)
+      expect(await db.product.count()).toBe(productsBefore)
+      expect(await db.pantryItem.count()).toBe(pantryBefore)
+    } finally {
+      await db.$executeRawUnsafe('DROP TRIGGER fail_batch')
+    }
+    const results = await Promise.all([markBought(post('http://t/m', { ids })), markBought(post('http://t/m', { ids }))])
+    expect(results.map(r => r.status)).toEqual([200, 200])
+    expect((await Promise.all(results.map(r => r.json()))).reduce((sum, r) => sum + r.marked, 0)).toBe(2)
+    expect(await db.pantryItem.count()).toBe(pantryBefore + 2)
   })
 })

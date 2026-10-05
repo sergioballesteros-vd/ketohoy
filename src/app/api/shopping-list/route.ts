@@ -1,15 +1,30 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { accessibleProducts } from '@/lib/productAccess'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
-import { withErrorHandling } from '@/lib/apiError'
-import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
+import { ApiError, withErrorHandling } from '@/lib/apiError'
+import { formatShoppingQuantity } from '@/lib/shoppingList'
+import { positiveQuantity, purchaseQuantityInput, quantityPair } from '@/lib/quantities'
 
 const createShoppingItemSchema = z.object({
   name: z.string().trim().min(1),
-  quantity: z.union([z.number(), z.string()]).optional(),
+  restore: z.boolean().optional(),
+  quantity: purchaseQuantityInput.optional(),
+  purchaseQuantity: positiveQuantity.nullable().optional(),
+  legacyQuantity: z.string().nullable().optional(),
+  requiredQuantity: positiveQuantity.nullable().optional(),
+  requiredUnit: z.string().trim().min(1).nullable().optional(),
+  originalIngredientText: z.string().nullable().optional(),
   productId: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
+}).superRefine((p, ctx) => {
+  if (!quantityPair.safeParse({ quantity: p.requiredQuantity ?? null, unit: p.requiredUnit ?? null }).success)
+    ctx.addIssue({ code: 'custom', message: 'Required quantity and unit must both be specified' })
+  if (p.legacyQuantity !== undefined && p.purchaseQuantity !== null)
+    ctx.addIssue({ code: 'custom', message: 'Legacy text requires an explicitly unknown purchase quantity' })
+  if (p.quantity !== undefined && p.purchaseQuantity !== undefined && p.quantity !== p.purchaseQuantity)
+    ctx.addIssue({ code: 'custom', message: 'Conflicting purchase quantities' })
 })
 
 const deleteShoppingItemsSchema = z.object({
@@ -27,38 +42,37 @@ export const GET = withErrorHandling(async () => {
 
 export const POST = withErrorHandling(async (request: Request) => {
   const userId = await requireUserId()
-  const { name, quantity, productId, reason } = createShoppingItemSchema.parse(await request.json())
+  const { name, quantity, purchaseQuantity, legacyQuantity, requiredQuantity, requiredUnit, originalIngredientText, productId, reason, restore } = createShoppingItemSchema.parse(await request.json())
 
-  const normalizedName = name.trim()
-  const quantityValue = formatShoppingQuantity(parseShoppingQuantity(quantity, 1))
-  const existing = await db.shoppingListItem.findFirst({
-    where: { userId, ...(productId ? { productId: String(productId) } : { name: normalizedName }) },
-    include: { product: true },
-  })
-
-  if (existing) {
-    const item = await db.shoppingListItem.update({
-      where: { id: existing.id },
-      data: {
-        quantity: mergeShoppingQuantity(existing.quantity, parseShoppingQuantity(quantity, 1)),
-        reason: reason ?? existing.reason,
-      },
-      include: { product: true },
-    })
-    return NextResponse.json(item, { status: 200 })
+  if (productId && !(await db.product.findFirst({ where: { id: productId, ...accessibleProducts(userId) }, select: { id: true } }))) {
+    throw new ApiError('Product not found', 404)
   }
 
-  const item = await db.shoppingListItem.create({
-    data: {
-      userId,
-      name: normalizedName,
-      quantity: quantityValue,
-      productId: productId ? String(productId) : null,
-      reason: reason ?? null,
-    },
-    include: { product: true },
+  const count = purchaseQuantity === null ? null : purchaseQuantity ?? quantity ?? 1
+  const result = await db.$transaction(async tx => {
+    // Manual/catalog additions represent additional packages; never merge with generated needs or legacy.
+    const existing = await tx.shoppingListItem.findFirst({ where: {
+      userId, checked: false, sourceType: restore && count === null ? 'legacy' : 'manual',
+      requiredQuantity: restore ? requiredQuantity ?? null : null,
+      ...(restore ? { requiredUnit: requiredUnit ?? null } : {}),
+      originalIngredientText: restore ? originalIngredientText ?? null : null,
+      ...(productId ? { productId } : { name }),
+    } })
+    if (restore && existing) return { item: existing, status: 200 }
+    if (existing && count !== null && requiredQuantity == null && originalIngredientText == null) {
+      const next = positiveQuantity.parse((existing.purchaseQuantity ?? 0) + count)
+      return { item: await tx.shoppingListItem.update({ where: { id: existing.id }, data: {
+        purchaseQuantity: next, quantity: formatShoppingQuantity(next), reason: reason ?? existing.reason,
+      }, include: { product: true } }), status: 200 }
+    }
+    return { item: await tx.shoppingListItem.create({ data: {
+      userId, name, productId: productId ?? null, reason: reason ?? null,
+      purchaseQuantity: count, quantity: count === null ? legacyQuantity ?? null : formatShoppingQuantity(count), sourceType: count === null ? 'legacy' : 'manual',
+      requiredQuantity: requiredQuantity ?? null, requiredUnit: requiredUnit ?? null,
+      originalIngredientText: originalIngredientText ?? null,
+    }, include: { product: true } }), status: 201 }
   })
-  return NextResponse.json(item, { status: 201 })
+  return NextResponse.json(restore ? { ...result.item, outcome: result.status === 201 ? 'created' : 'existing' } : result.item, { status: result.status })
 })
 
 export const DELETE = withErrorHandling(async (request: Request) => {

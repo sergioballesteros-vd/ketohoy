@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { focusRing } from '@/components/ui'
 
-const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const sheets: HTMLElement[] = []
+const usable = (element: HTMLElement) => element.isConnected && element.matches(FOCUSABLE) &&
+  !element.closest('[inert], [aria-hidden="true"], [data-open="false"]') && element.getClientRects().length > 0 &&
+  getComputedStyle(element).visibility !== 'hidden'
+
 
 type SheetProps = {
   /** id of the element that names the dialog: the `title` heading, or one rendered by the caller in `children` */
@@ -25,6 +30,7 @@ type SheetProps = {
 export default function Sheet({ labelId, title, actions, footer, onClose, children }: SheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef<{ previous: HTMLElement | null; fallback: HTMLElement[] } | null>(null)
   // callers pass inline handlers; a ref keeps the effect below from re-running (and stealing focus) each render
   const onCloseRef = useRef(onClose)
   useEffect(() => {
@@ -43,13 +49,22 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
   }, [])
 
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
+    const previous = returnFocus.current?.previous ?? document.activeElement as HTMLElement | null
+    const panel = dialogRef.current!
+    // Keep nearby destinations before a destructive action can remove the initiating row.
+    const scope = previous?.closest('main') ?? document.querySelector('main')
+    const neighbors = Array.from(scope?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter(element => !panel.contains(element))
+    const index = previous ? neighbors.indexOf(previous) : -1
+    const fallback = returnFocus.current?.fallback ?? [...neighbors.slice(index + 1), ...neighbors.slice(0, Math.max(0, index)).reverse()]
+    returnFocus.current = { previous, fallback }
+    sheets.push(panel)
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') return close()
+      if (sheets.at(-1) !== panel) return
+      if (e.key === 'Escape') { e.preventDefault(); return close() }
       if (e.key !== 'Tab' || !dialogRef.current) return
-      const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
+      const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(usable)
       const first = items[0]
       const last = items[items.length - 1]
       if (e.shiftKey && document.activeElement === first) {
@@ -60,12 +75,28 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
         first.focus()
       }
     }
+    const containFocus = (event: FocusEvent) => {
+      if (sheets.at(-1) === panel && !panel.contains(event.target as Node)) closeRef.current?.focus()
+    }
+    document.addEventListener('focusin', containFocus)
     window.addEventListener('keydown', onKey)
-    closeRef.current?.focus()
+    const initial = panel.querySelector<HTMLElement>('[data-sheet-initial-focus]')
+    ;(initial ?? closeRef.current)?.focus()
     return () => {
+      document.removeEventListener('focusin', containFocus)
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = overflow
-      previous?.focus?.()
+      sheets.splice(sheets.indexOf(panel), 1)
+      // Cleanup runs at actual unmount, including action closes and reduced motion.
+      // A newly mounted/revealed sheet owns focus; never move it behind that overlay.
+      queueMicrotask(() => {
+        const activePanel = sheets.at(-1)
+        if (activePanel?.contains(document.activeElement) && (!previous || !activePanel.contains(previous))) return
+        const destinations = [previous, ...fallback].filter((element): element is HTMLElement => !!element)
+        const destination = destinations.find(element => usable(element) && (!activePanel || activePanel.contains(element)))
+        if (destination) destination.focus({ preventScroll: true })
+        else if (activePanel) activePanel.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+      })
       if (closeTimer.current) clearTimeout(closeTimer.current)
     }
   }, [close])

@@ -15,7 +15,10 @@ export type PlanRecipe = {
   imageUrl: string | null
 }
 
+import { recipeAvailabilityLabel, type RecipeAvailability } from '@/lib/recipeAvailability'
+
 type Suggestion = {
+  availability: RecipeAvailability
   recipe: PlanRecipe
   availableIngredients: string[]
   missingIngredients: string[]
@@ -28,7 +31,7 @@ type Props = {
   currentRecipeId: string | null
   /** recipes already planned for this meal type this week (tagged, not hidden) */
   usedRecipeIds: Set<string>
-  onPick: (recipe: PlanRecipe, missing: number, total: number) => void
+  onPick: (recipe: PlanRecipe, availability: RecipeAvailability) => void
   onAuto: () => void
   onClose: () => void
 }
@@ -94,13 +97,12 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
         <p className="py-10 text-center text-sm text-forest-300">No hay otras recetas compatibles con tus preferencias.</p>
       ) : (
         <ul className="mt-2 divide-y divide-forest-800">
-          {items.map(({ recipe, availableIngredients, missingIngredients }) => {
-            const missing = missingIngredients.length
+          {items.map(({ recipe, availability }) => {
             return (
               <li key={recipe.id}>
                 <button
                   type="button"
-                  onClick={() => onPick(recipe, missing, missing + availableIngredients.length)}
+                  onClick={() => onPick(recipe, availability)}
                   className={`flex w-full items-center gap-3 rounded-lg py-2.5 text-left ${focusRing}`}
                 >
                   <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-forest-800">
@@ -116,8 +118,8 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
                       <span className="inline-flex items-center gap-1">
                         {recipe.prepTimeMinutes} min
                       </span>
-                      <span className={missing === 0 ? 'font-semibold text-[#a3e635]' : ''}>
-                        {missing === 0 ? 'Tienes todo' : missing === 1 ? 'Te falta 1' : `Te faltan ${missing}`}
+                      <span className={availability.ready ? 'font-semibold text-[#a3e635]' : ''}>
+                        {recipeAvailabilityLabel(availability)}
                       </span>
                       {usedRecipeIds.has(recipe.id) && <span className="text-forest-400">Ya en tu plan</span>}
                     </span>

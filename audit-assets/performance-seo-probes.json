@@ -1,0 +1,66 @@
+{
+  "perf": {
+    "url": "https://ketohoy.es/",
+    "viewport": 390,
+    "ttfb": 182.79999999701977,
+    "lcp": {
+      "time": 256,
+      "size": 25331,
+      "tag": "P"
+    },
+    "cls": 0,
+    "js": [
+      {
+        "name": "/_next/static/chunks/3450qyhportkm.js",
+        "transfer": 0,
+        "encoded": 9030
+      },
+      {
+        "name": "/_next/static/chunks/turbopack-05-5fsoa-90qb.js",
+        "transfer": 0,
+        "encoded": 4301
+      },
+      {
+        "name": "/_next/static/chunks/311ic-qfnceio.js",
+        "transfer": 0,
+        "encoded": 9067
+      },
+      {
+        "name": "/_next/static/chunks/3vpgigxizzr9g.js",
+        "transfer": 0,
+        "encoded": 447
+      },
+      {
+        "name": "/_next/static/chunks/0iopzz837a548.js",
+        "transfer": 0,
+        "encoded": 8125
+      },
+      {
+        "name": "/_next/static/chunks/3bawhkhjtuhib.js",
+        "transfer": 0,
+        "encoded": 43778
+      },
+      {
+        "name": "/_next/static/chunks/1j_9b-l0n6u-t.js",
+        "transfer": 0,
+        "encoded": 71576
+      }
+    ],
+    "fonts": 2,
+    "resourceCount": 28
+  },
+  "seo": {
+    "title": "Huevos revueltos con bacon y aguacate · KetoHoy",
+    "h1": [
+      "Huevos revueltos con bacon y aguacate"
+    ],
+    "canonical": "https://ketohoy.es/recipes/cmumggya1001mw8uartbv81vj",
+    "robots": "index, follow",
+    "jsonld": "{\"@context\":\"https://schema.org\",\"@type\":\"Recipe\",\"name\":\"Huevos revueltos con bacon y aguacate\",\"description\":\"Cremosos huevos revueltos acompañados de bacon crujiente y aguacate fresco.\",\"image\":\"https://images.unsplash.com/photo-1584079822534-ded0800c615a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5ODkzNzR8MHwxfHNlYXJjaHwxfHxIdWV2b3MlMjByZXZ1ZWx0b3MlMjBjb24lMjBiYWNvbiUyMHklMjBhZ3VhY2F0ZSUyMGZvb2QlMjBrZXRvfGVufDB8MHx8fDE3OTA2NzQyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080\",\"url\":\"https://ketohoy.es/recipes/cmumggya1001mw8uartbv81vj\",\"author\":{\"@type\":\"Organization\",\"name\":\"KetoHoy\"},\"datePublished\":\"2026-09-29T09:10:00.841Z\",\"prepTime\":\"PT10M\",\"recipeCategory\":\"Desayuno\",\"recipeIngredient\":[\"3 uds Huevos camperos (12 uds)\",\"3 lonchas Bacon en lonchas\",\"1/2 ud Aguacate\",\"1 cdta Aceite de oliva virgen extra\"],\"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Cortar el bacon en tiras y freír en sartén a fuego medio hasta que esté crujiente.\"},{\"@type\":\"HowToStep\",\"text\":\"Batir los huevos con sal y pimienta.\"},{\"@type\":\"HowToStep\",\"text\":\"Bajar el fuego y añadir los huevos a la sartén, remover constantemente hasta que estén cremosos.\"},{\"@type\":\"HowToStep\",\"text\":\"Servir con medio aguacate en rodajas y el bacon encima.\"}],\"inLanguage\":\"es\"}",
+    "og": "https://images.unsplash.com/photo-1584079822534-ded0800c615a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5ODkzNzR8MHwxfHNlYXJjaHwxfHxIdWV2b3MlMjByZXZ1ZWx0b3MlMjBjb24lMjBiYWNvbiUyMHklMjBhZ3VhY2F0ZSUyMGZvb2QlMjBrZXRvfGVufDB8MHx8fDE3OTA2NzQyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080"
+  },
+  "notfound": {
+    "status": 404,
+    "text": "No encontramos esa página\n\nPuede que el enlace esté mal o que la receta ya no exista.\n\nVolver al inicio"
+  }
+}

@@ -13,16 +13,19 @@ export const POST = withErrorHandling(async (request: Request) => {
   const userId = await requireUserId()
   const { ids } = markBoughtSchema.parse(await request.json())
 
-  // Only items still pending: re-marking an already bought item must not add its quantity twice.
-  const pending = await db.shoppingListItem.findMany({ where: { id: { in: ids }, userId, checked: false } })
-  let marked = 0
-  for (const item of pending) {
-    const { count } = await db.shoppingListItem.updateMany({ where: { id: item.id, userId, checked: false }, data: { checked: true } })
-    if (count === 1) {
-      await addBoughtToPantry(userId, item)
-      marked++
+  const marked = await db.$transaction(async tx => {
+    // The entire batch either transfers successfully or remains pending.
+    const pending = await tx.shoppingListItem.findMany({ where: { id: { in: ids }, userId, checked: false } })
+    let countMarked = 0
+    for (const item of pending) {
+      const { count } = await tx.shoppingListItem.updateMany({ where: { id: item.id, userId, checked: false }, data: { checked: true } })
+      if (count === 1) {
+        await addBoughtToPantry(tx, userId, item)
+        countMarked++
+      }
     }
-  }
+    return countMarked
+  })
 
   return NextResponse.json({ marked })
 })

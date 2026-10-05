@@ -1,0 +1,2202 @@
+{
+  "metrics": [
+    {
+      "route": "/",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 1133,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 1174,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 1193,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 1243,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 1179,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 768,
+      "documentHeight": 1182,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 768,
+      "documentHeight": 1182,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 768,
+      "documentHeight": 1182,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/inventory",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/shopping-list",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 768,
+      "documentHeight": 924,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 127,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 127,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 3301,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 3000,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 2962,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 2750,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 2519,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 1021,
+      "documentHeight": 1382,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 169,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 1152,
+      "documentHeight": 1363,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/weekly-plan",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 1152,
+      "documentHeight": 1363,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 4825,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 5026,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 5138,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 5418,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 4350,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 1021,
+      "documentHeight": 3218,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 169,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 1152,
+      "documentHeight": 3463,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/meals",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 1152,
+      "documentHeight": 3463,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 1139,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 672,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 111,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 672,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 111,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 672,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 111,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/preferences",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 672,
+      "documentHeight": 1127,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 111,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 111,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 320,
+      "scrollWidth": 317,
+      "mainWidth": 317,
+      "documentHeight": 7875,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 53,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 53,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 375,
+      "scrollWidth": 372,
+      "mainWidth": 372,
+      "documentHeight": 8732,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 61,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 61,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 390,
+      "scrollWidth": 387,
+      "mainWidth": 387,
+      "documentHeight": 8964,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 63,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 63,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 430,
+      "scrollWidth": 427,
+      "mainWidth": 427,
+      "documentHeight": 9584,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 70,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 70,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 768,
+      "scrollWidth": 765,
+      "mainWidth": 765,
+      "documentHeight": 7528,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 126,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 126,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 1024,
+      "scrollWidth": 1021,
+      "mainWidth": 1021,
+      "documentHeight": 5836,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 169,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 169,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 1280,
+      "scrollWidth": 1277,
+      "mainWidth": 1152,
+      "documentHeight": 4486,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    },
+    {
+      "route": "/explore",
+      "width": 1440,
+      "scrollWidth": 1437,
+      "mainWidth": 1152,
+      "documentHeight": 4486,
+      "navTargets": [
+        {
+          "label": "Inicio",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Catálogo",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Recetas",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Despensa",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Plan",
+          "width": 191,
+          "height": 55
+        },
+        {
+          "label": "Compra",
+          "width": 191,
+          "height": 55
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "path": "/api/mercadona/category/fruit",
+      "status": 400
+    }
+  ],
+  "flow": {
+    "initialFocus": "Cerrar",
+    "pantrySaved": "Aceitunas auditoría UI\n5 kg\nLow carb",
+    "undo": "Aceitunas auditoría UI\n5 kg\nLow carb",
+    "purchased": 2
+  },
+  "favoritesPersisted": true
+}

@@ -99,6 +99,15 @@ export default async function Landing() {
           ))}
         </dl>
       </section>
+
+      <footer className="mt-10 border-t border-forest-800 pt-5 text-sm text-forest-300">
+        <nav aria-label="Información legal" className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link href="/legal#aviso-legal" className="underline">Aviso legal</Link>
+          <Link href="/legal#terminos" className="underline">Términos</Link>
+          <Link href="/legal#privacidad" className="underline">Privacidad</Link>
+          <Link href="/legal#cookies" className="underline">Cookies</Link>
+        </nav>
+      </footer>
     </main>
   )
 }

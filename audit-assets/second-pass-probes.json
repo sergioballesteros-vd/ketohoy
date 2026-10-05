@@ -1,0 +1,20 @@
+{
+  "focusAfterEscape": {
+    "tag": "BODY",
+    "text": "Despensa1 producto AñadirVerduras1Aceitunas auditoría UI5 kgLow carbInicioCatálo"
+  },
+  "forgot": [
+    {
+      "known": true,
+      "status": 500,
+      "ms": 12
+    },
+    {
+      "known": false,
+      "status": 200,
+      "ms": 6
+    }
+  ],
+  "csrfStatus": 201,
+  "preferenceRadioCount": 3
+}

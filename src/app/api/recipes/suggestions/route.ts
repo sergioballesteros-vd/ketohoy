@@ -34,15 +34,13 @@ export const GET = withErrorHandling(async (request: Request) => {
       }
     : { ...DEFAULT_PREFERENCES, maxCookingMinutes: maxTime ?? DEFAULT_PREFERENCES.maxCookingMinutes }
 
-  const pantryProductIds = new Set(pantryItems.map(i => i.productId))
-  const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
 
   const buildSuggestions = (minAvailability: number) =>
     recipes
       .map(r =>
         scoreRecipe(r as RecipeWithIngredients, {
-          pantryProductIds,
-          pantryProductNames,
+          pantry: pantryItems,
+          userId,
           preferences,
           mealType,
           minAvailability,
@@ -50,7 +48,7 @@ export const GET = withErrorHandling(async (request: Request) => {
       )
       .filter((s): s is NonNullable<typeof s> => s !== null)
 
-  const hasPantryItems = pantryProductIds.size > 0 || pantryProductNames.length > 0
+  const hasPantryItems = pantryItems.length > 0
   const suggestions = hasPantryItems
     ? buildSuggestions(0.6)
     : buildSuggestions(0)
@@ -61,7 +59,7 @@ export const GET = withErrorHandling(async (request: Request) => {
   }
 
   if (onlyAvailable) {
-    sorted = sorted.filter(s => s.missingIngredients.length === 0)
+    sorted = sorted.filter(s => s.availability.ready)
   }
 
   const items = await Promise.all(

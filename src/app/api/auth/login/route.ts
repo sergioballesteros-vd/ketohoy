@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { createSession, hashPassword, verifyPassword } from '@/lib/auth'
 import { rateLimit } from '@/lib/rateLimit'
+import { hasAcceptedCurrentTerms } from '@/lib/terms'
 
 const schema = z.object({ email: z.string().trim().toLowerCase(), password: z.string().min(1).max(200) })
 
@@ -19,5 +20,5 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (!user || !ok) throw new ApiError('Email o contraseña incorrectos', 401)
 
   await createSession(user.id)
-  return NextResponse.json({ id: user.id, email: user.email })
+  return NextResponse.json({ id: user.id, email: user.email, termsRequired: !hasAcceptedCurrentTerms(user) })
 })

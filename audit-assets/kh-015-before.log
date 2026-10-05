@@ -1,0 +1,55 @@
+
+ RUN  v4.1.9 /Users/sergioballesteros/ketohoy
+
+ ❯ src/lib/__tests__/ingredientMatching.test.ts (7 tests | 4 failed) 4ms
+   × matching sal / salmón = false 2ms
+   × matching leche / leche de almendras = false 0ms
+   × matching leche de almendras / leche = false 0ms
+   × matching atún / Atunes = true 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/ingredientMatching.test.ts > matching sal / salmón = false
+ FAIL  src/lib/__tests__/ingredientMatching.test.ts > matching leche / leche de almendras = false
+ FAIL  src/lib/__tests__/ingredientMatching.test.ts > matching leche de almendras / leche = false
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/__tests__/ingredientMatching.test.ts:8:83
+      6|   ['atún', 'Atunes', true], ['huevo', 'Huevos', true],
+      7|   ['pollo', 'pechuga de pollo', true],
+      8| ])('matching %s / %s = %s', (a,b,result) => expect(ingredientMatchesPr…
+       |                                                                                   ^
+      9|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/__tests__/ingredientMatching.test.ts > matching atún / Atunes = true
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/__tests__/ingredientMatching.test.ts:8:83
+      6|   ['atún', 'Atunes', true], ['huevo', 'Huevos', true],
+      7|   ['pollo', 'pechuga de pollo', true],
+      8| ])('matching %s / %s = %s', (a,b,result) => expect(ingredientMatchesPr…
+       |                                                                                   ^
+      9|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 3 passed (7)
+   Start at  13:52:05
+   Duration  118ms (transform 15ms, setup 0ms, import 20ms, tests 4ms, environment 0ms)
+

@@ -1,18 +1,8 @@
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
-import { productMatchesMercadonaCategory, searchMercadonaProducts, type ProductCategory } from '@/lib/mercadona'
+import { productMatchesMercadonaCategory, searchMercadonaProducts } from '@/lib/mercadona'
+import { isMercadonaCategory, MERCADONA_CATEGORY_QUERIES } from '@/lib/categories'
 import { rateLimit } from '@/lib/rateLimit'
-
-const CATEGORY_QUERIES: Record<string, string[]> = {
-  meat:       ['pollo', 'ternera', 'pavo'],
-  fish:       ['salmón', 'atún', 'merluza'],
-  eggs:       ['huevos'],
-  dairy:      ['queso', 'yogur griego', 'nata'],
-  vegetables: ['espinacas', 'brócoli', 'lechuga'],
-  nuts:       ['almendras', 'nueces'],
-  oils:       ['aceite oliva', 'aceite coco'],
-  sauces:     ['mayonesa', 'mostaza'],
-}
 
 export const GET = withErrorHandling(
   async (request: Request, { params }: { params: Promise<{ name: string }> }) => {
@@ -20,13 +10,13 @@ export const GET = withErrorHandling(
   if (!rl.ok) throw new ApiError('Too many requests', 429)
 
   const { name } = await params
-  const queries = CATEGORY_QUERIES[name]
-  if (!queries) throw new ApiError('Unknown category', 400)
+  if (!isMercadonaCategory(name)) throw new ApiError('Unknown category', 400)
+  const queries = MERCADONA_CATEGORY_QUERIES[name]
 
   const results = await Promise.all(queries.map(q => searchMercadonaProducts(q, 30)))
   const seen = new Set<string>()
   const products = results.flat().filter(p => {
-    if (!productMatchesMercadonaCategory(p, name as ProductCategory)) return false
+    if (!productMatchesMercadonaCategory(p, name)) return false
     if (seen.has(p.mercadonaId)) return false
     seen.add(p.mercadonaId)
     return true

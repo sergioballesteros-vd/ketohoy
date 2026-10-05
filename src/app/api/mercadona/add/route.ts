@@ -4,24 +4,22 @@ import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { getMercadonaProduct } from '@/lib/mercadona'
-import { fetchNutritionByEan, ketoScoreFromCarbs } from '@/lib/openFoodFacts'
-import { isNonKetoByName, ketoScoreByCategory } from '@/lib/ketoRules'
-import type { ProductCategory } from '@/lib/ketoRules'
-import { formatShoppingQuantity, mergeShoppingQuantity, parseShoppingQuantity } from '@/lib/shoppingList'
+import { formatShoppingQuantity } from '@/lib/shoppingList'
+import { positiveQuantity, purchaseQuantityInput } from '@/lib/quantities'
+import { addPantryPresence } from '@/lib/pantryAddition'
 import { rateLimit } from '@/lib/rateLimit'
 
 const addMercadonaProductSchema = z.object({
   mercadonaId: z.union([z.string(), z.number()]),
   addToPantry: z.boolean().optional().default(false),
   addToShoppingList: z.boolean().optional().default(false),
-  quantity: z.union([z.number(), z.string()]).optional(),
+  quantity: purchaseQuantityInput.optional(),
 })
 
 // POST /api/mercadona/add
 // Body: { mercadonaId: string, addToPantry?: boolean, addToShoppingList?: boolean }
 // 1. Fetch Mercadona product detail → EAN, ingredients, allergens
-// 2. Fetch Open Food Facts → real macros
-// 3. Calculate keto score from carbs (fallback to category)
+// 2. Reuse canonical nutrition and classification from the catalog resolver
 // 4. Upsert product in DB
 // 5. Optionally add to pantry or shopping list
 export const POST = withErrorHandling(async (request: Request) => {
@@ -39,53 +37,31 @@ export const POST = withErrorHandling(async (request: Request) => {
     throw new ApiError('Mercadona product not found', 404)
   }
 
-  // 2. Fetch Open Food Facts nutrition if EAN available
-  let carbs: number | null = null
-  let fat: number | null = null
-  let protein: number | null = null
-  let calories: number | null = null
-
-  let fiber: number | null = null
-
-  if (merc.ean) {
-    const nutrition = await fetchNutritionByEan(merc.ean)
-    if (nutrition) {
-      carbs    = nutrition.carbs
-      fat      = nutrition.fat
-      protein  = nutrition.protein
-      calories = nutrition.calories
-      fiber    = nutrition.fiber
-    }
-  }
-
-  // 3. Score: real net carbs (carbs - fiber) if available, else category-based
-  const netCarbs = carbs != null
-    ? Math.max(0, carbs - (fiber ?? 0))
-    : null
-  let ketoScore = netCarbs != null
-    ? ketoScoreFromCarbs(netCarbs)
-    : ketoScoreByCategory(merc.category as ProductCategory)
-  if (isNonKetoByName(merc.name)) {
-    // ponytail: hard-zero obvious carb staples so imports don't look keto-friendly.
-    ketoScore = 0
-  }
-
-  // 4. Upsert product. netCarbsPer100g is really net (carbs - fiber); the source records whether
-  // the score came from measured data or is only a category estimate.
+  // Catalog, detail and import consume the same canonical classification/evidence.
+  const { classification } = merc
+  const ketoScore = classification.score
+  const { availableCarbsPer100g: carbs = null, fat = null, protein = null, calories = null, fiber = null } = merc.nutrition ?? {}
+  const netCarbs = merc.netCarbsPer100g ?? null
   const nutritionFields = {
+    nutritionConvention: netCarbs !== null ? 'available_excluding_fiber' : 'unknown',
     netCarbsPer100g: netCarbs,
     carbsPer100g: carbs,
     fiberPer100g: fiber,
     fatPer100g: fat,
     proteinPer100g: protein,
     caloriesPer100g: calories,
-    nutritionSource: carbs != null ? 'openfoodfacts' : 'category',
+    nutritionSource: classification.source === 'nutrition' ? 'openfoodfacts' : classification.source === 'category_estimate' ? 'category' : 'unknown',
   }
   let product = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
+  if (product && (product.source !== 'mercadona' || product.ownerId !== null)) {
+    throw new ApiError('Product catalog conflict', 409)
+  }
   if (product) {
     product = await db.product.update({
       where: { id: product.id },
       data: {
+        name: merc.name,
+        category: merc.category,
         ketoScore,
         ...nutritionFields,
         unitPrice: merc.unitPrice,
@@ -114,52 +90,38 @@ export const POST = withErrorHandling(async (request: Request) => {
 
   // 5a. Add to pantry
   if (addToPantry) {
-    const existing = await db.pantryItem.findFirst({ where: { userId, productId: product.id } })
-    if (!existing) {
-      pantryItem = await db.pantryItem.create({
-        data: { userId, productId: product.id },
-        include: { product: true },
-      })
-    } else {
-      pantryItem = existing
-    }
+    const productId = product.id
+    pantryItem = await db.$transaction(tx => addPantryPresence(tx, { userId, productId }))
   }
 
   // 5b. Add to shopping list
   if (addToShoppingList) {
-    const quantityValue = parseShoppingQuantity(quantity, 1)
-    const existing = await db.shoppingListItem.findFirst({
-      where: { userId, productId: product.id },
-      include: { product: true },
+    const count = quantity ?? 1
+    shoppingItem = await db.$transaction(async tx => {
+      const existing = await tx.shoppingListItem.findFirst({
+        where: { userId, productId: product.id, checked: false, sourceType: 'manual', requiredQuantity: null, originalIngredientText: null },
+      })
+      if (existing) {
+        const next = positiveQuantity.parse((existing.purchaseQuantity ?? 0) + count)
+        return tx.shoppingListItem.update({ where: { id: existing.id }, data: {
+          purchaseQuantity: next, quantity: formatShoppingQuantity(next),
+        }, include: { product: true } })
+      }
+      return tx.shoppingListItem.create({ data: {
+        userId, name: product.name, productId: product.id, sourceType: 'manual',
+        purchaseQuantity: count, quantity: formatShoppingQuantity(count),
+      }, include: { product: true } })
     })
-    if (existing) {
-      shoppingItem = await db.shoppingListItem.update({
-        where: { id: existing.id },
-        data: {
-          quantity: mergeShoppingQuantity(existing.quantity, quantityValue),
-        },
-        include: { product: true },
-      })
-    } else {
-      shoppingItem = await db.shoppingListItem.create({
-        data: {
-          userId,
-          name: product.name,
-          productId: product.id,
-          quantity: formatShoppingQuantity(quantityValue),
-        },
-        include: { product: true },
-      })
-    }
   }
 
   return NextResponse.json({
-    product,
+    product: { ...product, classification },
+    classification,
     pantryItem,
     shoppingItem,
     nutrition: { carbs, fat, protein, calories },
     ketoScore,
-    source: carbs != null ? 'openfoodfacts' : 'category',
+    source: nutritionFields.nutritionSource,
     ean: merc.ean ?? null,
   })
 })

@@ -16,3 +16,20 @@ export const CATEGORIES = [
 ] as const
 
 export const categoryOf = (key: string) => CATEGORIES.find(c => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1]
+
+// Pantry supports more categories than the external catalog's curated queries.
+export const MERCADONA_CATEGORY_QUERIES = {
+  meat: ['pollo', 'ternera', 'pavo'],
+  fish: ['salmón', 'atún', 'merluza'],
+  eggs: ['huevos'],
+  dairy: ['queso', 'yogur griego', 'nata'],
+  vegetables: ['espinacas', 'brócoli', 'lechuga'],
+  nuts: ['almendras', 'nueces'],
+  oils: ['aceite oliva', 'aceite coco'],
+  sauces: ['mayonesa', 'mostaza'],
+} as const
+
+export type MercadonaCategory = keyof typeof MERCADONA_CATEGORY_QUERIES
+export const isMercadonaCategory = (key: string): key is MercadonaCategory =>
+  Object.hasOwn(MERCADONA_CATEGORY_QUERIES, key)
+export const MERCADONA_CATEGORIES = CATEGORIES.filter(c => isMercadonaCategory(c.key))

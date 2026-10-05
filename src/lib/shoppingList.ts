@@ -4,7 +4,7 @@ export function parseShoppingQuantity(value: unknown, fallback = 1): number {
 }
 
 export function formatShoppingQuantity(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '')
+  return String(value)
 }
 
 export function mergeShoppingQuantity(current: string | null | undefined, delta: number): string {

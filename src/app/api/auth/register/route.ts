@@ -5,10 +5,13 @@ import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { claimLegacyData, createSession, hashPassword } from '@/lib/auth'
 import { sendVerificationEmail } from '@/lib/authMail'
 import { rateLimit } from '@/lib/rateLimit'
+import { TERMS_VERSION } from '@/lib/terms'
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200),
+  acceptTerms: z.literal(true, { error: 'Debes aceptar los términos de uso' }),
+  confirmAdult: z.literal(true, { error: 'Debes confirmar que tienes 18 años o más' }),
 })
 
 export const POST = withErrorHandling(async (request: Request) => {
@@ -16,7 +19,8 @@ export const POST = withErrorHandling(async (request: Request) => {
   const { email, password } = schema.parse(await request.json())
 
   if (await db.user.findUnique({ where: { email } })) throw new ApiError('Ese email ya está registrado', 409)
-  const user = await db.user.create({ data: { email, passwordHash: await hashPassword(password) } })
+  const acceptedAt = new Date()
+  const user = await db.user.create({ data: { email, passwordHash: await hashPassword(password), termsAcceptedAt: acceptedAt, termsVersion: TERMS_VERSION, adultConfirmedAt: acceptedAt } })
   await claimLegacyData(user.id)
   await createSession(user.id)
   // Best effort: an unverified email never blocks the account; the user can resend from Preferences.

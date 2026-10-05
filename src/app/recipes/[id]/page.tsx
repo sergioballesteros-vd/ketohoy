@@ -6,8 +6,10 @@ import Image from 'next/image'
 import { ChevronLeft, Check } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
+import { hasAcceptedCurrentTerms } from '@/lib/terms'
+import { redirect } from 'next/navigation'
 import { ensureRecipeImage } from '@/lib/recipeImage'
-import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
+import { ingredientAvailability, ingredientAvailabilityLabel, recipeAvailability, recipeAvailabilityLabel } from '@/lib/recipeAvailability'
 import { appUrl } from '@/lib/appUrl'
 import { ToneLabel } from '@/components/ui'
 import AddMissingButton from './AddMissingButton'
@@ -54,17 +56,13 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
   if (!recipe) notFound()
 
   const user = await getSessionUser()
+  if (user && !hasAcceptedCurrentTerms(user)) redirect('/accept-terms')
   const pantry = user ? await db.pantryItem.findMany({ where: { userId: user.id }, include: { product: true } }) : []
-  const pantryIds = new Set(pantry.map(p => p.productId))
-  const pantryNames = pantry.map(p => p.product.name.toLowerCase())
-  const inPantry = (ing: { name: string; productId: string | null }) =>
-    !!(ing.productId && pantryIds.has(ing.productId)) || pantryNames.some(n => ingredientMatchesProduct(ing.name.toLowerCase(), n))
-
+  const availability = recipeAvailability(recipe.ingredients, pantry, user?.id ?? '')
   const mealTypes: string[] = JSON.parse(recipe.mealTypes)
   const steps: string[] = JSON.parse(recipe.steps)
   const required = recipe.ingredients.filter(i => !i.optional)
   const optional = recipe.ingredients.filter(i => i.optional)
-  const have = required.filter(inPantry).length
   const keto = ketoLevel[recipe.ketoLevel as keyof typeof ketoLevel] ?? { label: 'Low carb', tone: 'ok' as const }
 
   // Only facts we store: no nutrition or ratings are invented.
@@ -129,32 +127,35 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
       </p>
 
       <section className="mt-6" aria-labelledby="ingredients-title">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="ingredients-title" className="text-lg font-semibold text-forest-50">
             Ingredientes
           </h2>
           {user && required.length > 0 && (
-            <span className={`text-sm ${have === required.length ? 'font-semibold text-[#a3e635]' : 'text-forest-300'}`}>
-              {have === required.length ? 'Tienes todo' : `Tienes ${have} de ${required.length}`}
+            <span className={`text-sm ${availability.ready ? 'font-semibold text-[#a3e635]' : 'text-forest-300'}`}>
+              {recipeAvailabilityLabel(availability)}
             </span>
           )}
         </div>
         <ul className="mt-2 divide-y divide-forest-800">
           {required.map(ing => {
-            const ok = inPantry(ing)
+            const state = ingredientAvailability(ing, pantry, user?.id ?? '')
+            const ok = state.status === 'sufficient'
             return (
               <li key={ing.id} className="flex min-h-11 items-center gap-3 py-2">
                 {user && (
                   <span
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${ok ? 'bg-[#a3e635] text-forest-950' : 'border border-forest-500'}`}
                     role="img"
-                    aria-label={ok ? 'En tu despensa' : 'Te falta'}
+                    aria-label={ingredientAvailabilityLabel(state)}
                   >
                     {ok && <Check size={12} strokeWidth={3} />}
                   </span>
                 )}
-                <span className="flex-1 text-[15px] text-forest-50">{ing.name}</span>
-                {ing.quantity && <span className="text-sm text-forest-300">{ing.quantity}</span>}
+                <span className="min-w-0 flex-1 break-words text-[15px] text-forest-50">{ing.name}
+                  {user && <span className="block text-xs text-forest-300">{ingredientAvailabilityLabel(state)}</span>}
+                </span>
+                {ing.quantity && <span className="max-w-[40%] break-words text-sm text-forest-300">{ing.quantity}</span>}
               </li>
             )
           })}
@@ -186,7 +187,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
 
       <div className="mt-8">
         {user ? (
-          <AddMissingButton recipeId={recipe.id} allInPantry={required.length > 0 && have === required.length} />
+          <AddMissingButton recipeId={recipe.id} allInPantry={required.length > 0 && availability.ready} />
         ) : (
           <div className="py-3">
             <p className="font-semibold text-forest-50">Guarda tu despensa</p>

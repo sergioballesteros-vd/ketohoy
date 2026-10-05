@@ -1,0 +1,67 @@
+
+> ketohoy@0.1.0 test
+> vitest run src/lib/__tests__/productClassification.test.ts
+
+
+ RUN  v4.1.9 /Users/sergioballesteros/ketohoy
+
+ ❯ src/lib/__tests__/productClassification.test.ts (4 tests | 3 failed) 5ms
+     × breaded meat/fish have no strong claim without nutrition 2ms
+     × repollo is not pollo; almond drinks are drinks 2ms
+     × catalog uses the same name rule as import for a carb staple 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/productClassification.test.ts > product classification evidence > breaded meat/fish have no strong claim without nutrition
+AssertionError: expected 5 to be less than 4
+ ❯ src/lib/__tests__/productClassification.test.ts:9:27
+      7|     for (const name of ['Pollo rebozado Crispy', 'Merluza rebozada']) {
+      8|       const [p] = normalizeMercadonaProducts([{ id: name, display_name…
+      9|       expect(p.ketoScore).toBeLessThan(4)
+       |                           ^
+     10|       expect(p.classification.source).toBe('category_estimate')
+     11|       expect(p.classification.label).not.toBe('Muy keto')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/__tests__/productClassification.test.ts > product classification evidence > repollo is not pollo; almond drinks are drinks
+AssertionError: expected 'meat' to be 'vegetables' // Object.is equality
+
+Expected: "vegetables"
+Received: "meat"
+
+ ❯ src/lib/__tests__/productClassification.test.ts:16:90
+     14|   it('repollo is not pollo; almond drinks are drinks', () => {
+     15|     expect(matchesProductTerm('Repollo', 'pollo')).toBe(false)
+     16|     expect(normalizeMercadonaProducts([{ id: 1, display_name: 'Repollo…
+       |                                                                                          ^
+     17|     expect(normalizeMercadonaProducts([{ id: 2, display_name: 'Bebida …
+     18|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/lib/__tests__/productClassification.test.ts > product classification evidence > catalog uses the same name rule as import for a carb staple
+AssertionError: expected 5 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 5
+
+ ❯ src/lib/__tests__/productClassification.test.ts:21:25
+     19|   it('catalog uses the same name rule as import for a carb staple', ()…
+     20|     const [p] = normalizeMercadonaProducts([{ id: 3, display_name: 'Po…
+     21|     expect(p.ketoScore).toBe(classifyProduct({ name: p.name, category:…
+       |                         ^
+     22|     expect(p.ketoScore).toBe(0)
+     23|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  18:14:27
+   Duration  182ms (transform 30ms, setup 0ms, import 37ms, tests 5ms, environment 0ms)
+

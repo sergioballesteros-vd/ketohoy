@@ -6,9 +6,11 @@ import Landing from '@/components/Landing'
 export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
-import { unstable_cache } from 'next/cache'
+import { hasAcceptedCurrentTerms } from '@/lib/terms'
+import { redirect } from 'next/navigation'
 import { getMealSlot } from '@/lib/mealSlot'
-import { scoreRecipe } from '@/lib/recipeScoring'
+import { DEFAULT_PREFERENCES, scoreRecipe } from '@/lib/recipeScoring'
+import { type RecipeAvailability } from '@/lib/recipeAvailability'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
 
 export type HomeRecipe = {
@@ -19,6 +21,7 @@ export type HomeRecipe = {
   imageUrl: string | null
   missingCount: number
   totalCount: number
+  availability: RecipeAvailability
 }
 
 const EMPTY_STATS = {
@@ -29,8 +32,7 @@ const EMPTY_STATS = {
   more: [] as HomeRecipe[],
 }
 
-const getStats = unstable_cache(
-  async (userId: string, mealType: string) => {
+async function getStats(userId: string, mealType: string) {
   try {
     const [pantryItems, allRecipes, shoppingItems, prefs] = await Promise.all([
       db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
@@ -39,16 +41,15 @@ const getStats = unstable_cache(
       db.userPreferences.findFirst({ where: { userId } }),
     ])
 
-    const pantryProductIds = new Set(pantryItems.map(i => i.productId))
-    const pantryProductNames = pantryItems.map(i => i.product.name.toLowerCase())
     const preferences = {
-      ketoMode: (prefs?.ketoMode as 'strict' | 'flexible' | 'low_carb' | undefined) ?? 'flexible',
-      avoidFish: prefs?.avoidFish ?? false,
-      avoidPork: prefs?.avoidPork ?? false,
-      avoidDairy: prefs?.avoidDairy ?? false,
-      maxCookingMinutes: prefs?.maxCookingMinutes ?? 30,
+      ketoMode: prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
+        ? prefs.ketoMode : DEFAULT_PREFERENCES.ketoMode,
+      avoidFish: prefs?.avoidFish ?? DEFAULT_PREFERENCES.avoidFish,
+      avoidPork: prefs?.avoidPork ?? DEFAULT_PREFERENCES.avoidPork,
+      avoidDairy: prefs?.avoidDairy ?? DEFAULT_PREFERENCES.avoidDairy,
+      maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
     }
-    const base = { pantryProductIds, pantryProductNames, preferences }
+    const base = { pantry: pantryItems, userId, preferences }
     const scoreAll = (extra: { mealType?: string; minAvailability?: number }) =>
       allRecipes
         .map(r => scoreRecipe(r as RecipeWithIngredients, { ...base, ...extra }))
@@ -57,7 +58,7 @@ const getStats = unstable_cache(
     const recipesAvailable = scoreAll({}).length
 
     // Today's pick: fits the current meal, has a photo (a giant placeholder is a bad hero),
-    // is fully cookable, then best score. Wider pools are only used if the tighter one has no photo at all.
+    // prefers verified sufficiency, then best score. Wider pools are only used if the tighter one has no photo at all.
     const pools = [
       scoreAll({ mealType }),
       scoreAll({ mealType, minAvailability: 0 }),
@@ -67,7 +68,7 @@ const getStats = unstable_cache(
     const ranked = [...pool].sort(
       (a, b) =>
         Number(!a.recipe.imageUrl) - Number(!b.recipe.imageUrl) ||
-        Number(a.missingIngredients.length > 0) - Number(b.missingIngredients.length > 0) ||
+        Number(!a.availability.ready) - Number(!b.availability.ready) ||
         b.score - a.score
     )
     const toHome = (s: (typeof ranked)[number]): HomeRecipe => ({
@@ -77,7 +78,8 @@ const getStats = unstable_cache(
       difficulty: s.recipe.difficulty,
       imageUrl: s.recipe.imageUrl ?? null,
       missingCount: s.missingIngredients.length,
-      totalCount: s.availableIngredients.length + s.missingIngredients.length,
+      totalCount: s.availability.total,
+      availability: s.availability,
     })
     const [first, ...rest] = ranked
 
@@ -91,16 +93,13 @@ const getStats = unstable_cache(
   } catch {
     return EMPTY_STATS
   }
-  },
-  ['home-stats-v3'],
-  { revalidate: 60 }
-)
+}
 
 // TIMEZONE (beta limitation): the breakfast/lunch/dinner pick uses a fixed Europe/Madrid
 // clock, computed with Intl so it does NOT depend on the VPS timezone (which is UTC). Users outside
 // Spain will see the wrong meal. Proper fix: a tiny client effect stores
 // Intl.DateTimeFormat().resolvedOptions().timeZone in a `tz` cookie; read it here via cookies()
-// (falling back to Europe/Madrid) and pass the hour in. Note getStats is cached 60s per (user, mealType).
+// (falling back to Europe/Madrid) and pass the hour in. Stats are read for each request.
 const madridHour = () =>
   Number(new Intl.DateTimeFormat('es-ES', { hour: 'numeric', hour12: false, timeZone: 'Europe/Madrid' }).format(new Date())) % 24
 
@@ -115,6 +114,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const user = await getSessionUser()
   if (!user) return <Landing />
+  if (!hasAcceptedCurrentTerms(user)) redirect('/accept-terms')
   const hour = madridHour()
   const stats = await getStats(user.id, getMealSlot(hour))
 

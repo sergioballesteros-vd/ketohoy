@@ -1,11 +1,9 @@
 import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { resolveSqlitePath } from '../src/lib/sqliteUrl'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const dbPath = path.resolve(__dirname, '../dev.db')
+const dbPath = resolveSqlitePath(process.env.DATABASE_URL, true)
+console.log(`Seed database: ${dbPath}`)
 const adapter = new PrismaBetterSqlite3({ url: dbPath })
 const prisma = new PrismaClient({ adapter })
 
@@ -34,6 +32,7 @@ async function main() {
   }
 
   // --- PRODUCTS ---
+  // KH-025: these are unverified reference net macros, not captured labels. Keep convention unknown.
   const productData = [
     // Carnes
     { name: 'Pechuga de pollo', category: 'meat', ketoScore: 5, netCarbsPer100g: 0, proteinPer100g: 31, fatPer100g: 3.6, caloriesPer100g: 165, tags: JSON.stringify(['proteína', 'rápido', 'versátil']) },
@@ -1508,25 +1507,27 @@ async function main() {
 
   for (const recipe of recipesData) {
     const { ingredients, ...recipeFields } = recipe
-    const existing = await prisma.recipe.findFirst({ where: { title: recipeFields.title } })
-    const created = existing
-      ? await prisma.recipe.update({ where: { id: existing.id }, data: recipeFields })
-      : await prisma.recipe.create({ data: recipeFields })
+    await prisma.$transaction(async tx => {
+      const existing = await tx.recipe.findFirst({ where: { title: recipeFields.title } })
+      const created = existing
+        ? await tx.recipe.update({ where: { id: existing.id }, data: recipeFields })
+        : await tx.recipe.create({ data: recipeFields })
 
-    await prisma.recipeIngredient.deleteMany({ where: { recipeId: created.id } })
+      await tx.recipeIngredient.deleteMany({ where: { recipeId: created.id } })
 
-    for (const ing of ingredients) {
-      const productName = keyToName[ing.key]
-      const productId = productName ? pid(productName) : null
-      await prisma.recipeIngredient.create({
-        data: {
-          recipeId: created.id,
-          productId: productId ?? undefined,
-          name: ing.name,
-          quantity: ing.qty,
-        },
-      })
-    }
+      for (const ing of ingredients) {
+        const productName = keyToName[ing.key]
+        const productId = productName ? pid(productName) : null
+        await tx.recipeIngredient.create({
+          data: {
+            recipeId: created.id,
+            productId: productId ?? undefined,
+            name: ing.name,
+            quantity: ing.qty,
+          },
+        })
+      }
+    })
   }
 
   // --- PANTRY (items básicos para que las sugerencias funcionen de base) ---

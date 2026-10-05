@@ -33,6 +33,7 @@ jobs:
               --exclude '.env' \
               --exclude '.env.local' \
               --exclude 'dev.db' \
+              --exclude 'backups/' \
               "$TMP_DIR"/ "$DEPLOY_PATH"/
             cd "$DEPLOY_PATH"
             printf '%s\n' "$DEPLOY_SHA" > .deploy-sha

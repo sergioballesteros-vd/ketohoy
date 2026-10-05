@@ -1,0 +1,10 @@
+{
+  "stale": {
+    "selectedMeat": "true",
+    "visible": "AUDIT RESULTADO PESCADO"
+  },
+  "stuckSpinner": 1,
+  "focusStaysInDialog": true,
+  "focusReturned": false,
+  "errors": []
+}

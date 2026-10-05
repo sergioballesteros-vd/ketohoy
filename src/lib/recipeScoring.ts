@@ -1,4 +1,4 @@
-import { ingredientMatchesProduct } from '@/lib/ingredientMatching'
+import { recipeAvailability, recipeAvailabilityLabel, type PantryStock, type RecipeAvailability } from '@/lib/recipeAvailability'
 import { FISH_TERMS, PORK_TERMS, DAIRY_TERMS } from '@/lib/ketoRules'
 
 export type RecipeWithIngredients = {
@@ -26,13 +26,14 @@ export type RecipeSuggestion = {
   availableIngredients: string[]
   missingIngredients: string[]
   reason: string
+  availability: RecipeAvailability
 }
 
 export type KetoMode = 'strict' | 'flexible' | 'low_carb'
 
 export type ScoringOptions = {
-  pantryProductIds: Set<string>
-  pantryProductNames: string[] // lowercase product names in pantry
+  pantry: PantryStock[]
+  userId: string
   mercadonaProductIds?: Set<string>
   recentRecipeIds?: string[] // recipes used in last 3 days
   favoriteRecipeIds?: string[]
@@ -59,8 +60,8 @@ export function scoreRecipe(
   recipe: RecipeWithIngredients,
   opts: ScoringOptions
 ): RecipeSuggestion | null {
-  const { pantryProductIds, pantryProductNames, preferences, mealType } = opts
-  const ketoMode = preferences.ketoMode ?? 'flexible'
+  const { preferences, mealType } = opts
+  const ketoMode = preferences.ketoMode ?? DEFAULT_PREFERENCES.ketoMode
   const allowedKetoLevels: Record<KetoMode, string[]> = {
     strict: ['strict'],
     flexible: ['strict', 'moderate'],
@@ -79,27 +80,15 @@ export function scoreRecipe(
   const required = recipe.ingredients.filter(i => !i.optional)
   if (required.length === 0) return null
 
-  const available: string[] = []
-  const missing: string[] = []
-
+  const availability = recipeAvailability(required, opts.pantry, opts.userId)
+  const available = availability.items.filter(i => i.presence).map(i => i.name)
+  const missing = availability.items.filter(i => i.status !== 'sufficient').map(i => i.name)
   for (const ing of required) {
-    const inPantryById = ing.productId && pantryProductIds.has(ing.productId)
     const ingLower = ing.name.toLowerCase()
-    const inPantryByName = pantryProductNames.some(n =>
-      ingredientMatchesProduct(ingLower, n)
-    )
-
-    // Check avoided ingredients
     const { avoidFish, avoidPork, avoidDairy } = preferences
     if (avoidFish && FISH_TERMS.some(t => ingLower.includes(t))) return null
     if (avoidPork && PORK_TERMS.some(t => ingLower.includes(t))) return null
     if (avoidDairy && DAIRY_TERMS.some(t => ingLower.includes(t))) return null
-
-    if (inPantryById || inPantryByName) {
-      available.push(ing.name)
-    } else {
-      missing.push(ing.name)
-    }
   }
 
   const availabilityRatio = available.length / required.length
@@ -113,7 +102,7 @@ export function scoreRecipe(
   else if (recipe.ketoLevel === 'moderate') score += 10
   if (recipe.prepTimeMinutes <= 15) score += 15
   if (missing.length <= 1) score += 10
-  if (missing.length === 0) score += 5 // bonus for full availability
+  if (availability.ready) score += 5 // bonus for full availability
   if (opts.mercadonaProductIds && missing.some(name => {
     const ing = required.find(i => i.name === name)
     return ing?.productId != null && opts.mercadonaProductIds!.has(ing.productId)
@@ -121,17 +110,11 @@ export function scoreRecipe(
   if (opts.favoriteRecipeIds?.includes(recipe.id)) score += 5
   if (opts.recentRecipeIds?.includes(recipe.id)) score -= 15
 
-  // Build reason string
-  const availCount = available.length
-  const totalRequired = required.length
-  let reason = `Tienes ${availCount} de ${totalRequired} ingredientes necesarios`
-  if (missing.length === 0) {
-    reason = `¡Puedes hacerlo ahora mismo con lo que tienes en casa!`
-  } else if (missing.length === 1) {
-    reason = `Solo falta comprar: ${missing[0]}`
-  } else if (missing.length <= 2) {
-    reason = `Solo faltan: ${missing.join(' y ')}`
-  }
+  // Presence ranks candidates; only verified sufficiency makes a cooking claim.
+  let reason = availability.ready
+    ? '¡Puedes hacerlo ahora mismo con lo que tienes en casa!'
+    : `${availability.presence} de ${availability.total} ingredientes presentes. ${recipeAvailabilityLabel(availability)}`
+  if (availability.missing) reason += `: ${availability.items.filter(i => i.status === 'missing').map(i => i.name).join(', ')}`
   if (recipe.prepTimeMinutes <= 15) reason += `. Listo en ${recipe.prepTimeMinutes} min`
 
   return {
@@ -140,6 +123,7 @@ export function scoreRecipe(
     availableIngredients: available,
     missingIngredients: missing,
     reason,
+    availability,
   }
 }
 

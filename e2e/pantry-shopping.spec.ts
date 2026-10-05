@@ -1,3 +1,4 @@
+import { registrationData } from './registration'
 import { test, expect, type Page } from '@playwright/test'
 
 const dialog = (page: Page) => page.getByRole('dialog')
@@ -8,7 +9,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeEach(async ({ page }, testInfo) => {
   const res = await page.request.post('/api/auth/register', {
     headers: { 'X-Forwarded-For': `e2e-${testInfo.testId}` },
-    data: { email: `flow-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: 'flow-password-123' },
+    data: registrationData(),
   })
   expect(res.status()).toBe(201)
 })
@@ -51,7 +52,7 @@ test('shopping list: empty state, add, change quantity, buy -> pantry with the b
     })
     .toBe(2)
   await page.goto('/inventory')
-  await expect(page.getByRole('button', { name: /Queso E2E/ })).toContainText('2 ud')
+  await expect(page.getByRole('button', { name: /Queso E2E/ })).toContainText('2 paquete')
   // the category chosen when adding it to the list is the pantry group it lands in
   await expect(page.getByRole('heading', { name: /Lácteos/ })).toBeVisible()
 
@@ -121,7 +122,7 @@ test('buy then un-buy: pantry goes 3 -> 5 -> 3, and a product not in the pantry 
 
   const a = await make('Ya en despensa E2E')
   const b = await make('No en despensa E2E')
-  await page.request.post('/api/pantry', { headers: json, data: { productId: a.id, quantity: 3 } })
+  await page.request.post('/api/pantry', { headers: json, data: { productId: a.id, quantity: 3, unit: 'paquete' } })
   await page.request.post('/api/shopping-list', { headers: json, data: { name: 'Ya en despensa E2E', productId: a.id, quantity: 2 } })
   await page.request.post('/api/shopping-list', { headers: json, data: { name: 'No en despensa E2E', productId: b.id, quantity: 2 } })
 
@@ -158,3 +159,55 @@ test('buy then un-buy: pantry goes 3 -> 5 -> 3, and a product not in the pantry 
   await expect.poll(async () => (await list()).find(i => i.productId === a.id)?.checked).toBe(false)
   expect(await qty(a.id)).toBe(3)
 })
+
+for (const width of [320, 390, 1280]) {
+  test(`re-adding a bought product creates a visible pending need at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.emulateMedia({ reducedMotion: width === 320 ? 'reduce' : 'no-preference' })
+    const name = `Repeat need ${width}`
+    const product = await (await page.request.post('/api/products', { data: { name, category: 'other' } })).json()
+    const first = await (await page.request.post('/api/shopping-list', { data: { name, productId: product.id, quantity: 2 } })).json()
+    const stock = async () => {
+      const items = await (await page.request.get('/api/pantry')).json()
+      return items.find((item: { productId: string }) => item.productId === product.id)?.quantity
+    }
+    const assertFits = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.goto('/shopping-list')
+    const buy = page.getByRole('button', { name: `Marcar ${name} como comprado` })
+    await buy.focus()
+    await expect(buy).toBeFocused()
+    await buy.press('Enter')
+    await expect.poll(stock).toBe(2)
+    const history = (await (await page.request.get('/api/shopping-list')).json()).find((item: { id: string }) => item.id === first.id)
+
+    const next = await page.request.post('/api/shopping-list', { data: { name, productId: product.id, quantity: 1 } })
+    expect(next.status()).toBe(201)
+    const second = await next.json()
+    await page.reload()
+    await expect(buy).toBeVisible()
+    await expect(page.getByRole('button', { name: `Devolver ${name} a la lista` })).toBeVisible()
+    expect((await (await page.request.get('/api/shopping-list')).json()).find((item: { id: string }) => item.id === first.id)).toEqual(history)
+    expect(await stock()).toBe(2)
+    await assertFits()
+
+    await buy.focus()
+    await buy.press('Space')
+    await expect.poll(stock).toBe(3)
+    const newest = page.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByText('Compra: 1 paquete', { exact: true }) })
+    const undo = newest.getByRole('button', { name: `Devolver ${name} a la lista` })
+    await undo.focus()
+    await expect(undo).toBeFocused()
+    await undo.press('Enter')
+    await expect.poll(stock).toBe(2)
+    await expect(buy).toBeVisible()
+    await page.getByRole('button', { name: 'Quitar los comprados de la lista' }).click()
+    await expect(page.getByRole('button', { name: `Devolver ${name} a la lista` })).toHaveCount(0)
+    await page.reload()
+    await expect(buy).toBeVisible()
+    const remaining = await (await page.request.get('/api/shopping-list')).json()
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]).toMatchObject({ id: second.id, checked: false, quantity: '1', pantryDelta: null })
+    expect(await stock()).toBe(2)
+    await assertFits()
+  })
+}

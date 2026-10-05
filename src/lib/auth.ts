@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { ApiError } from '@/lib/apiError'
+import { hasAcceptedCurrentTerms } from '@/lib/terms'
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>
 
@@ -59,6 +60,7 @@ export async function getSessionUser() {
 export async function requireUserId(): Promise<string> {
   const user = await getSessionUser()
   if (!user) throw new ApiError('Unauthorized', 401)
+  if (!hasAcceptedCurrentTerms(user)) throw new ApiError('Debes aceptar los términos vigentes para continuar', 403, 'TERMS_REQUIRED')
   return user.id
 }
 

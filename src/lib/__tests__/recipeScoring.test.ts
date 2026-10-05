@@ -22,8 +22,11 @@ function makeRecipe(overrides: Partial<RecipeWithIngredients> = {}): RecipeWithI
 
 function makeOpts(overrides: Partial<ScoringOptions> = {}): ScoringOptions {
   return {
-    pantryProductIds: new Set(['p1', 'p2']),
-    pantryProductNames: ['pollo', 'lechuga'],
+    userId: 'u',
+    pantry: [
+      { userId: 'u', productId: 'p1', product: { name: 'pollo' }, quantity: 200, unit: 'g' },
+      { userId: 'u', productId: 'p2', product: { name: 'lechuga' }, quantity: 1, unit: 'unidad' },
+    ],
     preferences: {
       ketoMode: 'flexible',
       avoidFish: false,
@@ -46,8 +49,7 @@ describe('scoreRecipe', () => {
     const recipe = makeRecipe()
     // No pantry items — 0 of 2 available
     const opts = makeOpts({
-      pantryProductIds: new Set(),
-      pantryProductNames: [],
+      pantry: [],
     })
     expect(scoreRecipe(recipe, opts)).toBeNull()
   })
@@ -159,10 +161,8 @@ describe('scoreRecipe', () => {
         { name: 'lechuga', quantity: '1 ud', optional: false, productId: 'p2' },
       ],
     })
-    // pantry has p1 and p2 but not p99; name 'aguacate' also not in pantryProductNames
-    const opts = makeOpts({
-      pantryProductNames: ['pollo', 'lechuga'],
-    })
+    // pantry has p1 and p2 but not p99; name 'aguacate' also absent from pantry
+    const opts = makeOpts()
     const result = scoreRecipe(recipe, opts)
     expect(result).not.toBeNull()
     expect(result!.reason).toContain('aguacate')
@@ -176,8 +176,7 @@ describe('scoreRecipe', () => {
       ],
     })
     const opts = makeOpts({
-      pantryProductIds: new Set(['p2']),
-      pantryProductNames: ['pechuga de pollo', 'lechuga'],
+      pantry: makeOpts().pantry.map(p => p.productId === 'p1' ? { ...p, product: { name: 'pechuga de pollo' } } : p),
     })
     expect(scoreRecipe(recipe, opts)).not.toBeNull()
   })
@@ -186,9 +185,9 @@ describe('scoreRecipe', () => {
 describe('sortSuggestions', () => {
   it('sorts suggestions by score descending', () => {
     const recipe = makeRecipe()
-    const low = { recipe, score: 10, availableIngredients: [], missingIngredients: [], reason: '' }
-    const high = { recipe, score: 80, availableIngredients: [], missingIngredients: [], reason: '' }
-    const medium = { recipe, score: 50, availableIngredients: [], missingIngredients: [], reason: '' }
+    const low = { ...scoreRecipe(recipe, makeOpts())!, recipe, score: 10, availableIngredients: [], missingIngredients: [], reason: '' }
+    const high = { ...scoreRecipe(recipe, makeOpts())!, recipe, score: 80, availableIngredients: [], missingIngredients: [], reason: '' }
+    const medium = { ...scoreRecipe(recipe, makeOpts())!, recipe, score: 50, availableIngredients: [], missingIngredients: [], reason: '' }
     const sorted = sortSuggestions([low, high, medium])
     expect(sorted[0].score).toBe(80)
     expect(sorted[1].score).toBe(50)

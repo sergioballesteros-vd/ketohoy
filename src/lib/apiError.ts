@@ -4,7 +4,8 @@ import { ZodError } from 'zod'
 export class ApiError extends Error {
   constructor(
     message: string,
-    public status: number
+    public status: number,
+    public code?: string
   ) {
     super(message)
   }
@@ -13,7 +14,7 @@ export class ApiError extends Error {
 /** Maps a thrown error to a `{ error, status }` JSON response. */
 export function apiError(err: unknown) {
   if (err instanceof ApiError) {
-    return NextResponse.json({ error: err.message }, { status: err.status })
+    return NextResponse.json({ error: err.message, ...(err.code && { code: err.code }) }, { status: err.status })
   }
   if (err instanceof ZodError) {
     return NextResponse.json(

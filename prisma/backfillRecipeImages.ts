@@ -1,6 +1,6 @@
 import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import { fetchRecipeImage } from '../src/lib/unsplash'
+import { fetchRecipeImage, photoId } from '../src/lib/unsplash'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -39,13 +39,19 @@ async function main() {
     return
   }
 
+  // Never give two recipes the same photo, including ones assigned in earlier runs.
+  const used = new Set(
+    (await prisma.recipe.findMany({ where: { imageUrl: { not: null } }, select: { imageUrl: true } })).map(r => photoId(r.imageUrl!))
+  )
+
   let updated = 0
   for (const recipe of recipes) {
-    const imageUrl = await fetchRecipeImage(recipe.title)
+    const imageUrl = await fetchRecipeImage(recipe.title, used)
     if (!imageUrl) {
       console.warn(`  ! no image found for "${recipe.title}"`)
       continue
     }
+    used.add(photoId(imageUrl))
     console.log(`  + ${recipe.title} -> ${imageUrl}`)
 
     const result = await prisma.recipe.updateMany({

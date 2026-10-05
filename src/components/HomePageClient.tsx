@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ChefHat, ChevronRight, Settings } from 'lucide-react'
 import { LogoMark } from '@/components/icons'
 import { productosCount, pluralize } from '@/lib/pluralize'
+import { recipeAvailabilityLabel } from '@/lib/recipeAvailability'
 import type { HomeRecipe } from '@/app/page'
 
 type HomePageClientProps = {
@@ -24,9 +25,7 @@ const difficultyLabel: Record<string, string> = {
 }
 
 function coverage(r: HomeRecipe) {
-  if (r.missingCount === 0) return 'Tienes todo'
-  if (r.missingCount === 1) return 'Te falta 1 ingrediente'
-  return `Te faltan ${r.missingCount} ingredientes`
+  return recipeAvailabilityLabel(r.availability)
 }
 
 function RecipePhoto({ recipe, sizes, className }: { recipe: HomeRecipe; sizes: string; className?: string }) {
@@ -86,7 +85,7 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
             <span aria-hidden>·</span>
             <span>{difficultyLabel[featured.difficulty] ?? featured.difficulty}</span>
             <span aria-hidden>·</span>
-            <span className={featured.missingCount === 0 ? 'font-semibold text-[#a3e635]' : ''}>{coverage(featured)}</span>
+            <span className={featured.availability.ready ? 'font-semibold text-[#a3e635]' : ''}>{coverage(featured)}</span>
           </p>
         </section>
       ) : (
@@ -107,7 +106,7 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
               <>
                 <span className="text-sm text-forest-200">{stats.recipesAvailable}</span>{' '}
                 <span className="text-sm text-forest-200">
-                  {pluralize(stats.recipesAvailable, 'receta que puedes hacer', 'recetas que puedes hacer')}
+                  {pluralize(stats.recipesAvailable, 'receta con ingredientes en tu despensa', 'recetas con ingredientes en tu despensa')}
                 </span>
               </>
             ) : (
@@ -126,7 +125,7 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
                 <RecipePhoto recipe={r} sizes="(min-width: 640px) 180px, 45vw" className="aspect-[4/3] rounded-lg" />
                 <p className="mt-2 line-clamp-2 text-sm leading-snug font-semibold text-forest-50">{r.title}</p>
                 <p className="mt-0.5 text-xs text-forest-300">
-                  {r.prepTimeMinutes} min · {r.missingCount === 0 ? 'Tienes todo' : `Faltan ${r.missingCount}`}
+                  {r.prepTimeMinutes} min · {coverage(r)}
                 </p>
               </Link>
             ))}

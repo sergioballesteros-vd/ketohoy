@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { accessibleProducts } from '@/lib/productAccess'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
+import { addPantryPresence } from '@/lib/pantryAddition'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 
 const createPantryItemSchema = z.object({
@@ -21,24 +23,16 @@ export const GET = withErrorHandling(async () => {
   return NextResponse.json(items)
 })
 
-// POST /api/pantry - add product to pantry
+// POST creates initial presence; outcome=existing keeps stock intact. PATCH edits stock.
 export const POST = withErrorHandling(async (request: Request) => {
   const userId = await requireUserId()
   const { productId, quantity, unit } = createPantryItemSchema.parse(await request.json())
 
-  if (!(await db.product.findUnique({ where: { id: productId }, select: { id: true } }))) {
-    throw new ApiError('Product not found', 404)
-  }
-
-  // Upsert: if already in pantry, return existing
-  const existing = await db.pantryItem.findFirst({ where: { productId, userId } })
-  if (existing) {
-    return NextResponse.json(existing)
-  }
-
-  const item = await db.pantryItem.create({
-    data: { userId, productId, quantity: quantity ?? null, unit: unit ?? null },
-    include: { product: true },
+  const result = await db.$transaction(async tx => {
+    if (!(await tx.product.findFirst({ where: { id: productId, ...accessibleProducts(userId) }, select: { id: true } }))) {
+      throw new ApiError('Product not found', 404)
+    }
+    return addPantryPresence(tx, { userId, productId, quantity, unit })
   })
-  return NextResponse.json(item, { status: 201 })
+  return NextResponse.json(result, { status: result.outcome === 'created' ? 201 : 200 })
 })

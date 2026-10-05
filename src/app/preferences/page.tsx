@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Check, ChevronLeft, Loader2, LogOut } from 'lucide-react'
 import type { KetoMode } from '@/lib/recipeScoring'
@@ -27,10 +27,19 @@ const AVOID = [
   { key: 'avoidDairy' as const, label: 'Lácteos' },
 ]
 
+function preferenceValues(prefs: Preferences | null) {
+  if (!prefs) return null
+  const { ketoMode, avoidFish, avoidPork, avoidDairy, maxCookingMinutes } = prefs
+  return JSON.stringify({ ketoMode, avoidFish, avoidPork, avoidDairy, maxCookingMinutes })
+}
+
 export default function PreferencesPage() {
   const [prefs, setPrefs] = useState<Preferences | null>(null)
+  const allowLeave = useRef(false)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [persisted, setPersisted] = useState<Preferences | null>(null)
+  const dirty = preferenceValues(prefs) !== preferenceValues(persisted)
+  const saved = persisted !== null && !dirty && !saving
   const [error, setError] = useState<string | null>(null)
   const [account, setAccount] = useState<{ email: string; emailVerified: boolean } | null>(null)
   const [resend, setResend] = useState<'idle' | 'busy' | 'sent' | 'error'>('idle')
@@ -57,14 +66,68 @@ export default function PreferencesPage() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then(setPrefs)
+      .then((loaded: Preferences) => {
+        setPrefs(loaded)
+        setPersisted(loaded)
+      })
       .catch(() => setError('No se pudieron cargar las preferencias'))
   }, [])
 
+  useEffect(() => {
+    if (!dirty) return
+    const message = 'Tienes cambios sin guardar. ¿Quieres salir y perderlos?'
+    const currentUrl = window.location.href
+    const currentState: unknown = window.history.state
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (allowLeave.current) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    // Capture before Next's link handlers so navigation from any internal link is covered.
+    const click = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null
+      if (!(link instanceof HTMLAnchorElement) || link.target === '_blank' || link.hasAttribute('download')) return
+      if (link.href === currentUrl || new URL(link.href).origin !== window.location.origin) return
+      if (!window.confirm(message)) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation
+    let traverseConfirmed = false
+    const navigate = (event: Event) => {
+      if ('navigationType' in event && event.navigationType === 'traverse' && event.cancelable) {
+        if (!window.confirm(message)) event.preventDefault()
+        else traverseConfirmed = true
+      }
+    }
+    const popState = (event: PopStateEvent) => {
+      if (traverseConfirmed) {
+        traverseConfirmed = false
+        return
+      }
+      if (!window.confirm(message)) {
+        event.stopImmediatePropagation()
+        // Restore this entry before the router handles the traversal; retain its router state.
+        window.history.pushState(currentState, '', currentUrl)
+      }
+    }
+    navigation?.addEventListener('navigate', navigate)
+    window.addEventListener('beforeunload', beforeUnload)
+    document.addEventListener('click', click, true)
+    window.addEventListener('popstate', popState, true)
+    return () => {
+      navigation?.removeEventListener('navigate', navigate)
+      window.removeEventListener('beforeunload', beforeUnload)
+      document.removeEventListener('click', click, true)
+      window.removeEventListener('popstate', popState, true)
+    }
+  }, [dirty])
+
   const handleSave = async () => {
-    if (!prefs) return
+    if (!prefs || saving) return
     setSaving(true)
-    setSaved(false)
     setError(null)
     try {
       const res = await apiFetch('/api/preferences', {
@@ -73,10 +136,8 @@ export default function PreferencesPage() {
         body: JSON.stringify(prefs),
       })
       if (!res.ok) throw new Error('save failed')
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      setPersisted(await res.json())
     } catch {
-      setSaved(false)
       setError('No se pudo guardar')
     } finally {
       setSaving(false)
@@ -190,7 +251,7 @@ export default function PreferencesPage() {
           <button
             type="button"
             onClick={() => void handleSave()}
-            disabled={saving}
+            disabled={saving || !dirty}
             className={`mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-lg font-semibold disabled:opacity-50 ${focusRing} ${
               saved ? 'bg-forest-700 text-[#a3e635]' : 'bg-[#a3e635] text-forest-950'
             }`}
@@ -199,7 +260,7 @@ export default function PreferencesPage() {
             {saved && <Check size={16} strokeWidth={3} />}
             {saving ? 'Guardando…' : saved ? 'Guardado' : 'Guardar preferencias'}
           </button>
-          <p role="status" className="mt-2 text-sm text-forest-200">{saved ? 'Preferencias guardadas' : ''}</p>
+          <p role="status" className="mt-2 text-sm text-forest-200">{saving ? 'Guardando preferencias…' : dirty ? 'Cambios sin guardar' : saved ? 'Preferencias guardadas' : ''}</p>
           {error && (
             <p role="alert" className="mt-3 text-center text-sm text-red-300">
               {error}
@@ -238,6 +299,8 @@ export default function PreferencesPage() {
       <button
         type="button"
         onClick={async () => {
+          if (dirty && !window.confirm('Tienes cambios sin guardar. ¿Quieres salir y perderlos?')) return
+          allowLeave.current = true
           await fetch('/api/auth/logout', { method: 'POST' })
           window.location.replace('/login')
         }}

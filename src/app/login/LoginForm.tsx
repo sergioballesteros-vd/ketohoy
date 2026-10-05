@@ -36,13 +36,18 @@ export default function LoginForm({ initialMode, initialError = null, google = f
       const res = await fetch(`/api/auth/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
+        body: JSON.stringify({
+          email: form.get('email'),
+          password: form.get('password'),
+          ...(mode === 'register' && { acceptTerms: form.get('acceptTerms') === 'on', confirmAdult: form.get('confirmAdult') === 'on' }),
+        }),
       })
       if (!res.ok) {
         setError((await res.json().catch(() => null))?.error ?? 'Error inesperado')
         return
       }
-      window.location.href = '/' // full load so server components see the new session
+      const data = await res.json()
+      window.location.href = data.termsRequired ? '/accept-terms' : '/' // full load so server components see the new session
     } catch {
       setError('No se pudo conectar. Inténtalo de nuevo.')
     } finally {
@@ -116,6 +121,20 @@ export default function LoginForm({ initialMode, initialError = null, google = f
                 style={{ color: '#ecf5e0' }}
               />
             </label>
+
+            {mode === 'register' && (
+              <div className="space-y-3 text-sm leading-5" style={{ color: '#aac4ac' }}>
+                <label className="flex items-start gap-3">
+                  <input name="confirmAdult" type="checkbox" required className="mt-1 accent-[#a3e635]" />
+                  <span>Confirmo que tengo 18 años o más.</span>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input name="acceptTerms" type="checkbox" required className="mt-1 accent-[#a3e635]" />
+                  <span>Acepto los <Link href="/legal#terminos" target="_blank" className="underline">Términos de uso</Link>.</span>
+                </label>
+                <p>Consulta también la <Link href="/legal#privacidad" target="_blank" className="underline">Política de privacidad</Link>. La usamos para informarte sobre el tratamiento necesario para prestar el servicio.</p>
+              </div>
+            )}
 
             <label className="block">
               <span className="mb-1.5 flex items-baseline justify-between text-xs font-medium" style={{ color: '#aac4ac' }}>

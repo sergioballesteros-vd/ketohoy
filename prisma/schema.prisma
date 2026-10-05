@@ -30,19 +30,29 @@ model Product {
   mercadonaId     String?  @unique
   category        String // meat, fish, eggs, dairy, vegetables, fruit, nuts, oils, sauces, drinks, other
   ketoScore       Int      @default(3) // 0-5
-  netCarbsPer100g Float? // carbs - fiber (when fiber is unknown, fiber counts as 0)
-  carbsPer100g    Float?
+  // Available carbohydrates, excluding fiber, for known convention; unknown legacy values retained only for recovery.
+  netCarbsPer100g Float?
+  carbsPer100g    Float? // OFF available carbohydrates (NOT total), g/100 g or 100 ml for liquids.
   fiberPer100g    Float?
+  nutritionConvention String @default("unknown") // available_excluding_fiber or unknown; provenance/confidence remains nutritionSource.
   nutritionSource String   @default("category") // openfoodfacts, manual, category (no nutrition data: score is a category estimate)
   proteinPer100g  Float?
   fatPer100g      Float?
   caloriesPer100g Float?
   unitPrice       Float?
+  packageQuantity Float? // Physical content per commercial package; never inferred from nutrition/name.
+  packageUnit     String?
   referencePrice  String?
   imageUrl        String?
   tags            String   @default("[]") // JSON array string
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Null manual owners are legacy: hidden from catalog discovery, never auto-claimed.
+  ownerId           String?
+  owner             User? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, source])
 
   pantryItems       PantryItem[]
   recipeIngredients RecipeIngredient[]
@@ -99,12 +109,23 @@ model ShoppingListItem {
   product       Product? @relation(fields: [productId], references: [id])
   name          String
   quantity      String?
+  requiredQuantity Float?
+  requiredUnit String?
+  originalIngredientText String? // Exact RecipeIngredient.quantity, not reconstructed.
+  sourceType String @default("legacy") // legacy, manual, recipe, meal, weekly-plan
+  sourceKey String? // JSON tuple of real origin IDs; unique within account.
+  sourceContributions String? // KH-027 versioned JSON: original slot needs and virtual stock allocation.
+  purchaseQuantity Float? // Packages selected to buy; null for ambiguous legacy.
+  pantryItemId String? // Exact stock row affected, retained even if that row is removed.
+  pantryDeltaUnit String?
   checked       Boolean  @default(false)
   reason        String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   userId        String? // null = legacy pre-multiuser row, claimed by the first registered user
   user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, sourceKey])
+
   // What buying this item did to the pantry, so un-buying reverses exactly that (null = not bought / bought before tracking).
   pantryDelta   Float?
   pantryCreated Boolean  @default(false) // true if that purchase created the pantry row
@@ -142,7 +163,11 @@ model User {
   googleId        String?   @unique // Google `sub`
   createdAt       DateTime  @default(now())
   emailVerifiedAt DateTime?
+  termsAcceptedAt DateTime?
+  termsVersion    String?
+  adultConfirmedAt DateTime?
 
+  manualProducts    Product[]
   sessions          Session[]
   authTokens        AuthToken[]
   preferences       UserPreferences[]

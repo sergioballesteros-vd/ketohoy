@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ketoExplanation } from '../ketoLabel'
+import { ketoExplanation, persistedNutritionSource } from '../ketoLabel'
 
 describe('ketoExplanation', () => {
   it('cites Open Food Facts carbs when measured', () => {
@@ -12,5 +12,12 @@ describe('ketoExplanation', () => {
     expect(ketoExplanation(4, 'category')).toMatch(/Estimación.*sin datos nutricionales/)
     // a source claiming data but with no number must not pretend to be measured
     expect(ketoExplanation(4, 'openfoodfacts', null)).toMatch(/Estimación/)
+  })
+  it('retains OFF provenance without presenting unknown legacy carbs as measured', () => {
+    expect(persistedNutritionSource({ nutritionSource: 'openfoodfacts', nutritionConvention: 'unknown' })).toBe('unknown')
+    expect(persistedNutritionSource({ nutritionSource: 'openfoodfacts' })).toBe('unknown')
+    expect(persistedNutritionSource({ nutritionSource: 'openfoodfacts', nutritionConvention: 'available_excluding_fiber' })).toBe('openfoodfacts')
+    expect(persistedNutritionSource({ nutritionSource: 'manual', nutritionConvention: 'unknown' })).toBe('manual')
+    expect(ketoExplanation(0, 'unknown', 2)).not.toMatch(/2 g|Calculada/)
   })
 })

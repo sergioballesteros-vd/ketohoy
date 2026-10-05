@@ -54,7 +54,7 @@ const req = (path: string, body: unknown, ip: string) =>
 
 describe('email verification', () => {
   it('sends a link on register, stores only its hash, and verifies once', async () => {
-    await register(post('http://t/r1', { email: 'v@example.com', password: 'correct-horse' }))
+    await register(post('http://t/r1', { email: 'v@example.com', password: 'correct-horse', acceptTerms: true, confirmAdult: true }))
     expect(mails).toHaveLength(1)
     const token = tokenFrom(lastMail().text)
     expect(await db.authToken.findUnique({ where: { id: token } })).toBeNull() // raw token is never stored
@@ -67,7 +67,7 @@ describe('email verification', () => {
   })
 
   it('resend issues a new link and revokes the old one; verified users get nothing', async () => {
-    await register(post('http://t/r2', { email: 'v2@example.com', password: 'correct-horse' }))
+    await register(post('http://t/r2', { email: 'v2@example.com', password: 'correct-horse', acceptTerms: true, confirmAdult: true }))
     const first = tokenFrom(lastMail().text)
     await resend(req('resend-verification', {}, '2.2.2.2'))
     expect(mails).toHaveLength(2)
@@ -86,7 +86,7 @@ describe('password reset', () => {
   })
 
   it('resets once, kills old sessions, and the new password works', async () => {
-    await register(post('http://t/r3', { email: 'r@example.com', password: 'old-password' }))
+    await register(post('http://t/r3', { email: 'r@example.com', password: 'old-password', acceptTerms: true, confirmAdult: true }))
     expect(jar.get('session')).toBeTruthy()
     mails.length = 0
 

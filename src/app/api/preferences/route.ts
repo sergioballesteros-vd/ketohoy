@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { DEFAULT_PREFERENCES } from '@/lib/recipeScoring'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
@@ -7,7 +8,7 @@ import { withErrorHandling } from '@/lib/apiError'
 async function getOrCreatePreferences(userId: string) {
   const existing = await db.userPreferences.findFirst({ where: { userId } })
   if (existing) return existing
-  return db.userPreferences.create({ data: { userId } })
+  return db.userPreferences.create({ data: { userId, ...DEFAULT_PREFERENCES } })
 }
 
 const patchPreferencesSchema = z.object({

@@ -12,6 +12,12 @@ export function ketoLabel(score: number): { label: string; tone: KetoTone; hint:
 
 export type NutritionSource = 'openfoodfacts' | 'manual' | 'category' | string
 
+/** Legacy OFF macros retain their origin, but unknown convention cannot support a nutritional claim. */
+export function persistedNutritionSource(product: { nutritionSource: string; nutritionConvention?: string }): string {
+  return product.nutritionSource === 'openfoodfacts' && product.nutritionConvention !== 'available_excluding_fiber'
+    ? 'unknown' : product.nutritionSource
+}
+
 /**
  * Plain-language explanation of where a product's keto score comes from.
  * Honest about the estimate: without nutrition data the score only reflects the product category.
@@ -19,8 +25,9 @@ export type NutritionSource = 'openfoodfacts' | 'manual' | 'category' | string
 export function ketoExplanation(score: number, source: NutritionSource, netCarbs?: number | null): string {
   const scale = `Puntuación ${score} de 5.`
   if (source === 'openfoodfacts' && netCarbs != null)
-    return `${scale} Calculada con los carbohidratos netos (${netCarbs.toLocaleString('es-ES', { maximumFractionDigits: 1 })} g por 100 g) de Open Food Facts. Los datos pueden tener errores; revisa la etiqueta.`
+    return `${scale} Calculada con los carbohidratos disponibles, sin fibra (${netCarbs.toLocaleString('es-ES', { maximumFractionDigits: 1 })} g por 100 g/ml) de Open Food Facts. Los datos pueden tener errores; revisa la etiqueta.`
   if (source === 'manual' && netCarbs != null)
     return `${scale} Valor de referencia (${netCarbs.toLocaleString('es-ES', { maximumFractionDigits: 1 })} g de carbohidratos netos por 100 g), no medido en este producto concreto.`
+  if (source === 'unknown') return 'Sin datos nutricionales suficientes para clasificar este producto. Revisa la etiqueta.'
   return `${scale} Estimación según el tipo de producto, sin datos nutricionales: puede haber azúcares o harinas añadidos. Revisa la etiqueta.`
 }

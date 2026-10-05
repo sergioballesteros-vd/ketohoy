@@ -65,9 +65,9 @@ export function useToast(): { toast: ReactNode; show: (message: string, action?:
           <button
             type="button"
             onClick={() => {
-              action.run()
               if (timer.current) clearTimeout(timer.current)
               hide()
+              action.run()
             }}
             className={actionClass}
           >

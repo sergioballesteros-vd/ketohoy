@@ -1,0 +1,1401 @@
+[
+  {
+    "id": "KH-001",
+    "title": "Crear productos no valida la sesión real",
+    "p": "P1",
+    "area": "Security / Backend",
+    "effort": "S",
+    "route": "POST /api/products",
+    "files": [
+      "src/app/api/products/route.ts:31",
+      "src/proxy.ts:36"
+    ],
+    "problem": "El proxy comprueba únicamente la presencia de la cookie. El handler de creación no llama a requireUserId; una cookie inventada supera esa barrera y permite modificar el catálogo compartido.",
+    "evidence": "Prueba HTTP únicamente local: sin cookie GET 401; session inválida GET productos 200 y POST 201. La misma cookie en /api/pantry devuelve 401. audit-assets/api-probes.json: fakeCookieCreateProduct.",
+    "impact": "Escritura sin autenticación y contaminación de los datos que ven otras cuentas. No se explotó producción ni se afirma acceso a despensas ajenas.",
+    "solution": "Validar sesión en el handler antes de leer/escribir; mantener el proxy como filtro barato. Revisar las demás mutaciones con la misma regla y decidir explícitamente qué lecturas del catálogo son públicas.",
+    "accept": [
+      "Cookie ausente, caducada o inventada: 401 y cero escrituras",
+      "Sesión válida crea su producto; API privada de otras cuentas sigue aislada"
+    ],
+    "steps": [
+      "Usar requireUserId existente al principio de POST",
+      "Añadir prueba HTTP que atraviese el proxy con cookie falsa; no limitarse al handler con auth mock",
+      "Documentar lecturas públicas intencionadas"
+    ],
+    "test": "Comparar el número de productos antes/después de tres peticiones anónimas/ inválidas y una válida.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-002",
+    "title": "Comprar/descomprar no es una operación atómica",
+    "p": "P1",
+    "area": "Data / Backend",
+    "effort": "M",
+    "route": "/shopping-list; PATCH /api/shopping-list/:id/check; POST /api/shopping-list/mark-bought",
+    "files": [
+      "src/app/api/shopping-list/[id]/check/route.ts:20",
+      "src/app/api/shopping-list/mark-bought/route.ts:20",
+      "src/lib/pantryTransfer.ts:22"
+    ],
+    "problem": "El compare-and-set modifica checked fuera de la transacción que transfiere el producto y registra pantryDelta. Si esa segunda parte falla, lista y despensa quedan desincronizadas.",
+    "evidence": "En copia desechable de SQLite se hizo fallar INSERT PantryItem con un trigger temporal. La API respondió 500, pero checked quedó true, pantryDelta null y no había fila de despensa. El trigger se retiró. No se tocó la BD original.",
+    "impact": "La interfaz puede ocultar como comprado algo que nunca llegó a la despensa. Un retry no repara necesariamente el estado y descomprar puede aplicar el fallback incorrecto.",
+    "solution": "Una sola transacción para cambio de estado, transferencia y delta; reutilizar helpers que acepten el cliente transaccional. Mantener compare-and-set dentro de ella y devolver la fila final.",
+    "accept": [
+      "Fallo en cualquier paso revierte checked, despensa y delta",
+      "Compra y reversión repetidas/concurrentes no duplican ni restan stock ajeno"
+    ],
+    "steps": [
+      "Pasar TransactionClient a los helpers de transferencia sin crear otra capa de servicios",
+      "Mover el compare-and-set al mismo bloque transaccional en ambos endpoints",
+      "Cubrir fallo de inserción y reversión, además del happy path"
+    ],
+    "test": "Inyectar fallo de BD y comprobar las tres tablas; repetir check/uncheck y mark-bought desde dos solicitudes.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-003",
+    "title": "La sustitución explícita elude las preferencias alimentarias",
+    "p": "P1",
+    "area": "Product / Backend",
+    "effort": "S",
+    "route": "PATCH /api/weekly-plan/:mealId",
+    "files": [
+      "src/app/api/weekly-plan/[mealId]/route.ts:25",
+      "src/lib/recipeScoring.ts"
+    ],
+    "problem": "La rama con recipeId verifica solamente el tipo de comida. No aplica ketoMode, avoidFish/Pork/Dairy ni duración; la rama automática sí aplica scoreRecipe.",
+    "evidence": "Tras guardar strict, evitar pescado/cerdo/lácteos y máximo 5 min, un PATCH explícito puso “Atún con tomates cherry y aceite de oliva” en comida con 200. audit-assets/api-probes.json: incompatibleSwap.",
+    "impact": "La misma preferencia tiene dos contratos según cómo se elija la receta. No debe confundirse una preferencia con garantía de alergias, pero la app tiene que respetar lo que promete.",
+    "solution": "Usar scoreRecipe con minAvailability 0 en ambas ramas y el mismo contexto de preferencias. Rechazar recetas incompatibles con error accionable, sin modificar el slot.",
+    "accept": [
+      "No se admite receta que incumple una exclusión o tiempo guardado",
+      "Elección explícita y automática usan la misma política; una receta compatible sí se guarda"
+    ],
+    "steps": [
+      "Cargar ingredientes y contexto antes de la bifurcación",
+      "Reutilizar el evaluador existente, no duplicar listas de palabras",
+      "Añadir casos de pescado, cerdo, lácteos, tiempo y modo keto"
+    ],
+    "test": "Generar plan, endurecer preferencias y enviar recipeId incompatible; esperar 422/400 y slot original intacto.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-004",
+    "title": "Un menú de siete snacks se presenta como plan semanal generado",
+    "p": "P1",
+    "area": "UX / Product / Backend",
+    "effort": "M",
+    "route": "/weekly-plan; POST /api/weekly-plan/generate",
+    "files": [
+      "src/app/api/weekly-plan/generate/route.ts:72",
+      "src/app/weekly-plan/page.tsx:50"
+    ],
+    "problem": "La generación considera suficiente cualquier cantidad mayor que cero. Los tipos sin candidatos se omiten; la UI solo permite cambiar comidas existentes, por lo que los huecos no tienen una acción de reparación.",
+    "evidence": "Con preferencias por defecto se obtuvieron 28 comidas. Con strict, tres exclusiones y 5 minutos se obtuvo 200 con siete snacks; faltan 21 slots. El problema no es que el catálogo sea finito: es la respuesta y recuperación.",
+    "impact": "El resultado incumple la expectativa de desayuno/comida/snack/cena durante siete días y puede reemplazar un plan anterior completo.",
+    "solution": "Definir contrato de completitud. Para el MVP, conservar el plan anterior y responder que faltan candidatos por tipo; ofrecer editar preferencias. Si se admite plan parcial, representar los 28 slots y permitir completar cada hueco. Nunca relajar restricciones silenciosamente.",
+    "accept": [
+      "El usuario distingue completo/parcial/ningún candidato antes de perder su plan",
+      "Los huecos tienen salida y las restricciones se conservan"
+    ],
+    "steps": [
+      "Contar candidatos por tipo antes de la transacción",
+      "Implementar el contrato elegido y mensaje con tipos sin recetas",
+      "Probar 0, 7 y 28 candidatos/slots y preservación del plan anterior"
+    ],
+    "test": "Repetir el caso de siete snacks desde UI y API, comprobar mensaje, botón de preferencias y persistencia.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-003"
+  },
+  {
+    "id": "KH-005",
+    "title": "La lista pierde las cantidades reales y mezcla stock con envases",
+    "p": "P1",
+    "area": "Data / Product",
+    "effort": "L",
+    "route": "/recipes/:id; /weekly-plan; /shopping-list; /inventory",
+    "files": [
+      "src/app/api/recipes/[id]/add-to-shopping-list/route.ts:68",
+      "src/lib/shoppingList.ts:1",
+      "src/lib/pantryTransfer.ts:22",
+      "prisma/schema.prisma"
+    ],
+    "problem": "Ingredientes tienen cantidades libres, compras cantidad string numérica y despensa Float + unidad. El endpoint de faltantes siempre añade “1”; repetir la acción incrementa aunque sea el mismo intento. Al comprar suma números sin conversión de unidades. No hay raciones ni vínculo duradero entre necesidad de receta y envase.",
+    "evidence": "“Almejas al vapor con ajo”: ingredientes 400g y 2 cdas; lista “1” y “1”, segunda llamada “2” y “2”. pantryTransfer conserva la unidad existente y suma cantidad comprada; 5 kg + 2 unidades sería 7 kg por código, caso de unidades pendiente de ejecución. La prueba de cinco incrementos concurrentes SÍ conservó seis unidades: no se atribuye una carrera no reproducida.",
+    "impact": "No se sabe qué comprar ni cuánto; precios multiplican unidades ambiguas. La promesa “compra solo lo que falta” no puede cumplirse con presencia y contadores de paquetes.",
+    "solution": "Separar cantidad necesaria con unidad de cantidad comprada/paquetes. Empezar por conservar el texto del ingrediente y mostrarlo; no inventar conversiones. Definir raciones y deduplicación por origen receta/slot. Transferir solo unidades compatibles o pedir confirmación. Mapear a un producto Mercadona cuando existe, sin fingir que un ingrediente genérico es un envase.",
+    "accept": [
+      "400 g sigue siendo visible como 400 g; no se transforma en 1 sin explicar envases",
+      "Reintento del mismo origen es idempotente; dos comidas reales agregan necesidades",
+      "No se suman kg con paquetes y los precios identifican qué unidad cuestan"
+    ],
+    "steps": [
+      "Escribir contrato corto de necesidad, envase, ración y stock; decidir primero la versión mínima",
+      "Migrar conservando cantidades originales y marcar desconocidas, sin parsear silenciosamente todos los textos",
+      "Propagar el contrato por receta, compras, transferencia y total estimado",
+      "Añadir casos de g/kg, ml/l, cucharadas, envase desconocido y recetas repetidas"
+    ],
+    "test": "Usar almejas, aceite, huevos y una despensa en kg; comparar detalle, lista, compra/reversión y precio; probar retry y dos slots.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-006",
+    "title": "Añadir un producto comprado lo incrementa en una fila oculta",
+    "p": "P1",
+    "area": "Backend / UX",
+    "effort": "S",
+    "route": "/explore; /shopping-list",
+    "files": [
+      "src/app/api/shopping-list/route.ts:34",
+      "src/app/api/mercadona/add/route.ts:137"
+    ],
+    "problem": "Los merges buscan por producto/nombre sin limitar checked:false. Volver a necesitar un producto ya comprado incrementa la fila comprada en vez de crear una necesidad pendiente.",
+    "evidence": "Prueba local: comprar 1 y volver a añadir 1 deja checked:true, quantity:“2”, pantryDelta:1 y despensa:1. La nueva necesidad no aparece en pendientes.",
+    "impact": "Una compra futura desaparece y cantidades históricas/delta dejan de representar la misma operación.",
+    "solution": "Fusionar únicamente pendientes. Conservar historial comprado separado o limpiar explícitamente; no alterar pantryDelta al añadir una nueva necesidad.",
+    "accept": [
+      "Volver a añadir aparece inmediatamente en pendientes",
+      "La fila comprada y su delta no cambian; compra/reversión siguiente es coherente"
+    ],
+    "steps": [
+      "Aplicar checked:false en los merges de compras, Mercadona y receta",
+      "Probar el caso por los tres puntos de entrada",
+      "Comprobar que Limpiar comprados no borra la nueva necesidad"
+    ],
+    "test": "Comprar, volver a añadir desde catálogo/manual/receta, recargar y comprobar pendientes y despensa.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-002"
+  },
+  {
+    "id": "KH-007",
+    "title": "El catálogo llama “Muy keto” a rebozados mediante una heurística distinta",
+    "p": "P1",
+    "area": "Data / Product",
+    "effort": "M",
+    "route": "/explore; /api/mercadona/*",
+    "files": [
+      "src/lib/mercadona.ts:276",
+      "src/lib/ketoRules.ts",
+      "src/app/api/mercadona/add/route.ts:68",
+      "src/components/ui.tsx"
+    ],
+    "problem": "normalizeMercadonaProducts puntúa por categoría. La importación aplica reglas por nombre y nutrición; ambas pantallas pueden discrepar. Una estimación por pertenecer a Carne no justifica la etiqueta categórica.",
+    "evidence": "Catálogo real local mostró “Pollo marinado rebozado Crispy American Style…” como Muy keto y merluza al huevo también. mapMercadonaCategory usa subcadenas: “repollo” coincide con “pollo”. Captura local-catalog-390.png; código distinto de puntuación en import.",
+    "impact": "La clasificación central del producto pierde credibilidad y puede orientar una elección alimentaria incorrecta. No se verificaron macros reales de esos envases.",
+    "solution": "Una misma normalización y política para buscar, ver e importar. Mostrar “Estimación por categoría”/“Sin datos” antes de contar con nutrición identificada; usar categoría de origen cuando exista y palabras completas como fallback. Mantener advertencia breve junto al badge, no escondida solo en detalle.",
+    "accept": [
+      "Rebozados sin nutrición no reciben afirmación Muy keto por ser carne",
+      "Resultado, detalle e importación muestran puntuación/procedencia coherentes",
+      "Repollo no se clasifica como pollo"
+    ],
+    "steps": [
+      "Centralizar el cálculo existente con procedencia explícita",
+      "Distinguir estimación y datos del envase en tipo/API/UI",
+      "Añadir regresiones para rebozados, repollo y bebida de almendra"
+    ],
+    "test": "Comparar el mismo mercadonaId en búsqueda, detalle y producto importado; no hacer afirmaciones clínicas.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-008",
+    "title": "Tres chips visibles apuntan a categorías que la API rechaza",
+    "p": "P1",
+    "area": "Frontend / Backend / UX",
+    "effort": "S",
+    "route": "/explore; GET /api/mercadona/category/:key",
+    "files": [
+      "src/lib/categories.ts",
+      "src/app/api/mercadona/category/[name]/route.ts",
+      "src/app/explore/ExploreClient.tsx:287"
+    ],
+    "problem": "La UI reutiliza todas las categorías de despensa, pero la API Mercadona acepta un subconjunto. Fruta, Bebidas y Otros son controles funcionalmente rotos.",
+    "evidence": "Requests locales de esas categorías respondieron 400; Fruta comprobada en navegador a 320 px muestra “No se pudo cargar el catálogo”. Reintentar borra el filtro y carga Todo. Captura local-catalog-fruit-error-320.png.",
+    "impact": "El usuario confunde una incompatibilidad del contrato con una caída de red y pierde el contexto.",
+    "solution": "Usar la misma lista de categorías soportadas en cliente y API. Ocultar explícitamente las no soportadas o implementar su búsqueda. Retry debe repetir la consulta fallida.",
+    "accept": [
+      "Cada chip visible obtiene 200 y resultados/vacío válido",
+      "Reintentar conserva categoría y búsqueda"
+    ],
+    "steps": [
+      "Definir un subconjunto compartido para catálogo, conservando categorías de despensa",
+      "Alinear Zod/ruta con ese subconjunto",
+      "Guardar la última consulta para retry y cubrir todos los chips"
+    ],
+    "test": "Pulsar todos los chips y forzar un 503 en uno; verificar reintento en el mismo filtro.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-009",
+    "title": "Respuestas antiguas sobrescriben el filtro actual del catálogo",
+    "p": "P1",
+    "area": "Frontend / UX",
+    "effort": "S",
+    "route": "/explore",
+    "files": [
+      "src/app/explore/ExploreClient.tsx:132"
+    ],
+    "problem": "fetchProducts no cancela ni identifica requests. Al cambiar rápido de filtro una respuesta lenta anterior actualiza products/loading después de la nueva.",
+    "evidence": "Interceptación SOLO local: Pescado tarda 1000 ms y Carne 50 ms. Carne queda aria-pressed=true pero se muestra AUDIT RESULTADO PESCADO. Captura local-catalog-stale-response-390.png y interaction-probes.json.",
+    "impact": "El producto visible no pertenece al contexto elegido; facilita añadir el artículo equivocado y provoca cambios bruscos.",
+    "solution": "AbortController por consulta o contador de request en el loader existente; solo el último request puede actualizar datos, error y loading. Evitar doble fetch Enter + debounce de la misma consulta.",
+    "accept": [
+      "Último filtro/consulta gana independientemente del orden de respuesta",
+      "Abortar no muestra error y loading corresponde al request vigente"
+    ],
+    "steps": [
+      "Identificar/cancelar el request en fetchProducts y cleanup",
+      "Coordinar submit con el debounce sin librería nueva",
+      "Añadir prueba de respuestas invertidas y borrar búsqueda durante carga"
+    ],
+    "test": "Pescado lento → Carne rápida; luego buscar/borrar y Enter antes del debounce; verificar resultados, contador y requests.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-010",
+    "title": "El setup E2E está desactualizado y bloquea toda la suite",
+    "p": "P1",
+    "area": "Testing",
+    "effort": "S",
+    "route": "npm run test:e2e; CI",
+    "files": [
+      "e2e/auth.setup.ts:6",
+      "e2e/auth.spec.ts",
+      "e2e/pantry-shopping.spec.ts",
+      "e2e/plan.spec.ts",
+      ".github/workflows/ci.yml"
+    ],
+    "problem": "La API local exige aceptación de términos y mayoría de edad. Los registros de preparación E2E siguen enviando solo email/password.",
+    "evidence": "Ejecución real: esperado 201, recibido 400 en setup; 1 failed y 26 did not run. Los 156 tests Vitest no ejecutan este mismo recorrido HTTP/UI. Deploy depende del éxito de CI.",
+    "impact": "Se pierde la red de regresión de los flujos críticos y CI impide una entrega válida hasta alinear el contrato.",
+    "solution": "Actualizar los registros de preparación y el formulario E2E con consentimientos explícitos; añadir caso negativo sin consentimiento. Reusar un helper pequeño de alta, sin cambiar la validación de producto para hacer pasar tests.",
+    "accept": [
+      "Setup funciona y los 26 tests dependientes se ejecutan",
+      "Registro sin flags permanece rechazado y UI comprueba ambos consentimientos"
+    ],
+    "steps": [
+      "Localizar todas las altas de usuario en e2e y ajustar contrato",
+      "Actualizar pasos de formulario y añadir prueba negativa",
+      "Ejecutar la suite completa con BD aislada y guardar resultado"
+    ],
+    "test": "npm run test:e2e desde cero, además de npm test; no aceptar un pass de setup como pass global.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-011",
+    "title": "El despliegue modifica el directorio que todavía sirve tráfico",
+    "p": "P1",
+    "area": "Architecture / Data",
+    "effort": "M",
+    "route": "Deploy OVH",
+    "files": [
+      ".github/workflows/deploy.yml:32"
+    ],
+    "problem": "rsync --delete copia al checkout activo y no excluye .next/node_modules. Luego instala, migra, siembra y construye mientras PM2 sigue sirviendo. El proceso se elimina antes de iniciar el nuevo; no hay rollback automático ni concurrency de deploy.",
+    "evidence": "Orden verificable en workflow actual. El healthcheck final verifica /login y headers, pero no previene la ventana anterior ni demuestra acceso a BD. Riesgo por código; no se simuló una caída del VPS.",
+    "impact": "Chunks eliminados, respuestas inconsistentes o servicio caído durante instalación/build. Dos entregas pueden pisarse.",
+    "solution": "Preparar un directorio de release y build antes del cambio; almacenar SQLite/env fuera del release, serializar deploy y conmutar/reiniciar tras healthcheck. Conservar release anterior para rollback. Mantener arquitectura PM2/SQLite si una instancia basta.",
+    "accept": [
+      "Build fallido no cambia el release servido",
+      "Dos workflows no se solapan; rollback está probado en staging",
+      "Healthcheck del release comprueba una lectura de BD además de HTML"
+    ],
+    "steps": [
+      "Añadir concurrency y separar release de datos persistentes",
+      "Preparar/build/verificar antes de activar; guardar puntero anterior",
+      "Documentar y ensayar rollback compatible con migraciones"
+    ],
+    "test": "En staging, servir tráfico durante deploy exitoso y fallido; comprobar HTML/chunks, DB y rollback.",
+    "ui": false,
+    "confidence": "Riesgo confirmado por código; impacto operativo Needs verification",
+    "depends": "—"
+  },
+  {
+    "id": "KH-012",
+    "title": "El seed ignora DATABASE_URL y abre dev.db de la raíz",
+    "p": "P1",
+    "area": "Data / Backend",
+    "effort": "S",
+    "route": "prisma db seed",
+    "files": [
+      "prisma/seed.ts:8",
+      "prisma.config.ts",
+      "src/lib/db.ts"
+    ],
+    "problem": "El script configura el adapter con dev.db fijo. Ejecutarlo esperando usar una BD temporal puede escribir en la base original. Además borra/recrea ingredientes fuera de una transacción por receta.",
+    "evidence": "Inspección del constructor y del bucle de seed. Se evitó ejecutar seed en esta auditoría. El resto del runtime sí admite DATABASE_URL.",
+    "impact": "Riesgo real de modificar la BD equivocada en tests/mantenimiento y dejar recetas sin todos sus ingredientes si falla a mitad.",
+    "solution": "Usar la resolución de URL existente/compartida y fallar con destino explícito antes de escribir. Actualizar cada receta y sus ingredientes en una transacción; conservar reset destructivo solo por opt-in.",
+    "accept": [
+      "Seed con DATABASE_URL temporal no cambia dev.db original",
+      "Fallo al recrear ingredientes revierte la receta completa"
+    ],
+    "steps": [
+      "Reusar la resolución de SQLite y validar URL aceptada",
+      "Encapsular escritura de cada receta en transacción",
+      "Comprobar aislamiento con archivos temporales y fallo de inserción"
+    ],
+    "test": "En dos bases desechables, apuntar a una y comparar hashes/tablas de la otra; no usar la BD del usuario.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-013",
+    "title": "Productos manuales de una cuenta son visibles en otras",
+    "p": "P1",
+    "area": "Data / Security",
+    "effort": "M",
+    "route": "/inventory; /shopping-list; /api/products/search",
+    "files": [
+      "prisma/schema.prisma",
+      "src/app/api/products/route.ts",
+      "src/app/api/products/search/route.ts",
+      "src/components/AddProductSheet.tsx:120",
+      "src/lib/pantryTransfer.ts:22"
+    ],
+    "problem": "Product es global incluso para source:manual. Los textos introducidos por usuarios se mezclan con catálogo común y son consultables por cualquier cuenta; comprar un nombre libre también crea un producto global.",
+    "evidence": "Un producto manual de la cuenta/prueba A se recuperó por búsqueda en una cuenta B distinta. api-probes.json: globalManualProductVisible. Despensas/listas sí filtran userId; no se encontró un IDOR en esos handlers.",
+    "impact": "Filtración de nombres personales y contaminación cruzada del catálogo. Que Mercadona sea compartido es razonable; que las notas manuales lo sean requiere una decisión explícita hoy ausente.",
+    "solution": "Asignar propietario a manuales o mantenerlos como texto privado de la lista/despensa. Mercadona/seed permanecen compartidos. Migrar legacy con decisión conservadora; no adjudicar arbitrariamente todos los manuales a la primera cuenta.",
+    "accept": [
+      "A no puede buscar ni usar manual privado de B",
+      "Catálogo Mercadona sigue compartido; compra manual queda privada",
+      "Migración mantiene referencias sin publicar nombres antiguos por defecto"
+    ],
+    "steps": [
+      "Elegir la opción mínima de ownership para manuales y añadir relación/constraint necesaria",
+      "Filtrar todas las lecturas y validar productId al añadir a lista/despensa",
+      "Migrar datos legacy y cubrir dos cuentas más cookie inválida"
+    ],
+    "test": "Dos sesiones, crear/buscar/comprar/manual transfer por ambas; probar productId de otro usuario.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "KH-001"
+  },
+  {
+    "id": "KH-014",
+    "title": "Inicio conserva preferencias y contadores viejos hasta 60 segundos",
+    "p": "P2",
+    "area": "Frontend / Data",
+    "effort": "S",
+    "route": "/",
+    "files": [
+      "src/app/page.tsx:35",
+      "src/app/api/preferences/route.ts",
+      "src/app/api/pantry/route.ts",
+      "src/app/api/shopping-list/route.ts"
+    ],
+    "problem": "getStats cachea por usuario/tipo de comida durante 60 s sin invalidación por mutación. Su fallback de tiempo es 30 min frente a DEFAULT_PREFERENCES 20 min en generación/sugerencias.",
+    "evidence": "Código de unstable_cache revalidate:60; no invalidación en los handlers leídos. Diferencia literal de defaults. No se midió una ventana cronometrada por cada mutación.",
+    "impact": "Volver al inicio después de excluir pescado o comprar puede recomendar/contar datos anteriores. Usuario nuevo ve criterios diferentes hasta crear preferencias.",
+    "solution": "Eliminar esta caché privada si la lectura local es suficientemente barata; si se necesita, invalidar por usuario en los puntos de escritura. Reusar DEFAULT_PREFERENCES.",
+    "accept": [
+      "La primera visita posterior a guardar/comprar refleja cambios",
+      "Un usuario sin prefs recibe los mismos defaults en inicio, recetas y plan"
+    ],
+    "steps": [
+      "Medir coste de lectura y elegir eliminar caché o invalidación precisa",
+      "Unificar defaults con la constante existente",
+      "Añadir prueba de preferencia y compra inmediatamente seguidas de inicio"
+    ],
+    "test": "Cambiar avoidFish, volver a / sin esperar un minuto y verificar receta/contador; repetir en dos usuarios.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-015",
+    "title": "“Disponible” significa coincidencia de nombre, no ingredientes suficientes",
+    "p": "P2",
+    "area": "Data / UX",
+    "effort": "M",
+    "route": "/; /meals; /recipes/:id; /weekly-plan",
+    "files": [
+      "src/lib/ingredientMatching.ts:5",
+      "src/lib/recipeAvailability.ts",
+      "src/lib/recipeScoring.ts",
+      "src/components/HomePageClient.tsx"
+    ],
+    "problem": "Matching acepta subcadenas en ambas direcciones; disponibilidad solo usa IDs/nombres, no cantidad/caducidad. El umbral 0.6 del conteo de recetas tampoco equivale a todos los ingredientes.",
+    "evidence": "ingredientMatchesProduct puede aceptar Sal ↔ Salmón y Leche ↔ Leche de almendras por código. Se trazaron callers en scoring, detalle y faltantes. Los ejemplos son entradas sintéticas, no un usuario afectado observado.",
+    "impact": "Falsos “en casa” ocultan ingredientes de compra y el copy exagera lo que puede cocinarse. Cantidad y expiración visibles en el modelo no participan.",
+    "solution": "Priorizar ID y equivalencias explícitas; fallback por tokens completos y diferencias alimentarias relevantes. Hasta implementar cantidades, decir “ingredientes presentes” y “te faltan X”, sin prometer suficiente stock. No construir una ontología universal.",
+    "accept": [
+      "Sal no cubre salmón; leche vegetal no cubre automáticamente lácteo",
+      "Copy distingue presencia, cantidad desconocida y preparación lista",
+      "Todos los callers usan el mismo matching corregido"
+    ],
+    "steps": [
+      "Corregir el helper compartido y sus casos de equivalencia actuales",
+      "Separar métrica de presencia de disponibilidad completa",
+      "Actualizar copy y pruebas de scoring, receta y compra"
+    ],
+    "test": "Probar IDs diferentes, tildes/plurales, productos parecidos, stock 0 y caducado; documentar cuáles se soportan.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-005"
+  },
+  {
+    "id": "KH-016",
+    "title": "Reañadir a despensa ignora la cantidad solicitada",
+    "p": "P2",
+    "area": "Backend / UX",
+    "effort": "S",
+    "route": "POST /api/pantry; /inventory",
+    "files": [
+      "src/app/api/pantry/route.ts",
+      "src/components/AddProductSheet.tsx:120"
+    ],
+    "problem": "Cuando productId ya existe, POST devuelve la fila existente sin aplicar quantity/unit. El flujo transmite éxito sin explicar si incrementa, reemplaza o solo confirma presencia.",
+    "evidence": "Rama existing del handler; búsqueda Mercadona muestra En casa y bloquea otra alta, pero API/undo pueden entrar por la otra rama. El happy path editar sí persistió de 3 a 5 kg.",
+    "impact": "El usuario cree haber añadido stock y no se modifica; el contrato ambiguo afecta restauración tras concurrencia.",
+    "solution": "Definir alta idempotente de presencia y edición explícita de cantidad. Devolver indicador ya existente y ofrecer Editar; si se elige incrementar, solo con unidad compatible y operación atómica.",
+    "accept": [
+      "Repetir alta no comunica una cantidad que no se guardó",
+      "Editar conserva cantidad/unidad y el mensaje explica el resultado"
+    ],
+    "steps": [
+      "Documentar semántica de POST sin mezclarla con PATCH",
+      "Devolver estado created/existing y adaptar feedback",
+      "Probar undo cuando otra pestaña ya ha reañadido el producto"
+    ],
+    "test": "Alta de mismo productId con 3 y luego 5; comprobar contrato y UI; usar PATCH para edición.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-005"
+  },
+  {
+    "id": "KH-017",
+    "title": "Preferencias pierden cambios y pueden confirmar una versión anterior",
+    "p": "P2",
+    "area": "UX / Frontend",
+    "effort": "S",
+    "route": "/preferences",
+    "files": [
+      "src/app/preferences/page.tsx:64"
+    ],
+    "problem": "Se guardan manualmente, pero no hay dirty state ni advertencia al salir. Durante await PATCH siguen editables; setSaved(true) confirma el snapshot enviado aunque los controles ya representen otro.",
+    "evidence": "handleSave serializa prefs antes de await y luego marca saved sin comparar versiones. Controles no dependen de saving. Riesgo confirmado por código; carrera con servidor lento pendiente de prueba visual.",
+    "impact": "El usuario navega creyendo que sus restricciones se han aplicado o ve “Guardado” para una versión distinta.",
+    "solution": "Guardar automáticamente con estado fiable o mantener botón y dirty state claro. Versión enviada vs actual; deshabilitar controles brevemente es la alternativa mínima. Advertir únicamente si hay cambios reales al salir.",
+    "accept": [
+      "Guardado siempre corresponde a valores visibles",
+      "Salir con cambios comunica pérdida o persiste antes de salir",
+      "Error conserva cambios para reintentar"
+    ],
+    "steps": [
+      "Conservar snapshot guardado y derivar dirty; evitar flags que se contradicen",
+      "Bloquear edición durante save o comparar revisión antes de saved",
+      "Cubrir navegación, fallo y edición durante respuesta lenta"
+    ],
+    "test": "Demorarlo 1 s, cambiar dos restricciones entre envío/respuesta y recargar; probar salida con teclado.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-018",
+    "title": "Borrar búsqueda deja un spinner activo para siempre",
+    "p": "P2",
+    "area": "Frontend / UX",
+    "effort": "XS",
+    "route": "Diálogo Añadir en /inventory y /shopping-list",
+    "files": [
+      "src/components/AddProductSheet.tsx:60"
+    ],
+    "problem": "El cleanup marca cancelled y el finally ya no apaga searching. El efecto siguiente retorna si la consulta tiene menos de dos caracteres y tampoco lo restablece.",
+    "evidence": "Prueba local con búsqueda de 650 ms: escribir pollo, esperar inicio, borrar; después de completar request sigue un .animate-spin. interaction-probes.json: stuckSpinner:1.",
+    "impact": "Falso estado de actividad y sensación de app bloqueada pese a no haber consulta.",
+    "solution": "Al cancelar/limpiar restablecer estado de búsqueda y abortar request; no añadir un hook genérico para este caso.",
+    "accept": [
+      "Consulta vacía/corta nunca conserva spinner ni resultados antiguos",
+      "Abortar no muestra error ni “sin resultados” de la consulta anterior"
+    ],
+    "steps": [
+      "Restablecer searching en rama corta y gestionar request cancelado",
+      "Añadir un caso de borrar durante request",
+      "Verificar ambos destinos del sheet"
+    ],
+    "test": "Buscar con delay, borrar antes de recibir, esperar más que el delay y volver a buscar.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-019",
+    "title": "Cerrar el sheet devuelve el foco a BODY",
+    "p": "P2",
+    "area": "Accessibility / Frontend",
+    "effort": "S",
+    "route": "Diálogo Añadir",
+    "files": [
+      "src/components/Sheet.tsx:46",
+      "src/components/AddProductSheet.tsx:194"
+    ],
+    "problem": "Sheet captura document.activeElement en useEffect después del autoFocus del input hijo. Al cerrar intenta enfocar ese nodo desmontado, no el botón que abrió el diálogo.",
+    "evidence": "Tab durante 20 pasos permaneció dentro. Tras enfocar Añadir, abrir y ESC, esperar desmontaje + 300 ms: activeElement BODY. second-pass-probes.json e interaction-probes.json.",
+    "impact": "Usuario de teclado pierde contexto y puede reiniciar recorrido completo. Relacionado con orden/foco predecible WCAG 2.4.3; requiere ensayo AT, no se declara certificación.",
+    "solution": "Capturar el elemento disparador antes de montar (en caller/ref) y devolver foco si sigue conectado. Un único responsable del foco inicial; conservar trap, ESC y scroll lock.",
+    "accept": [
+      "ESC, X y overlay devuelven foco al disparador vivo",
+      "Tab/Shift+Tab quedan dentro; eliminación enfoca alternativa válida si trigger desaparece"
+    ],
+    "steps": [
+      "Eliminar conflicto autoFocus vs captura del trigger",
+      "Restaurar foco explícitamente en cleanup al nodo conectado",
+      "Añadir prueba en Añadir, editar y detalle producto"
+    ],
+    "test": "Abrir con Enter/Space, Tab/Shift+Tab, cerrar de tres formas y comprobar activeElement con motion normal/reducida.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-020",
+    "title": "Eliminar/Deshacer tiene errores de red sin recuperación consistente",
+    "p": "P2",
+    "area": "Frontend / UX",
+    "effort": "S",
+    "route": "/inventory; /shopping-list",
+    "files": [
+      "src/app/inventory/page.tsx:71",
+      "src/app/shopping-list/page.tsx:105",
+      "src/app/inventory/PantryItemSheet.tsx"
+    ],
+    "problem": "Remove de despensa no captura rechazo de fetch; se invoca void y cierra el diálogo. Los callbacks Deshacer de ambos flujos no comprueban res.ok ni capturan errores. Compra inicia promesa antes de esperar salida 140 ms y captura tarde.",
+    "evidence": "Lectura de remove/undoable y del callback onRemove. El happy path de Deshacer restauró 5 kg; eso no cubre 500/offline. Rechazo no manejado concreto en la salida de compras necesita verificación de timing.",
+    "impact": "No se sabe si borró/restauró y Deshacer puede fallar sin explicar cómo recuperar. No se asegura pérdida irreversible en el caso normal.",
+    "solution": "Capturar cada operación desde su inicio, validar HTTP y mostrar error con retry. Mantener snapshot local hasta confirmar; no cerrar edición como éxito antes de conocer resultado. Reusar el wrapper actual.",
+    "accept": [
+      "500/offline al quitar o deshacer produce mensaje y conserva opción de recuperación",
+      "Ninguna promesa rechazada queda sin manejar",
+      "No se anuncia restaurado sin persistencia"
+    ],
+    "steps": [
+      "Comprobar res.ok y catch en ambos callbacks de undo",
+      "Resolver promesa de request con manejador inmediato durante salida",
+      "Añadir pruebas de DELETE y POST fallidos y fallo tras navegación"
+    ],
+    "test": "Interceptar local DELETE/undo con abort y 500; comprobar filas, toast, recarga y consola.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-021",
+    "title": "Recuperación enumera cuentas cuando falla el correo",
+    "p": "P2",
+    "area": "Security / Backend",
+    "effort": "S",
+    "route": "POST /api/auth/forgot",
+    "files": [
+      "src/app/api/auth/forgot/route.ts:15",
+      "src/lib/authMail.ts",
+      "src/lib/mailer.ts"
+    ],
+    "problem": "La respuesta supuestamente uniforme solo lo es si el envío funciona. Para cuenta existente se espera sendPasswordResetEmail, cuyo error se convierte en 500; para inexistente se responde 200.",
+    "evidence": "Sin RESEND_API_KEY en entorno local: email del usuario de prueba 500; email inexistente 200. No se enviaron correos externos. Diferencia de tiempos 12/6 ms no demuestra canal temporal general.",
+    "impact": "En una caída/configuración errónea del proveedor permite distinguir existencia de cuentas y bloquea el flujo de recuperación.",
+    "solution": "Contrato externo idéntico aun si falla el proveedor y registro interno del error. Conservar respuesta genérica; elegir retry operativo mínimo y no una cola nueva sin necesidad. Evaluar tiempos con un proveedor simulado.",
+    "accept": [
+      "Existente/inexistente tienen mismo status/body con proveedor OK o caído",
+      "Fallo se observa internamente sin exponer email/token",
+      "La entrega real sigue verificándose en staging"
+    ],
+    "steps": [
+      "Capturar fallo de entrega dentro del flujo y mantener respuesta uniforme",
+      "Añadir tests de proveedor caído y cuenta inexistente",
+      "Documentar recuperación/retry y alertar por fallos de envío"
+    ],
+    "test": "Mock de Resend devuelve 500/timeout; comparar respuesta a dos tipos de email, sin envío real.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-022",
+    "title": "Hay advisories que requieren actualización selectiva y análisis de alcance",
+    "p": "P2",
+    "area": "Security / Architecture",
+    "effort": "S",
+    "route": "Dependencias y build",
+    "files": [
+      "package.json",
+      "package-lock.json"
+    ],
+    "problem": "npm audit devuelve 17 alertas (1 critical, 8 high, 8 moderate). El recuento no equivale a 17 vías explotables. Next 16.3.4 está en rango vulnerable de ImageResponse; Vitest y varias transitivas son principalmente tooling.",
+    "evidence": "audit-assets/dependency-audit.json. Advisory oficial GHSA-vcvr-r3jv-pc5j afecta next/og Node con SVG controlado por atacante y se corrige en 16.3.6; no se encontró ImageResponse ni next/og en esta app. Vitest 4.1.9 también tiene advisory de dev server/mocker.",
+    "impact": "Deuda de seguridad real en lockfile, sin evidencia de RCE alcanzable en KetoHoy. Evitar npm audit fix --force que propone cambios mayores no relacionados.",
+    "solution": "Actualizar parches compatibles de Next/tooling, revisar transitivas por ruta alcanzable y mantener lockfile. Leer guía local Next correspondiente, ejecutar checks y comparar advisories restantes.",
+    "accept": [
+      "Cada advisory tiene versión corregida o razón de no alcanzabilidad documentada",
+      "Build/lint/tests/E2E pasan tras cambios; sin downgrade mayor de Prisma por resolver audit"
+    ],
+    "steps": [
+      "Revisar advisory oficial y fijar versiones parche compatibles",
+      "Actualizar lockfile selectivamente, sin force",
+      "Repetir npm audit y registrar runtime/build/dev + alcance"
+    ],
+    "test": "Comparar audit antes/después y ejecutar checks completos más páginas SSR y optimización de imágenes.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-023",
+    "title": "Fallback demo y catálogo incompleto parecen datos reales",
+    "p": "P2",
+    "area": "Data / UX / Performance",
+    "effort": "M",
+    "route": "/explore; /api/mercadona/search",
+    "files": [
+      "src/lib/mercadona.ts:177",
+      "src/lib/mercadona.ts:228",
+      "src/app/explore/ExploreClient.tsx"
+    ],
+    "problem": "Fallos externos devuelven productos demo con precio sin indicar modo demo al cliente. Promise.allSettled omite subcategorías fallidas y puede cachear un catálogo parcial 12 horas.",
+    "evidence": "Ramas de fallback y cache inspeccionadas. No hubo caída externa durante la visita normal; se distingue este riesgo por código de resultados reales observados. Cold load local observado ~1.8 s no es un SLA.",
+    "impact": "El usuario interpreta un catálogo incompleto/demo como stock y precios Mercadona; una incidencia temporal puede persistir muchas horas.",
+    "solution": "Exponer source/fetchedAt/completeness y mensaje discreto; conservar última caché buena ante fallo. No cachear parcial como completo. Permitir seguir manualmente sin inventar disponibilidad.",
+    "accept": [
+      "Demo/última copia/parcial son distinguibles de datos actuales",
+      "Un fallo parcial no invalida caché buena durante 12 h",
+      "Retry conserva consulta y no rompe otras categorías"
+    ],
+    "steps": [
+      "Extender respuesta con procedencia y fecha sin framework de caché nuevo",
+      "Definir criterio mínimo de catálogo completo y TTL corto de error",
+      "Simular árbol/hojas caídos y verificar fallback visible"
+    ],
+    "test": "Mock Mercadona 503 en todo y en una hoja; comparar UI, precios y posterior recuperación.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-024",
+    "title": "Importar un producto espera catálogo completo y servicios sin límite de espera",
+    "p": "P2",
+    "area": "Performance / Backend",
+    "effort": "S",
+    "route": "/api/mercadona/add; OAuth callback",
+    "files": [
+      "src/lib/mercadona.ts:245",
+      "src/lib/openFoodFacts.ts:10",
+      "src/app/api/auth/google/callback/route.ts"
+    ],
+    "problem": "getMercadonaProduct obtiene detalle pero después espera loadCatalog para contextualizarlo, incluso en un import individual. OFF y token exchange Google no tienen timeout explícito; OFF se repite al añadir incluso productos ya existentes.",
+    "evidence": "Cadena de funciones trazada y fetch leídos. loadCatalog recorre árbol y hojas en lotes de 8; timeout de cada Mercadona request 10 s, no presupuesto total. No se midió timeout real de Google.",
+    "impact": "Una acción pequeña se convierte en cascada y spinner largo; un proveedor colgado retiene request y feedback.",
+    "solution": "Normalizar detalle con información disponible/caché sin esperar toda la colección. Usar AbortSignal.timeout y presupuesto explícito por servicio; preservar datos nutricionales buenos ante fallo y revalidarlos con TTL razonable.",
+    "accept": [
+      "Añadir producto no necesita recorrer todo el catálogo en frío",
+      "OFF/Google terminan con fallo útil dentro del presupuesto definido",
+      "Reañadir no borra nutrición conocida si el proveedor falla"
+    ],
+    "steps": [
+      "Eliminar dependencia obligatoria de loadCatalog en detalle",
+      "Añadir timeouts y manejar abort sin falsear datos",
+      "Reusar nutrición existente fresca y cubrir fallos externos"
+    ],
+    "test": "Servicios simulados con respuesta infinita/503; medir request de un producto en frío y repetir alta.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-025",
+    "title": "Restar fibra siempre necesita verificar la convención nutricional de origen",
+    "p": "P2",
+    "area": "Data / Product",
+    "effort": "M",
+    "route": "POST /api/mercadona/add",
+    "files": [
+      "src/app/api/mercadona/add/route.ts:68",
+      "src/lib/openFoodFacts.ts"
+    ],
+    "problem": "Se calcula max(0,carbohydrates_100g-fiber_100g) sin conservar convención/país/unidad ni distinguir si carbohidratos ya excluyen fibra.",
+    "evidence": "Código confirmado. El Reglamento UE 1169/2011 distingue carbohidratos metabolizables y fibra, mientras OFF recoge etiquetas de distintos orígenes. No se rastreó un EAN concreto hasta su etiqueta: el error numérico real es Needs verification.",
+    "impact": "Posible sobreestimación de compatibilidad keto; debe comprobarse con datos fuente antes de cambiar masivamente registros.",
+    "solution": "Verificar un conjunto de EAN españoles y su etiqueta; definir cálculo según convención de origen. Guardar procedencia/fecha y tratar unknown como unknown; no fabricar precisión ni aplicar migración ciega.",
+    "accept": [
+      "Casos UE y etiquetas con carbohidratos totales calculan según su convención",
+      "Fuente desconocida no resta fibra sin justificación",
+      "Se documentan EAN/etiqueta usados para validación"
+    ],
+    "steps": [
+      "Reproducir con productos reales y documentos de origen antes de implementar",
+      "Añadir fixtures con convención UE/total/desconocida",
+      "Actualizar campo/procedencia y recalcular solo datos verificables"
+    ],
+    "test": "Comparar etiqueta física/documentada y OFF para ejemplos con fibra alta; revisar score y valores mostrados.",
+    "ui": false,
+    "confidence": "Needs verification: riesgo nutricional, no error de EAN demostrado",
+    "depends": "KH-007"
+  },
+  {
+    "id": "KH-026",
+    "title": "El primer uso no guía hasta un resultado completo",
+    "p": "P2",
+    "area": "Product / UX",
+    "effort": "S",
+    "route": "Tras registro → /",
+    "files": [
+      "src/components/HomePageClient.tsx",
+      "src/app/login/LoginForm.tsx:56",
+      "src/app/preferences/page.tsx"
+    ],
+    "problem": "Registro entra directamente en inicio. No existe onboarding persistido; preferencias y despensa son pasos dispersos y la recomendación puede aparecer antes de definir restricciones.",
+    "evidence": "Cuenta local nueva recorrió home, preferencias, despensa y plan. Las pantallas tienen empty states, pero no una secuencia que confirme preferencias → menú → compra ni progreso de primera sesión.",
+    "impact": "Fricción de activación y expectativas prematuras. No hay datos de conversión para cuantificar abandono.",
+    "solution": "Una guía opcional de tres acciones en inicio basada en estados existentes, con saltar/volver y CTA siguiente. Pedir solo restricciones necesarias antes de generar; evitar wizard obligatorio y nuevo modelo de progreso si puede derivarse.",
+    "accept": [
+      "Usuario nuevo ve siguiente acción y puede omitirla",
+      "Usuario recurrente no recibe una guía repetitiva",
+      "La guía termina al lograr plan/compra y no bloquea navegación"
+    ],
+    "steps": [
+      "Derivar estado de prefs/despensa/plan con datos existentes",
+      "Añadir acciones cortas con enlaces y explicar defaults",
+      "Validar primer uso con despensa vacía y sin exclusiones"
+    ],
+    "test": "Crear cuenta aislada y completar preferencias, un producto, menú y compra; repetir login y probar omisión.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-027",
+    "title": "No hay acción de compra para el menú semanal completo",
+    "p": "P2",
+    "area": "Product / UX",
+    "effort": "M",
+    "route": "/weekly-plan",
+    "files": [
+      "src/app/weekly-plan/page.tsx",
+      "src/app/api/recipes/[id]/add-to-shopping-list/route.ts"
+    ],
+    "problem": "Cada plato ofrece añadir faltantes por separado. El plan de 28 comidas no tiene operación agregada de lista, pese a que la landing relaciona menú semanal y compra de lo que falta.",
+    "evidence": "Inspección de UI/API y recorrido real del plan. No se encontró endpoint por plan; cada llamada de receta suma 1 por ingrediente y repetir plato vuelve a sumar.",
+    "impact": "Veintiocho decisiones repetidas y difícil saber si se compró para toda la semana; no se puede agregar correctamente sin resolver cantidades/origen.",
+    "solution": "Después del contrato de cantidades, CTA “Preparar compra de esta semana” con resumen y confirmación de necesidades/paquetes. Un endpoint agregado idempotente por plan y revisión, sin 28 requests cliente.",
+    "accept": [
+      "Una acción resume necesidades de los 28 slots y descuenta stock según contrato",
+      "Repetir acción no duplica; cambiar un plato actualiza solo su contribución",
+      "El usuario ve cantidades desconocidas y puede resolver envases"
+    ],
+    "steps": [
+      "Reusar cálculo de faltantes común y agregar por unidad compatible",
+      "Registrar origen plan/revisión para deduplicación",
+      "Añadir CTA y resumen editable, no checkout ficticio"
+    ],
+    "test": "Plan con recetas repetidas, stock parcial, sustitución de un plato y doble click; comprobar lista tras reload.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-005, KH-006"
+  },
+  {
+    "id": "KH-028",
+    "title": "La lista no se puede consultar tras recarga sin conexión",
+    "p": "P2",
+    "area": "Mobile / Product",
+    "effort": "M",
+    "route": "/shopping-list; manifest",
+    "files": [
+      "src/app/shopping-list/page.tsx",
+      "src/app/manifest.ts",
+      "src/app/layout.tsx"
+    ],
+    "problem": "Hay manifest standalone e iconos, pero no service worker ni copia persistida de la lista. Tras recarga offline fetch falla y no hay datos recuperables; una pestaña ya cargada conserva estado solo en memoria.",
+    "evidence": "Código de carga y búsqueda de soporte offline/SW: no implementado. Escenario por código; no se simuló radio/operador real ni instalación iOS. Manifest no prueba por sí solo experiencia offline.",
+    "impact": "En supermercado con cobertura irregular no se dispone de la lista al volver a abrirla. Marcar optimistamente sin persistencia puede ser ambiguo.",
+    "solution": "Primero snapshot local privado de SOLO lectura con fecha y aviso “Sin conexión”. Borrarlo al logout/cambio de cuenta. No prometer sincronización offline de compras sin diseñar conflicto/delta; evitar PWA completa si no hace falta.",
+    "accept": [
+      "Recargar offline muestra última lista con fecha y estado claro",
+      "No se anuncia compra persistida sin red",
+      "Logout/cambio de cuenta elimina acceso al snapshot previo"
+    ],
+    "steps": [
+      "Guardar snapshot por cuenta tras respuesta válida y limpiar al logout",
+      "Distinguir offline, datos antiguos y retry",
+      "Cubrir primer uso offline y cambio de sesión; evaluar SW solo si instalación es objetivo real"
+    ],
+    "test": "Cargar lista, desconectar, recargar y volver online; cerrar sesión y entrar con otro usuario sin ver datos anteriores.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-029",
+    "title": "La despensa grande no tiene búsqueda de lo que ya está en casa",
+    "p": "P2",
+    "area": "UX / Mobile",
+    "effort": "S",
+    "route": "/inventory",
+    "files": [
+      "src/app/inventory/page.tsx:25"
+    ],
+    "problem": "La única búsqueda está dentro de Añadir para Mercadona. Las filas actuales se agrupan, pero no se filtran por texto; nombres largos se truncan.",
+    "evidence": "Inventario renderiza groups completo; no input/filtro de items existentes. Validación con lista enorme en dispositivo real pendiente; no se demostró lentitud computacional.",
+    "impact": "Encontrar y editar un alimento en una despensa grande exige recorrer grupos y abrir filas ambiguas, especialmente con una mano.",
+    "solution": "Filtro local sencillo por nombre sobre items ya cargados, recuento y limpiar; sin buscador externo/virtualización hasta medir necesidad. Mantener nombre completo en sheet.",
+    "accept": [
+      "Buscar nombre/tildes encuentra stock sin request externo",
+      "Vacío filtrado explica cómo limpiar y no parece despensa vacía",
+      "Focus y scroll no se pierden al editar una fila"
+    ],
+    "steps": [
+      "Añadir search input etiquetado y normalización existente",
+      "Filtrar antes de agrupar, mostrando recuento filtrado/total",
+      "Probar nombres largos, coincidencias y cero resultados"
+    ],
+    "test": "Fixture de 150 productos en BD desechable, 320/390 px y teclado; editar resultado y limpiar filtro.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-030",
+    "title": "Cuenta, exportación y retención necesitan un contrato operativo",
+    "p": "P2",
+    "area": "Data / Product",
+    "effort": "M",
+    "route": "/preferences; /legal",
+    "files": [
+      "src/app/preferences/page.tsx",
+      "src/app/legal/page.tsx",
+      "prisma/schema.prisma",
+      "src/lib/auth.ts"
+    ],
+    "problem": "No hay flujo de eliminación/exportación de cuenta. Legal local remite a contacto manual; expiración de sesiones/tokens limita uso, pero no se encontró purga de filas expiradas ni retención concreta de backups/logs.",
+    "evidence": "Rutas/schema revisados. Almacena email, hash de contraseña, Google ID, verificaciones, aceptación de términos/adulto, sesiones, tokens, preferencias, despensa, lista y planes. No se verificó infraestructura/contratos de encargados.",
+    "impact": "Soporte no tiene un procedimiento verificable de exportación/borrado y las preferencias alimentarias requieren prudencia. No se emite conclusión legal de incumplimiento.",
+    "solution": "Definir retención y procedimiento mínimo documentado de exportar/borrar con verificación de identidad y cascadas; puede empezar con script administrativo auditado. UI autocontenida cuando soporte lo necesite. Incluir copias y catálogo manual privado.",
+    "accept": [
+      "Cuenta de prueba puede exportarse/borrarse sin afectar otra",
+      "Se explica plazo de desaparición de copias y datos que se conservan",
+      "Sesiones/tokens caducados se purgan con regla verificable"
+    ],
+    "steps": [
+      "Documentar categorías, destino, plazo y responsable operativo",
+      "Crear procedimiento mínimo probado en copia de BD, no borrado automático no revisado",
+      "Si se añade self-service, reautenticar y confirmar impacto real"
+    ],
+    "test": "Dos cuentas en staging: exportar y borrar una, revisar tablas relacionadas, sesiones y política de backup.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "KH-013"
+  },
+  {
+    "id": "KH-031",
+    "title": "Faltan señales operativas del flujo crítico",
+    "p": "P2",
+    "area": "Architecture / Product",
+    "effort": "S",
+    "route": "APIs, integración, activación",
+    "files": [
+      "src/lib/apiError.ts:37",
+      "src/lib/mercadona.ts",
+      "src/lib/mailer.ts",
+      ".github/workflows/deploy.yml"
+    ],
+    "problem": "Hay console.error/warn y logs PM2, pero no IDs de request, métricas de fallos/latencia, error tracking ni eventos de activación encontrados. Home incluso convierte fallos en vacío.",
+    "evidence": "Búsqueda de analytics/monitoring y revisión de manejo de errores. No se accedió a panel externo de observabilidad ni se concluye que el servidor no tenga alertas fuera del repo.",
+    "impact": "Es difícil saber si menú, compra o correo fallan y dónde abandonan los usuarios. No hay línea base para justificar optimizaciones/conversión.",
+    "solution": "Logs estructurados mínimos con operación, requestId, status, latencia y proveedor; redacción de email/token/cookie y sin ingredientes personales. Contadores agregados de registro→plan→compra con decisión de privacidad. Empezar por salud/fallos, no SDK pesado.",
+    "accept": [
+      "Un 500 se correlaciona con operación y proveedor sin datos privados",
+      "Se distinguen demo/partial/timeout y fallo de correo",
+      "Se dispone de recuentos de éxito/fallo de generar y comprar"
+    ],
+    "steps": [
+      "Usar un punto central de error y envolver integraciones con métricas simples",
+      "Añadir requestId no sensible y política de redacción",
+      "Documentar alertas y quién responde; revisar necesidad de analytics antes de instalar tracker"
+    ],
+    "test": "Provocar fallo local de compra/correo/catálogo y localizar la señal; comprobar que logs no contienen tokens ni email.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-032",
+    "title": "Una caída de datos se convierte en inicio vacío o receta 404",
+    "p": "P2",
+    "area": "Backend / UX",
+    "effort": "S",
+    "route": "/; /recipes/:id",
+    "files": [
+      "src/app/page.tsx:121",
+      "src/app/recipes/[id]/page.tsx:24",
+      "src/app/error.tsx"
+    ],
+    "problem": "getStats captura cualquier error y devuelve EMPTY_STATS. getRecipe captura y devuelve null; error técnico se parece a inexistencia, aunque el layout también consulta existencia.",
+    "evidence": "Catch de ambas funciones leído. No se apagó la BD del usuario ni se provocó outage en producción. Hay error boundary y UI de retry general, pero estos catch evitan llegar a ella.",
+    "impact": "El usuario recibe información falsa sobre su despensa/receta y el soporte pierde la causa. No se debe cachear un fallo como estado sano.",
+    "solution": "Distinguir not found de fallo técnico y registrar/presentar error con retry. Mantener datos previos cuando existan; no convertir outage en 404/ceros.",
+    "accept": [
+      "Error de BD muestra recuperación y no “despensa vacía”",
+      "Receta inexistente sigue 404; fallo de consulta da error técnico",
+      "El fallo no permanece cacheado como éxito"
+    ],
+    "steps": [
+      "Eliminar catch indiscriminado o devolver resultado discriminado",
+      "Reusar boundary/estado de error existentes",
+      "Añadir tests de not found vs excepción de BD"
+    ],
+    "test": "Mock de consulta falla en home y receta; comprobar mensaje, status, logs y posterior recuperación.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-014"
+  },
+  {
+    "id": "KH-033",
+    "title": "Validación de productos y referencias deja llegar errores evitables a BD/UI",
+    "p": "P2",
+    "area": "Backend / Data",
+    "effort": "S",
+    "route": "POST /api/products; POST /api/shopping-list",
+    "files": [
+      "src/app/api/products/route.ts:6",
+      "src/app/api/shopping-list/route.ts:8",
+      "next.config.ts"
+    ],
+    "problem": "Campos category/source son strings libres y cantidades/nutrición/precio/longitudes no tienen límites de dominio suficientes. Crear compra con productId inexistente llega a FK y devuelve 500, no un error de cliente.",
+    "evidence": "Prueba local de productId inexistente devuelve 500. Zod permite URLs/strings que después no encajan con remotePatterns; el crash por imagen host no permitido no se reprodujo y se marca riesgo.",
+    "impact": "Datos inválidos, errores técnicos incomprensibles y render potencialmente roto. Ownership de manuales debe comprobarse además de existencia.",
+    "solution": "Enum compartida, límites razonables, números finitos no negativos y validación de referencias/propietario antes de escribir. Guardar imageUrl solo de fuentes permitidas o manejar imagen inválida con fallback.",
+    "accept": [
+      "Producto/referencia inválidos dan 400/404 sin escribir",
+      "No se admiten valores negativos, tags/nombres ilimitados o source reservado de usuario",
+      "URL no soportada no tumba la página"
+    ],
+    "steps": [
+      "Endurecer esquemas existentes en fronteras, sin duplicar tipos por pantalla",
+      "Validar existencia/ownership antes de FK",
+      "Cubrir inputs largos, Unicode, NaN/negativos y URL fuera de allowlist"
+    ],
+    "test": "Enviar requests inválidos a copia local, revisar status/tablas y cargar la UI con fallback de imagen.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "KH-001, KH-013"
+  },
+  {
+    "id": "KH-034",
+    "title": "La integridad depende de findFirst donde faltan constraints de dominio",
+    "p": "P2",
+    "area": "Data / Architecture",
+    "effort": "M",
+    "route": "SQLite modelos de usuario",
+    "files": [
+      "prisma/schema.prisma",
+      "src/app/api/preferences/route.ts",
+      "src/app/api/pantry/route.ts",
+      "src/app/api/weekly-plan/generate/route.ts"
+    ],
+    "problem": "No hay unicidad por userId en preferencias, por user/product en despensa, por user/week en plan ni plan/day/type en comidas. Código comprueba/crea con findFirst. Las transacciones actuales protegen algunos caminos pero no expresan el contrato en BD.",
+    "evidence": "Schema verificado. Tres GET concurrentes de preferencias crearon una sola fila y cinco incrementos de compra conservaron cantidad: NO se reprodujo duplicación/pérdida; es riesgo de integridad al crecer caminos/imports.",
+    "impact": "Duplicados futuros o legacy vuelven arbitrario findFirst. Un constraint cubre todos los escritores y suele ser menor solución que locks en UI.",
+    "solution": "Definir claves de dominio, detectar y reconciliar duplicados antes de migrar, añadir constraints apropiadas y upsert. Resolver registros legacy con userId null conscientemente.",
+    "accept": [
+      "BD rechaza duplicados que contradicen contrato",
+      "Migración conserva referencias y decide legacy",
+      "Operaciones concurrentes devuelven estado válido sin 500 inesperados"
+    ],
+    "steps": [
+      "Auditar duplicados en copia y elegir reglas de merge",
+      "Añadir constraints y adaptar escrituras a upsert/transacciones",
+      "Probar dos pestañas, import y migración con duplicados intencionados"
+    ],
+    "test": "Inserciones concurrentes desde clientes separados y SQL directo en BD temporal; comparar cardinalidad.",
+    "ui": false,
+    "confidence": "Riesgo por schema; carrera concreta Needs verification",
+    "depends": "—"
+  },
+  {
+    "id": "KH-035",
+    "title": "El baseline puede marcar una migración nueva sin ejecutar su DDL",
+    "p": "P1",
+    "area": "Data / Architecture",
+    "effort": "S",
+    "route": "Primer deploy de BD legacy",
+    "files": [
+      ".github/workflows/deploy.yml:68",
+      "prisma/migrations/20261002100000_terms_acceptance/migration.sql"
+    ],
+    "problem": "Si hay UserPreferences y no _prisma_migrations, se marcan TODAS las carpetas de migración como applied. Esa presencia no demuestra que el schema legacy incluya columnas de una migración recién añadida.",
+    "evidence": "Bucle migrate resolve --applied sobre prisma/migrations/* y nueva migración de términos presente en checkout. No se inspeccionó schema vivo del VPS: condición de producción Needs verification.",
+    "impact": "La migración de términos puede saltarse y el runtime nuevo fallar al leer columnas inexistentes. Riesgo más serio que un problema visual de consentimiento.",
+    "solution": "Baseline únicamente snapshot histórico exacto conocido; comprobar columnas/schema antes. Ejecutar normalmente migraciones posteriores y fallar antes de activar release si no coincide.",
+    "accept": [
+      "BD legacy sin columnas nuevas las recibe mediante DDL",
+      "BD ya migrada no reejecuta DDL",
+      "Estado desconocido aborta con diagnóstico, sin marcar todas applied"
+    ],
+    "steps": [
+      "Fijar lista/snapshot de baseline histórico y verificar schema esperado",
+      "Ensayar migrate deploy en copia legacy y actual",
+      "Separar migración de activación del release y documentar recuperación"
+    ],
+    "test": "Fixtures de BD sin historia con/sin columnas de términos; comprobar schema e historial final.",
+    "ui": false,
+    "confidence": "Riesgo confirmado por código; schema VPS Needs verification",
+    "depends": "KH-011"
+  },
+  {
+    "id": "KH-036",
+    "title": "Los backups solo se crean al desplegar y no tienen prueba de restauración",
+    "p": "P2",
+    "area": "Data / Architecture",
+    "effort": "S",
+    "route": "Operación SQLite",
+    "files": [
+      ".github/workflows/deploy.yml:54",
+      "docs/deployment-proxy.md"
+    ],
+    "problem": "Workflow hace .backup antes de migrar y conserva diez copias por número de deploy. No se encontró programación independiente ni ensayo automatizado de restore; datos nuevos entre despliegues no entran en esas copias.",
+    "evidence": "Backup sí existe y falla de forma segura si falta sqlite3: fortaleza. Frecuencia adicional/offsite del VPS no comprobada; no se afirma inexistencia fuera del repo.",
+    "impact": "La pérdida potencial depende del intervalo entre despliegues; diez versiones no equivalen a retención por días ni recuperación demostrada.",
+    "solution": "Definir RPO/RTO con el propietario, copia consistente periódica y destino separado; verificar restore en entorno desechable. No añadir infraestructura distribuida para una sola SQLite.",
+    "accept": [
+      "Frecuencia/retención/destino y responsable están documentados",
+      "Restore de muestra supera integrity_check y login/lecturas básicas",
+      "Copias cifradas/restringidas según datos que contienen"
+    ],
+    "steps": [
+      "Inventariar primero backups existentes del host",
+      "Configurar mecanismo mínimo independiente de deploy si falta",
+      "Documentar y ensayar restore sin tocar producción"
+    ],
+    "test": "Restaurar copia en directorio aislado, integrity_check, recuentos y sesión de prueba; medir tiempos reales.",
+    "ui": false,
+    "confidence": "Needs verification en host; cobertura del repo confirmada",
+    "depends": "—"
+  },
+  {
+    "id": "KH-037",
+    "title": "El salto a un día sigue animado con reduced motion",
+    "p": "P2",
+    "area": "Motion / Accessibility",
+    "effort": "XS",
+    "route": "/weekly-plan",
+    "files": [
+      "src/app/weekly-plan/page.tsx:192",
+      "src/app/globals.css"
+    ],
+    "problem": "El handler usa scrollIntoView({behavior:“smooth”}) explícito. El CSS global de reduced motion no elimina ese movimiento JS.",
+    "evidence": "Con prefers-reduced-motion:reduce, scrollY muestreado cada 70 ms: 4.5→71→230→611.5→1316→1681→1919→2086.5. Animación observada durante ~560 ms.",
+    "impact": "La preferencia del usuario no se respeta en una acción frecuente. El criterio de animación por interacción 2.3.3 es AAA, no presentar esto por sí solo como incumplimiento AA.",
+    "solution": "Consultar matchMedia en el handler y usar auto para reduce. Mantener smooth normal si ayuda a conservar contexto y mover/indicar foco de forma predecible.",
+    "accept": [
+      "Reduce salta al destino sin desplazamiento interpolado",
+      "Normal conserva navegación útil y encabezado no queda tapado por sticky"
+    ],
+    "steps": [
+      "Reusar comprobación reduced motion ya existente en Sheet/compra",
+      "Elegir behavior auto o smooth según preferencia",
+      "Añadir caso de navegación por día en ambos modos"
+    ],
+    "test": "Emular reduce, pulsar último día y registrar posiciones; probar teclado y sticky.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-038",
+    "title": "Favoritos no identifican el producto y el live region anuncia toda la rejilla",
+    "p": "P2",
+    "area": "Accessibility",
+    "effort": "S",
+    "route": "/explore",
+    "files": [
+      "src/app/explore/ExploreClient.tsx:324",
+      "src/app/explore/ExploreClient.tsx:364"
+    ],
+    "problem": "Botones de favoritos repiten “Marcar favorito”/“Quitar favorito” sin producto. section aria-live engloba resultados completos y controles, además de live regions de cantidad.",
+    "evidence": "DOM/código y snapshot de catálogo con muchas cards. Ambigüedad confirmada de nombres; cantidad exacta de locución duplicada requiere NVDA/VoiceOver y se marca Needs verification.",
+    "impact": "Lista de botones AT indistinguible y anuncios potencialmente largos en cada filtrado. WCAG 4.1.2: contexto/nombre útil; 4.1.3: estados breves.",
+    "solution": "Nombre “Marcar [producto] como favorito”, conservar aria-pressed. Live region solo para contador/resultado/error; rejilla normal. No anunciar toda la tarjeta al variar cantidad.",
+    "accept": [
+      "Cada favorito es identificable fuera del contexto visual",
+      "Búsqueda anuncia contador/estado una vez, no todos los controles",
+      "Cantidad sigue anunciándose brevemente"
+    ],
+    "steps": [
+      "Incluir product.name en nombres de favorito en catálogo y sheet",
+      "Mover status a elemento dedicado y quitar live region de rejilla",
+      "Validar con lector de pantalla real antes de cerrar"
+    ],
+    "test": "Recorrer lista de botones y filtrar con VoiceOver/NVDA; probar teclado y cinco productos de nombre parecido.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-039",
+    "title": "Fotos de recetas no representan de forma fiable el plato",
+    "p": "P2",
+    "area": "UI / Product",
+    "effort": "S",
+    "route": "Landing y /recipes/:id",
+    "files": [
+      "prisma/backfillRecipeImages.ts",
+      "src/lib/unsplash.ts",
+      "src/components/Landing.tsx",
+      "prisma/seed.ts"
+    ],
+    "problem": "La búsqueda automática de stock elige una imagen disponible sin revisión semántica. La foto puede enseñar ingredientes/platos distintos de las instrucciones.",
+    "evidence": "Producción con imágenes ya decodificadas: “Huevos revueltos con bacon y aguacate” muestra bowl de aguacate; tortilla de queso/jamón parece tortilla gruesa genérica; revuelto de espinacas presenta otro plato. No se trataron placeholders lazy como imágenes rotas. Capturas production-landing-320.png y production-recipe-1440.png.",
+    "impact": "Pérdida de confianza en el contenido keto. La incoherencia pesa más que añadir animación a las cards.",
+    "solution": "Curar primeras recetas/hero manualmente y permitir placeholder honesto para lo no revisado; conservar procedencia/licencia y no prometer foto exacta si es ilustrativa. No activar autofetch en navegación.",
+    "accept": [
+      "Fotos destacadas corresponden a ingredientes y preparación o están marcadas ilustrativas",
+      "No hay fetch de Unsplash en cada navegación",
+      "Licencias/atribuciones necesarias se revisan contra proveedor"
+    ],
+    "steps": [
+      "Revisar cuatro recetas landing y las más recomendadas",
+      "Persistir selección revisada con script existente, sin edición durante esta auditoría",
+      "Comprobar crop a 320/390/1440 y fallback"
+    ],
+    "test": "Cotejar foto con ingredientes/pasos y cargar con imagen 404 en entorno aislado.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-040",
+    "title": "Guardar un sheet omite la salida que sí tienen ESC/X",
+    "p": "P3",
+    "area": "Motion / UI",
+    "effort": "S",
+    "route": "Sheets de producto y despensa",
+    "files": [
+      "src/components/Sheet.tsx:34",
+      "src/app/inventory/PantryItemSheet.tsx",
+      "src/app/explore/ExploreProductSheet.tsx"
+    ],
+    "problem": "Cerrar con ESC/overlay/X anima 180 ms; acciones de children/footer llaman onClose directo y desmontan instantáneamente. Es una simplificación deliberada documentada en el componente.",
+    "evidence": "Código/comentario de Sheet y handlers. Entrada 200 ms; cierre por acción no tiene estado closing. No se precisa librería de animación.",
+    "impact": "La misma superficie tiene dos continuidades espaciales; guardar parece salto brusco aunque éxito sea inmediato.",
+    "solution": "Exponer una única función de cierre tras éxito con salida opacity/translate 120–180 ms; iniciar request sin esperar animación. Reduce: cierre inmediato. Evitar timers distribuidos por callers.",
+    "accept": [
+      "ESC/X/guardar exitoso comparten salida breve",
+      "Guardar fallido mantiene diálogo; reduce no espera",
+      "Restauración de foco no depende de cómo se cerró"
+    ],
+    "steps": [
+      "Reusar estado closing de Sheet para todas las salidas",
+      "Separar persistencia de animación y unmount",
+      "Validar que no se duplica submit y que el foco se devuelve"
+    ],
+    "test": "Guardar, ESC, X, overlay, error y reduced motion; comparar salida y tiempo percibido.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-019"
+  },
+  {
+    "id": "KH-041",
+    "title": "Inserciones y movimientos de listas saltan de posición",
+    "p": "P3",
+    "area": "Motion / UI",
+    "effort": "S",
+    "route": "/inventory; /shopping-list",
+    "files": [
+      "src/app/inventory/page.tsx",
+      "src/app/shopping-list/page.tsx:70",
+      "src/app/globals.css"
+    ],
+    "problem": "Compras tiene salida de fila 140 ms opacity/translateX, pero el resto recoloca al desmontar. Despensa elimina tras refresh sin salida; check mueve directamente la fila a Comprado. Inserciones no comunican localización.",
+    "evidence": "Implementación de leaving y listas con keys estables. Esto es polish espacial, no se midió CLS de interacción como Core Web Vital ni se recomienda animar height.",
+    "impact": "El ojo pierde la fila durante uso rápido con una mano. El tick optimista ya es una buena base.",
+    "solution": "Priorizar feedback inmediato; entrada opacity + translateY 4px 120 ms, salida opacity/scale .98 120 ms. Si hace falta continuidad de filas, FLIP transform mínimo en la lista concreta; no dependencia global. Reduce: ningún desplazamiento.",
+    "accept": [
+      "Fila añadida/quitada es reconocible sin retrasar request",
+      "Check tiene feedback inmediato y movimiento breve opcional",
+      "Reduce evita transforms y no retrasa dato/foco"
+    ],
+    "steps": [
+      "Compartir duraciones existentes para salida/entrada sin abstracción extensa",
+      "Medir si reorder necesita FLIP antes de implementarlo",
+      "Mantener foco válido cuando desaparece el control"
+    ],
+    "test": "Añadir, eliminar, comprar y descomprar tres filas; teclado, 320 px, conexión lenta y reduced motion.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-002, KH-020"
+  },
+  {
+    "id": "KH-042",
+    "title": "Autenticación pierde la receta de origen y el modo no sigue la URL",
+    "p": "P2",
+    "area": "UX / Product",
+    "effort": "S",
+    "route": "/recipes/:id → /login; /login?modo=registro",
+    "files": [
+      "src/app/login/LoginForm.tsx:31",
+      "src/proxy.ts:36",
+      "src/app/recipes/[id]/AddMissingButton.tsx"
+    ],
+    "problem": "Tras login/registro la redirección es siempre /. Cambiar modo actualiza estado local sin URL. Una receta pública que motiva el alta no se retoma automáticamente.",
+    "evidence": "LoginForm switchMode y window.location.href leídos; receta pública CTA invita a entrar. Refresh/back no pueden reconstruir el modo cambiado solo en estado. No se realizó OAuth autorizado en producción.",
+    "impact": "Se pierde contexto justo en la conversión; usuario vuelve a buscar la receta y la acción que inició.",
+    "solution": "Parámetro returnTo interno validado, preservar tras términos y OAuth si procede; actualizar modo con navegación/reemplazo de URL. No redirigir a dominios arbitrarios ni repetir automáticamente una compra.",
+    "accept": [
+      "Login desde receta vuelve a la receta y muestra siguiente acción",
+      "Refresh/back conserva modo representado en URL",
+      "returnTo externo o malformado se ignora"
+    ],
+    "steps": [
+      "Propagar ruta interna de origen por enlaces y auth/terms",
+      "Validar pathname permitido con helper pequeño, no open redirect",
+      "Sincronizar modo con query y probar history"
+    ],
+    "test": "Receta anónima→registro/login→términos→receta; probar refresh/back y returnTo https://externo.invalid.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-043",
+    "title": "La landing carece de imagen social específica y CTA de cierre",
+    "p": "P3",
+    "area": "SEO / UX",
+    "effort": "XS",
+    "route": "/ pública",
+    "files": [
+      "src/app/page.tsx:147",
+      "src/app/layout.tsx:14",
+      "src/components/Landing.tsx"
+    ],
+    "problem": "Home define title/description/canonical e index; no imagen Open Graph/Twitter específica. Tras FAQ no se repite la acción principal; en móvil queda lejos del CTA superior.",
+    "evidence": "Metadata y landing de producción/local revisadas. Recetas sí tienen OG y Recipe JSON-LD; no se afirma que todo SEO esté ausente. Imagen social de landing no encontrada en metadata generada.",
+    "impact": "Compartir la portada tiene preview pobre y quien termina de leer debe volver arriba para registrarse. Impacto de conversión por medir.",
+    "solution": "Reusar un asset de marca existente para OG/Twitter con dimensiones/alt y CTA final discreto “Crear cuenta gratis”. Mantener FAQ accesible y disclaimer.",
+    "accept": [
+      "Portada genera preview con título/descripción/imagen propia",
+      "Final de landing tiene acceso directo al registro sin competir con FAQ"
+    ],
+    "steps": [
+      "Añadir metadata social usando recursos existentes",
+      "Repetir CTA tras FAQ con misma ruta/texto",
+      "Validar URL absoluta y preview sin tracker"
+    ],
+    "test": "Inspeccionar HTML/meta y preview de compartición; recorrer landing a 320/1440 con teclado.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-044",
+    "title": "Día resaltado significa hoy, no sección que está viendo el usuario",
+    "p": "P3",
+    "area": "UI / UX",
+    "effort": "S",
+    "route": "/weekly-plan",
+    "files": [
+      "src/app/weekly-plan/page.tsx:192"
+    ],
+    "problem": "La barra de días marca la fecha actual y no refleja el día al que se saltó. En una lista larga se pueden interpretar ambos significados como selección.",
+    "evidence": "Captura local-plan-390.png: contenido de lunes y viernes marcado HOY por la fecha de auditoría. Es una decisión deliberada plausible, no bug de calendario.",
+    "impact": "Confusión leve de orientación tras navegar entre siete secciones.",
+    "solution": "Distinguir “Hoy” de selección/visible. O indicar solo Hoy con estilo no seleccionable, o añadir estado de día activo derivado del scroll sin necesidad de scroll library.",
+    "accept": [
+      "El estilo permite distinguir fecha de navegación",
+      "Pulsar un día conserva orientación y sticky no oculta heading"
+    ],
+    "steps": [
+      "Nombrar semántica de Hoy y de selección",
+      "Elegir el cambio mínimo de copy/estilo; observar scroll solo si necesario",
+      "Validar días anteriores/futuros y teclado"
+    ],
+    "test": "Entrar en viernes y saltar lunes/domingo; comprobar orientación y reduced motion.",
+    "ui": true,
+    "confidence": "Confirmado",
+    "depends": "KH-037"
+  },
+  {
+    "id": "KH-045",
+    "title": "Documentación ya no describe el stack ni el estado real de pruebas",
+    "p": "P3",
+    "area": "Architecture / Testing",
+    "effort": "XS",
+    "route": "README y documentación",
+    "files": [
+      "README.md",
+      "STATUS.md",
+      "docs/pendientes.md",
+      ".env.example"
+    ],
+    "problem": "README menciona Framer Motion aunque no está en dependencias; cifras/estado de pruebas documentadas no coinciden con ejecución actual. Configuración de correo/URL/cookies debe explicar requerimientos y modo local.",
+    "evidence": "package.json y npm test: 19 archivos, 156 tests. E2E se detiene. Motion real CSS/React. Documentación leída durante discovery.",
+    "impact": "Otro agente o colaborador parte de supuestos erróneos y puede activar seed/env incorrectos.",
+    "solution": "Actualizar fuentes de verdad breves: stack real, comandos, variables, BD segura y estado de suite. Evitar duplicar listas de features en varios documentos.",
+    "accept": [
+      "Documentación coincide con comandos y dependencias actuales",
+      "No afirma E2E completo sin evidencia",
+      "Explica copia de BD y limitaciones de correo/OAuth"
+    ],
+    "steps": [
+      "Corregir menciones/cifras obsoletas o eliminarlas si no se mantienen",
+      "Documentar variables sin incluir secretos",
+      "Enlazar tareas pendientes desde un único sitio"
+    ],
+    "test": "Seguir instrucciones en checkout/copia limpia y comparar outputs; revisión de enlaces y secretos.",
+    "ui": false,
+    "confidence": "Confirmado",
+    "depends": "—"
+  },
+  {
+    "id": "KH-046",
+    "title": "Producción y checkout divergen en información legal y consentimiento",
+    "p": "P2",
+    "area": "Product / Data",
+    "effort": "S",
+    "route": "Landing; /login; /legal; /accept-terms",
+    "files": [
+      "src/app/legal/page.tsx",
+      "src/app/login/LoginForm.tsx",
+      "src/components/Landing.tsx",
+      "src/lib/terms.ts"
+    ],
+    "problem": "Producción pública no mostró footer legal ni checkboxes de mayoría/aceptación; el checkout local sí los incorpora. /legal local se identifica como borrador y requiere revisión. No se debe declarar completada una mejora solo por existir localmente.",
+    "evidence": "production-register-390.png y landing pública frente a fuente/local. Cambios ya presentes antes de auditoría y todavía no desplegados. No se probó consentimiento de usuarios existentes en producción.",
+    "impact": "Información/expectativa diferentes por versión y release de términos pendiente. Es riesgo de producto/privacidad, no dictamen jurídico.",
+    "solution": "Cerrar revisión factual del borrador, identidad/contacto, terceros y plazos; desplegar solo tras CI/migración verificados. Probar alta email/Google y cuenta existente contra CURRENT_TERMS_VERSION. Conservar separación informar privacidad vs aceptar términos.",
+    "accept": [
+      "Contenido publicado corresponde al tratamiento real y deja de presentarse como borrador",
+      "Alta y reaceptación registran versión/fecha en email y Google",
+      "Prod/local coinciden en flujo después del release validado"
+    ],
+    "steps": [
+      "Revisar hechos legales/operativos con responsable competente, sin inventar obligaciones",
+      "Cubrir cuentas legacy, email y OAuth con términos actualizados",
+      "Verificar migración y entrega antes de publicar"
+    ],
+    "test": "Staging: alta ambos proveedores, usuario legacy, rechazo y aceptación de nueva versión; producción solo comprobación pública autorizada.",
+    "ui": true,
+    "confidence": "Divergencia confirmada; adecuación jurídica Needs verification",
+    "depends": "KH-010, KH-035, KH-030"
+  }
+]

@@ -5,7 +5,10 @@ import { useState } from "react";
 import { Check, ChefHat, ListPlus, Loader2 } from "lucide-react";
 import { ToneLabel, focusRing } from "@/components/ui";
 
+import { recipeAvailabilityLabel, type RecipeAvailability } from "@/lib/recipeAvailability";
+
 type RecipeCardProps = {
+  availability: RecipeAvailability;
   recipe: {
     id: string;
     title: string;
@@ -18,7 +21,7 @@ type RecipeCardProps = {
   missingIngredients: string[];
   /** Adds the missing ingredients to the shopping list; must reject on failure. */
   onAddMissingToCart?: () => Promise<void>;
-  /** Hide the "Tienes todo" badge (e.g. when the list is already filtered to cookable recipes). */
+  /** Hide the verified sufficiency badge (e.g. when the list is already filtered to cookable recipes). */
   hideReady?: boolean;
 };
 
@@ -36,6 +39,7 @@ const ketoLevel = {
 
 export default function RecipeCard({
   recipe,
+  availability,
   missingIngredients,
   onAddMissingToCart,
   hideReady,
@@ -124,7 +128,7 @@ export default function RecipeCard({
 
       {(missing > 0 || !hideReady) && (
         <p className="mt-2 text-xs text-forest-200">
-          {missing === 0 ? "Tienes todo" : missing === 1 ? "Te falta 1 ingrediente" : `Te faltan ${missing} ingredientes`}
+          {recipeAvailabilityLabel(availability)}
         </p>
       )}
 

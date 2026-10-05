@@ -7,9 +7,11 @@ import Sheet from '@/components/Sheet'
 import { useToast } from '@/components/Toast'
 import { Skeleton, focusRing } from '@/components/ui'
 import SwapMealSheet, { type PlanRecipe } from './SwapMealSheet'
+import PrepareShoppingButton from './PrepareShoppingButton'
 import { apiFetch } from '@/lib/apiFetch'
 
-type Availability = { missing: number; total: number }
+import { recipeAvailabilityLabel, type RecipeAvailability } from '@/lib/recipeAvailability'
+type Availability = RecipeAvailability
 
 type WeeklyMeal = {
   id: string
@@ -43,8 +45,7 @@ const ymd = (d: Date, utc: boolean) =>
 
 function availabilityText(a: Availability | null) {
   if (!a || a.total === 0) return null
-  if (a.missing === 0) return { text: 'Tienes todo', ready: true }
-  return { text: a.missing === 1 ? 'Te falta 1' : `Te faltan ${a.missing}`, ready: false }
+  return { text: recipeAvailabilityLabel(a), ready: a.ready }
 }
 
 export default function WeeklyPlanPage() {
@@ -56,6 +57,7 @@ export default function WeeklyPlanPage() {
   const [replacingId, setReplacingId] = useState<string | null>(null) // row waiting for a server-picked recipe
   const [added, setAdded] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
+  const [insufficientCandidates, setInsufficientCandidates] = useState(false)
   const { toast, show } = useToast()
   const scrolled = useRef(false)
 
@@ -93,9 +95,14 @@ export default function WeeklyPlanPage() {
     setConfirmRegen(false)
     setGenerating(true)
     setError(null)
+    setInsufficientCandidates(false)
     try {
       const res = await apiFetch('/api/weekly-plan/generate', { method: 'POST' })
-      if (!res.ok) throw new Error(await readApiError(res, 'No se pudo generar el plan semanal'))
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setInsufficientCandidates(data?.status === 'incomplete' || data?.status === 'no_candidates')
+        throw new Error(typeof data?.error === 'string' ? data.error : 'No se pudo generar el plan semanal')
+      }
       await fetchPlan()
       show('Plan generado')
     } catch (err) {
@@ -105,16 +112,16 @@ export default function WeeklyPlanPage() {
     }
   }
 
-  const swap = async (meal: WeeklyMeal, picked?: { recipe: PlanRecipe; missing: number; total: number }) => {
+  const swap = async (meal: WeeklyMeal, picked?: { recipe: PlanRecipe; availability: Availability }) => {
     setSwapping(null)
-    if (!picked) setReplacingId(meal.id)
+    setReplacingId(meal.id)
     if (picked) {
       // optimistic: the row changes immediately, the server answer replaces it
       setPlan(p =>
         p && {
           ...p,
           meals: p.meals.map(m =>
-            m.id === meal.id ? { ...m, recipe: picked.recipe, availability: { missing: picked.missing, total: picked.total } } : m
+            m.id === meal.id ? { ...m, recipe: picked.recipe, availability: picked.availability } : m
           ),
         }
       )
@@ -133,12 +140,12 @@ export default function WeeklyPlanPage() {
     setReplacingId(null)
   }
 
-  const addMissing = async (recipeId: string) => {
+  const addMissing = async (recipeId: string, mealId: string) => {
     try {
-      const res = await apiFetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST' })
+      const res = await apiFetch(`/api/recipes/${recipeId}/add-to-shopping-list`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ mealId }) })
       if (!res.ok) throw new Error()
       const { added: count = 0 } = await res.json()
-      setAdded(a => ({ ...a, [recipeId]: true }))
+      setAdded(a => ({ ...a, [mealId]: true }))
       show(count > 0 ? `${count} ${count === 1 ? 'ingrediente añadido' : 'ingredientes añadidos'} a la lista` : 'Ya estaba todo en tu lista', {
         label: 'Ver',
         href: '/shopping-list',
@@ -181,6 +188,8 @@ export default function WeeklyPlanPage() {
           {!loading && generateButton}
         </div>
 
+        {hasPlan && plan && <PrepareShoppingButton key={JSON.stringify([plan.id, plan.meals.map(m => [m.id, m.recipe?.id])])} planId={plan.id} incomplete={filled < 28} disabled={generating || replacingId !== null || swapping !== null} />}
+
         {hasPlan && (
           <nav aria-label="Días de la semana" className="mt-3 flex gap-1.5 lg:hidden">
             {DAYS.map((day, i) => (
@@ -205,9 +214,15 @@ export default function WeeklyPlanPage() {
       {error && (
         <p role="alert" className="mt-2 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300">
           {error}{' '}
-          <button type="button" onClick={() => void (hasPlan || loading ? fetchPlan() : generate())} className="font-semibold underline">
-            Reintentar
-          </button>
+          {insufficientCandidates ? (
+            <Link href="/preferences" className={`inline-flex min-h-11 items-center rounded-lg font-semibold underline ${focusRing}`}>
+              Revisar preferencias
+            </Link>
+          ) : (
+            <button type="button" onClick={() => void (hasPlan || loading ? fetchPlan() : generate())} className="font-semibold underline">
+              Reintentar
+            </button>
+          )}
         </p>
       )}
 
@@ -264,16 +279,16 @@ export default function WeeklyPlanPage() {
                               </span>
                             </span>
                           </Link>
-                          {meal.availability && meal.availability.missing > 0 && (
+                          {meal.availability && meal.availability.needsReview > 0 && (
                             <button
                               type="button"
-                              onClick={() => void addMissing(recipe.id)}
+                              onClick={() => void addMissing(recipe.id, meal.id)}
                               aria-label={`Añadir a la lista lo que falta para ${recipe.title}`}
                               className={`relative hit-area flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${
-                                added[recipe.id] ? 'text-[#a3e635]' : 'text-forest-300'
+                                added[meal.id] ? 'text-[#a3e635]' : 'text-forest-300'
                               }`}
                             >
-                              {added[recipe.id] ? <Check size={17} strokeWidth={3} /> : <ListPlus size={18} />}
+                              {added[meal.id] ? <Check size={17} strokeWidth={3} /> : <ListPlus size={18} />}
                             </button>
                           )}
                           <button
@@ -321,7 +336,7 @@ export default function WeeklyPlanPage() {
           dayLabel={DAYS[swapping.dayOfWeek]}
           currentRecipeId={swapping.recipe?.id ?? null}
           usedRecipeIds={new Set(meals.filter(m => m.mealType === swapping.mealType && m.recipe).map(m => m.recipe!.id))}
-          onPick={(recipe, missing, total) => void swap(swapping, { recipe, missing, total })}
+          onPick={(recipe, availability) => void swap(swapping, { recipe, availability })}
           onAuto={() => void swap(swapping)}
           onClose={() => setSwapping(null)}
         />

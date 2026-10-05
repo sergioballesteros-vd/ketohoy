@@ -4,9 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, Minus, Plus, Search, ShoppingBasket, X } from 'lucide-react'
-import { CATEGORIES } from '@/lib/categories'
+import { MERCADONA_CATEGORIES as CATEGORIES } from '@/lib/categories'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
-import { parseShoppingQuantity } from '@/lib/shoppingList'
 import { productosCount } from '@/lib/pluralize'
 import { Chip, KetoBadge, Skeleton, focusRing } from '@/components/ui'
 import ExploreProductSheet from './ExploreProductSheet'
@@ -15,7 +14,10 @@ import { apiFetch } from '@/lib/apiFetch'
 type ShoppingItem = {
   id: string
   name: string
-  quantity: string | null
+  purchaseQuantity: number | null
+  sourceType: string
+  requiredQuantity: number | null
+  originalIngredientText: string | null
   checked: boolean
   product: {
     id: string
@@ -111,23 +113,43 @@ export default function ExplorePage() {
     }
   }, [])
 
+  const catalogRequest = useRef<{ url: string; controller: AbortController } | null>(null)
+  const catalogGeneration = useRef(0)
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const invalidateCatalog = useCallback(() => {
+    catalogGeneration.current++
+    catalogRequest.current?.controller.abort()
+    catalogRequest.current = null
+    if (searchTimeout.current) clearTimeout(searchTimeout.current)
+  }, [])
+  const lastCatalogUrl = useRef('/api/mercadona/search?q=keto')
+
   // One loader for trending / category / search: same state handling, different URL.
-  const fetchProducts = useCallback(async (url: string) => {
+  const fetchProducts = useCallback(async (url: string, retry = false) => {
+    if (!retry && catalogRequest.current?.url === url) return
+    invalidateCatalog()
+    const generation = catalogGeneration.current
+    const controller = new AbortController()
+    catalogRequest.current = { url, controller }
+    const current = () => generation === catalogGeneration.current && !controller.signal.aborted
+    lastCatalogUrl.current = url
     setLoading(true)
     setLoadFailed(false)
     try {
-      const res = await apiFetch(url)
+      const res = await apiFetch(url, { signal: controller.signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setProducts(data.products ?? [])
+      if (current()) setProducts(data.products ?? [])
     } catch (error) {
+      if (!current()) return
+      catalogRequest.current = null
       console.error('[ExploreClient] failed to load products', url, error)
       setProducts([])
       setLoadFailed(true)
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
-  }, [])
+  }, [invalidateCatalog])
 
   const loadTrending = useCallback(() => fetchProducts('/api/mercadona/search?q=keto'), [fetchProducts])
 
@@ -156,17 +178,18 @@ export default function ExplorePage() {
     void (async () => {
       await Promise.all([loadTrending(), loadShoppingList()])
     })()
-  }, [loadTrending, loadShoppingList])
+    return invalidateCatalog
+  }, [loadTrending, loadShoppingList, invalidateCatalog])
 
   useEffect(() => {
     const query = searchQuery.trim()
     if (!query) return
 
-    const timeout = window.setTimeout(() => {
+    const timeout = searchTimeout.current = setTimeout(() => {
       void loadSearch(query)
     }, 450)
 
-    return () => window.clearTimeout(timeout)
+    return () => clearTimeout(timeout)
   }, [searchQuery, loadSearch])
 
   const visibleProducts = selectedSubcategory
@@ -175,7 +198,7 @@ export default function ExplorePage() {
 
   const shoppingSummary = shoppingItems.filter(item => !item.checked)
   const subtotal = shoppingSummary.reduce((sum, item) => {
-    const qty = parseShoppingQuantity(item.quantity, 1)
+    const qty = item.purchaseQuantity ?? 0
     return sum + qty * (item.product?.unitPrice ?? 0)
   }, 0)
 
@@ -184,7 +207,8 @@ export default function ExplorePage() {
     const map: Record<string, { id: string; qty: number }> = {}
     for (const item of shoppingSummary) {
       const key = item.product?.mercadonaId
-      if (key) map[key] = { id: item.id, qty: parseShoppingQuantity(item.quantity, 1) }
+      if (key && item.sourceType === 'manual' && item.requiredQuantity === null && item.originalIngredientText === null && item.purchaseQuantity != null)
+        map[key] = { id: item.id, qty: item.purchaseQuantity }
     }
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,7 +288,16 @@ export default function ExplorePage() {
             className="h-11 w-full rounded-xl border border-forest-700 bg-forest-800 pr-10 pl-10 text-[15px] text-forest-50 outline-none transition-colors placeholder:text-forest-400 focus:border-[#a3e635] focus:ring-2 focus:ring-[#a3e635]/20 [&::-webkit-search-cancel-button]:hidden"
             placeholder="Buscar productos keto"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              invalidateCatalog()
+              setSelectedCategory(null)
+              setSelectedSubcategory(null)
+              setSearchQuery(e.target.value)
+              if (e.target.value.trim()) {
+                setLoading(true)
+                setLoadFailed(false)
+              } else void loadTrending()
+            }}
             aria-label="Buscar productos keto"
           />
           {searchQuery && (
@@ -378,7 +411,7 @@ export default function ExplorePage() {
                           <button
                             type="button"
                             disabled={busy}
-                            aria-label={`Quitar una unidad de ${product.name}`}
+                            aria-label={`Quitar un paquete de ${product.name}`}
                             onClick={() => tap(product, -1)}
                             className={`flex h-11 w-10 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
                           >
@@ -388,7 +421,7 @@ export default function ExplorePage() {
                           <button
                             type="button"
                             disabled={busy}
-                            aria-label={`Añadir otra unidad de ${product.name}`}
+                            aria-label={`Añadir otro paquete de ${product.name}`}
                             onClick={() => tap(product, 1)}
                             className={`flex h-11 w-10 items-center justify-center rounded-full disabled:opacity-50 ${focusRing}`}
                           >
@@ -411,8 +444,8 @@ export default function ExplorePage() {
                         )}
                       </span>
                       <span className="mt-0.5 line-clamp-2 min-h-[2.75em] text-[13px] leading-snug text-forest-100">{product.name}</span>
-                      <span className="mt-1 flex items-center gap-1.5 overflow-hidden">
-                        <KetoBadge score={product.ketoScore} />
+                      <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <KetoBadge score={product.ketoScore} classification={product.classification} />
                         {showBrand(product.brand) && <span className="truncate text-xs text-forest-400">· {product.brand}</span>}
                       </span>
                     </button>
@@ -426,7 +459,7 @@ export default function ExplorePage() {
             {loadFailed ? (
               <>
                 <p className="font-medium text-forest-50">No se pudo cargar el catálogo</p>
-                <button type="button" onClick={clearFilters} className={`mt-3 rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
+                <button type="button" onClick={() => void fetchProducts(lastCatalogUrl.current, true)} className={`mt-3 rounded-full bg-forest-800 px-4 py-2 text-sm font-semibold text-[#a3e635] ${focusRing}`}>
                   Reintentar
                 </button>
               </>

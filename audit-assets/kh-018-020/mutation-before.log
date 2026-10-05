@@ -1,0 +1,153 @@
+[WebServer] (node:60512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 4 workers
+
+(node:61023) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+  ✓  1 [setup] › e2e/auth.setup.ts:7:6 › register a test user (308ms)
+(node:61061) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61065) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61063) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+  ✘  2 [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo 500 and retry (8.4s)
+  ✘  5 [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo network and retry (8.8s)
+  ✘  3 [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo network and retry (30.0s)
+  ✘  4 [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo 500 and retry (30.0s)
+
+
+  1) [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo 500 and retry ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog') with timeout 5000ms
+      - waiting for getByRole('dialog')
+
+
+      22 |       await row.click()
+      23 |       await page.getByRole('button', { name: 'Quitar de la despensa' }).click()
+    > 24 |       await expect(page.getByRole('dialog')).toBeVisible()
+         |                                              ^
+      25 |     } else {
+      26 |       // Quantity removal uses PATCH; also test explicit DELETE via a legacy item below.
+      27 |       failing = 'PATCH'
+        at /Users/sergioballesteros/ketohoy/e2e/mutation-recovery.spec.ts:24:46
+
+    Error Context: test-results/mutation-recovery-KH-020-pantry-remove-undo-500-and-retry-chromium/error-context.md
+
+  2) [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo network and retry ──
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog') with timeout 5000ms
+      - waiting for getByRole('dialog')
+
+
+      22 |       await row.click()
+      23 |       await page.getByRole('button', { name: 'Quitar de la despensa' }).click()
+    > 24 |       await expect(page.getByRole('dialog')).toBeVisible()
+         |                                              ^
+      25 |     } else {
+      26 |       // Quantity removal uses PATCH; also test explicit DELETE via a legacy item below.
+      27 |       failing = 'PATCH'
+        at /Users/sergioballesteros/ketohoy/e2e/mutation-recovery.spec.ts:24:46
+
+    Error Context: test-results/mutation-recovery-KH-020-p-cdd9f-move-undo-network-and-retry-chromium/error-context.md
+
+  3) [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo 500 and retry 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Reintentar', exact: true })
+
+
+      31 |     await expect(row).toBeVisible()
+      32 |     failing = ''
+    > 33 |     await page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+         |                                                                         ^
+      34 |     await expect(row).toHaveCount(0)
+      35 |     failing = 'POST'
+      36 |     await page.route(`**/api/${domain}`, async route => {
+        at /Users/sergioballesteros/ketohoy/e2e/mutation-recovery.spec.ts:33:73
+
+    Error Context: test-results/mutation-recovery-KH-020-s-cff99-t-remove-undo-500-and-retry-chromium/error-context.md
+
+  4) [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo network and retry 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Reintentar', exact: true })
+
+
+      31 |     await expect(row).toBeVisible()
+      32 |     failing = ''
+    > 33 |     await page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+         |                                                                         ^
+      34 |     await expect(row).toHaveCount(0)
+      35 |     failing = 'POST'
+      36 |     await page.route(`**/api/${domain}`, async route => {
+        at /Users/sergioballesteros/ketohoy/e2e/mutation-recovery.spec.ts:33:73
+
+    Error Context: test-results/mutation-recovery-KH-020-s-09917-move-undo-network-and-retry-chromium/error-context.md
+
+  4 failed
+    [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo 500 and retry ───────
+    [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 pantry remove/undo network and retry ───
+    [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo 500 and retry 
+    [chromium] › e2e/mutation-recovery.spec.ts:6:7 › KH-020 shopping-list remove/undo network and retry 
+  1 passed (38.0s)

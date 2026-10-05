@@ -49,7 +49,11 @@ describe('weekly plan: generate, read, swap', () => {
   })
 
   it('simultaneous generate requests leave exactly one complete plan', async () => {
-    await Promise.all([generate(), generate(), generate()])
+    const responses = await Promise.all([generate(), generate(), generate()])
+    for (const response of responses) {
+      expect(response.status).toBe(200)
+      expect((await response.json()).meals).toHaveLength(28)
+    }
     const { db } = await import('@/lib/db')
     const { authMock } = await import('@/lib/__tests__/authMock')
     const plans = await db.weeklyPlan.findMany({

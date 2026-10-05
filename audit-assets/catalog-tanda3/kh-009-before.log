@@ -1,0 +1,82 @@
+
+> ketohoy@0.1.0 test:e2e
+> playwright test e2e/catalog.spec.ts
+
+[WebServer] (node:30631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 4 workers
+
+(node:30734) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] verification email failed Error: RESEND_API_KEY is missing
+[WebServer]     at a (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:1:9126)
+[WebServer]     at i (.next/server/chunks/[root-of-the-server]__1ny24jk._.js:32:133)
+[WebServer]     at async (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:2875)
+[WebServer]     at async (.next/server/chunks/src_lib_apiError_ts_0hllxp0._.js:1:19582)
+[WebServer]     at async Y (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:6068)
+[WebServer]     at async J (.next/server/chunks/[root-of-the-server]__1-d_nw_._.js:1:7146)
+  ✓  1 [setup] › e2e/auth.setup.ts:7:6 › register a test user (81ms)
+(node:30736) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30737) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30739) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [chromium] › e2e/catalog.spec.ts:22:5 › 503 retry preserves category, subcategory and search context (940ms)
+  ✘  4 [chromium] › e2e/catalog.spec.ts:69:5 › Enter deduplicates debounce, clearing invalidates pending search, unmount aborts (1.3s)
+  ✓  3 [chromium] › e2e/catalog.spec.ts:10:5 › visible category chips match API contract (3.0s)
+  ✘  2 [chromium] › e2e/catalog.spec.ts:51:5 › latest category wins reversed responses and obsolete errors (7.0s)
+
+
+  1) [chromium] › e2e/catalog.spec.ts:51:5 › latest category wins reversed responses and obsolete errors 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText('Resultado pescado', { exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByText('Resultado pescado', { exact: true }) with timeout 5000ms
+      - waiting for getByText('Resultado pescado', { exact: true })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      61 |   await expect(page.getByText('Resultado carne', { exact: true })).toBeVisible()
+      62 |   await page.waitForTimeout(1200) // Deliberately allow the obsolete response to arrive.
+    > 63 |   await expect(page.getByText('Resultado pescado', { exact: true })).toHaveCount(0)
+         |                                                                      ^
+      64 |   await expect(page.getByRole('button', { name: 'Carne', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      65 |   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+      66 |   await expect(page.getByText('No se pudo cargar el catálogo')).toHaveCount(0)
+        at /Users/sergioballesteros/ketohoy/e2e/catalog.spec.ts:63:70
+
+    Error Context: test-results/catalog-latest-category-wi-3621c-sponses-and-obsolete-errors-chromium/error-context.md
+
+  2) [chromium] › e2e/catalog.spec.ts:69:5 › Enter deduplicates debounce, clearing invalidates pending search, unmount aborts 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+      81 |   await page.getByRole('searchbox').press('Enter')
+      82 |   await page.waitForTimeout(550)
+    > 83 |   expect(delayed).toBe(true); expect(searches).toBe(1)
+         |                                                ^
+      84 |   await page.getByRole('button', { name: 'Borrar búsqueda' }).click()
+      85 |   await expect(page.getByText('Selección actual', { exact: true })).toBeVisible()
+      86 |   await page.waitForTimeout(1100)
+        at /Users/sergioballesteros/ketohoy/e2e/catalog.spec.ts:83:48
+
+    Error Context: test-results/catalog-Enter-deduplicates-2cfcd-nding-search-unmount-aborts-chromium/error-context.md
+
+  2 failed
+    [chromium] › e2e/catalog.spec.ts:51:5 › latest category wins reversed responses and obsolete errors 
+    [chromium] › e2e/catalog.spec.ts:69:5 › Enter deduplicates debounce, clearing invalidates pending search, unmount aborts 
+  3 passed (8.4s)

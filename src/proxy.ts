@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 
 // Reachable without a session: landing, login + account recovery, recipe pages (indexable content),
 // and the auth API itself. Everything else redirects to /login (pages) or answers 401 (API).
-const PUBLIC_EXACT = new Set(['/', '/login', '/forgot-password', '/reset-password', '/verify-email'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/forgot-password', '/reset-password', '/verify-email', '/legal'])
 const isPublic = (path: string) => PUBLIC_EXACT.has(path) || path.startsWith('/recipes/') || path.startsWith('/api/auth/')
 
 const isDev = process.env.NODE_ENV === 'development'

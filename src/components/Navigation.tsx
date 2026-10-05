@@ -13,7 +13,7 @@ const navItems = [
   { href: '/shopping-list', label: 'Compra', Icon: ShoppingCart },
 ]
 
-export const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email']
+export const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email', '/legal', '/accept-terms']
 
 // A recipe page belongs to "Recetas" for the tab bar.
 const isActive = (pathname: string, href: string) =>

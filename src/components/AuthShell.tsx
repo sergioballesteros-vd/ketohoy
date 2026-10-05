@@ -1,4 +1,5 @@
 import { LogoMark } from '@/components/icons'
+import Link from 'next/link'
 
 export const authInput =
   'w-full rounded-xl px-4 py-3 text-[15px] outline-none transition-colors bg-forest-800 border border-forest-700 text-forest-50 ' +
@@ -22,6 +23,11 @@ export default function AuthShell({ title, children }: { title: string; children
           <h1 className="text-xl font-semibold text-forest-50">{title}</h1>
           {children}
         </div>
+        <nav aria-label="Información legal" className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-forest-300">
+          <Link href="/legal#terminos" className="underline">Términos</Link>
+          <Link href="/legal#privacidad" className="underline">Privacidad</Link>
+          <Link href="/legal#cookies" className="underline">Cookies</Link>
+        </nav>
       </div>
     </main>
   )

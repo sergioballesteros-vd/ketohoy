@@ -20,7 +20,7 @@ type Props = {
 const euros = (n: number) => `${n.toFixed(2).replace('.', ',')} €`
 
 export default function ExploreProductSheet({ product, inCartQty, favorite, onToggleFavorite, onAdd, onClose }: Props) {
-  const [detail, setDetail] = useState<{ ingredients?: string; allergens?: string } | null>(null)
+  const [detail, setDetail] = useState<MercadonaProduct | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState(false)
@@ -36,6 +36,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
     }
   }, [product.mercadonaId])
 
+  const currentProduct = detail ?? product
   const total = product.unitPrice != null ? product.unitPrice * quantity : null
   const brand = product.brand?.toLowerCase() === 'mercadona' ? null : product.brand
 
@@ -56,11 +57,12 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
       }
       footer={
         <>
+          <p className="mb-2 text-xs text-forest-300">Compra por paquetes</p>
           <div className="flex flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
             <div className="flex h-12 items-center rounded-lg bg-forest-800">
               <button
                 type="button"
-                aria-label="Reducir cantidad"
+                aria-label="Reducir cantidad de paquetes"
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
                 className={`flex h-12 w-11 items-center justify-center rounded-lg text-forest-50 ${focusRing}`}
               >
@@ -71,7 +73,7 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
               </span>
               <button
                 type="button"
-                aria-label="Aumentar cantidad"
+                aria-label="Aumentar cantidad de paquetes"
                 onClick={() => setQuantity(q => q + 1)}
                 className={`flex h-12 w-11 items-center justify-center rounded-lg text-forest-50 ${focusRing}`}
               >
@@ -124,12 +126,12 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
             {product.referencePrice && <span className="text-sm text-forest-300">{product.referencePrice}</span>}
           </p>
           <div className="mt-1.5">
-            <KetoBadge score={product.ketoScore} />
+            <KetoBadge score={currentProduct.ketoScore} classification={currentProduct.classification} />
           </div>
         </div>
       </div>
       <div className="mt-3">
-        <KetoNote score={product.ketoScore} source="category" />
+        <KetoNote score={currentProduct.ketoScore} source={currentProduct.classification.source === 'nutrition' ? 'openfoodfacts' : currentProduct.classification.source === 'unknown' ? 'unknown' : 'category'} netCarbs={currentProduct.netCarbsPer100g} />
       </div>
 
       {(detail?.ingredients || detail?.allergens) && (
