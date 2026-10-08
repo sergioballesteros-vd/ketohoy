@@ -89,7 +89,7 @@ PORT=3101 npm start -- --hostname 127.0.0.1 > "$RELEASE/pre-health.log" 2>&1 &
 candidate_pid=$!
 stop_candidate() { kill "$candidate_pid" 2>/dev/null || true; wait "$candidate_pid" 2>/dev/null || true; rm -f "$RELEASE/pre-health.log"; }
 trap stop_candidate EXIT
-curl -fsSI --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3101/login | head -1 | grep -q ' 200'
+curl -fsSI --retry-connrefused --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3101/login | head -1 | grep -q ' 200'
 curl -fsS --max-time 15 http://127.0.0.1:3101/api/health | grep -q '"status":"ok"'
 stop_candidate
 trap - EXIT
@@ -102,19 +102,19 @@ atomic_link "releases/$RELEASE_ID" "$CURRENT"
 if ! pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env; then
   atomic_link "$OLD_TARGET" "$CURRENT"
   if pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env; then
-    curl -fsSI --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login >/dev/null || true
+    curl -fsSI --retry-connrefused --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login >/dev/null || true
     curl -fsS --max-time 15 http://127.0.0.1:3000/api/health | grep -q '"status":"ok"' || true
   fi
   exit 1
 fi
-if ! curl -fsSI --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login | head -1 | grep -q ' 200' ||
+if ! curl -fsSI --retry-connrefused --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login | head -1 | grep -q ' 200' ||
    ! curl -fsS --max-time 15 http://127.0.0.1:3000/api/health | grep -q '"status":"ok"'; then
   echo "Post-activation healthcheck failed; restoring previous release" >&2
   atomic_link "$OLD_TARGET" "$CURRENT"
   pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env || true
   exit 1
 fi
-if ! curl -fsSI --retry 5 --retry-delay 3 --max-time 20 "https://${APP_DOMAIN}/login" > /tmp/ketohoy-login.headers ||
+if ! curl -fsSI --retry-connrefused --retry 5 --retry-delay 3 --max-time 20 "https://${APP_DOMAIN}/login" > /tmp/ketohoy-login.headers ||
    ! grep -q ' 200' /tmp/ketohoy-login.headers ||
    ! grep -qi '^content-security-policy:' /tmp/ketohoy-login.headers ||
    ! grep -qi '^strict-transport-security:' /tmp/ketohoy-login.headers; then

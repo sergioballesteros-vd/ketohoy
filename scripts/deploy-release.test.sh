@@ -108,7 +108,8 @@ test "$(readlink "$DEPLOY_ROOT/current")" = releases/0123456789abcdef0123456789a
 test "$(cat "$DEPLOY_ROOT/dev.db")" = 'persistent sqlite fixture'
 test "$(cat "$DEPLOY_ROOT/backups/pre-migration-0123456789abcdef0123456789abcdef01234567-100-1.db")" = 'persistent sqlite fixture'
 test -x "$DEPLOY_ROOT/shared/backup-db.py"
-grep -Fxq "ACCOUNT_DELETION_LEDGER=$DEPLOY_ROOT/shared/privacy/account-deletions.jsonl" "$DEPLOY_ROOT/shared/.env.local"
+expected_root="$(cd "$DEPLOY_ROOT" && pwd -P)"
+grep -Fxq "ACCOUNT_DELETION_LEDGER=$expected_root/shared/privacy/account-deletions.jsonl" "$DEPLOY_ROOT/shared/.env.local"
 test -f "$DEPLOY_ROOT/shared/privacy/account-deletions.jsonl"
 python3 - "$DEPLOY_ROOT/shared/privacy" "$DEPLOY_ROOT/shared/privacy/account-deletions.jsonl" <<'PY'
 import os, stat, sys
