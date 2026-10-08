@@ -1,4 +1,5 @@
 // Audit evidence only. Requires the audit server on 3100 and a disposable DB copy.
+/* eslint-disable @typescript-eslint/no-require-imports -- This audit probe is CommonJS. */
 const fs = require('node:fs');
 const path = require('node:path');
 const Database = require('better-sqlite3');
