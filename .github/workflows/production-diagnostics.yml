@@ -1,0 +1,33 @@
+name: Production diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect production process
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_PATH,PM2_APP_NAME
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/ketohoy}"
+            printf 'current=%s\nprevious=%s\n' "$(readlink -f "$DEPLOY_PATH/current" || true)" "$(readlink -f "$DEPLOY_PATH/previous" || true)"
+            ls -ld "$DEPLOY_PATH/current" "$DEPLOY_PATH/previous" || true
+            pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const p of JSON.parse(s)) console.log(JSON.stringify({name:p.name,status:p.pm2_env.status,restarts:p.pm2_env.restart_time,pid:p.pid,cwd:p.pm2_env.pm_cwd,script:p.pm2_env.pm_exec_path}))})'
+            for port in 3000 3101; do
+              printf 'port_%s=' "$port"
+              curl -sS -o /dev/null -w '%{http_code}\n' --max-time 5 "http://127.0.0.1:$port/api/health" || true
+            done
+            LOG="$HOME/.pm2/logs/${PM2_APP_NAME}-error.log"
+            if [ -f "$LOG" ]; then
+              tail -n 80 "$LOG" | grep -E 'Error:|MODULE_NOT_FOUND|EADDRINUSE|Prisma|Cannot find|failed|FATAL' | tail -n 30 || true
+            fi
