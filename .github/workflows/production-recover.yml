@@ -1,0 +1,43 @@
+name: Recover production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Existing release directory to activate
+        required: true
+        type: string
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Activate verified release
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_PATH,PM2_APP_NAME,RELEASE_ID
+          script: |
+            set -euo pipefail
+            ROOT="${DEPLOY_PATH:-/home/ubuntu/ketohoy}"
+            ROOT="$(cd "$ROOT" && pwd -P)"
+            [[ "$RELEASE_ID" =~ ^[a-f0-9]{40}-[0-9]+-[0-9]+$ ]]
+            RELEASE="$ROOT/releases/$RELEASE_ID"
+            test "$(cat "$RELEASE/.deploy-sha")" = "${RELEASE_ID%%-*}"
+            test -s "$RELEASE/.next/BUILD_ID"
+            test -x "$RELEASE/node_modules/.bin/next"
+            ln -sfn "releases/$RELEASE_ID" "$ROOT/current.next"
+            node -e 'require("node:fs").renameSync(process.argv[1], process.argv[2])' "$ROOT/current.next" "$ROOT/current"
+            pm2 delete "$PM2_APP_NAME" >/dev/null 2>&1 || true
+            pm2 start "$ROOT/ecosystem.config.cjs" --update-env
+            curl -fsSI --retry-connrefused --retry 15 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login | head -1 | grep -q ' 200'
+            curl -fsS --retry-connrefused --retry 15 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/api/health | grep -q '"status":"ok"'
+            pm2 save
+            printf '%s\n' "${RELEASE_ID%%-*}" > "$ROOT/.deploy-sha"
+            printf 'Recovered release %s\n' "$RELEASE_ID"

@@ -37,6 +37,11 @@ atomic_link() {
   node -e 'require("node:fs").renameSync(process.argv[1], process.argv[2])' "$tmp" "$link"
 }
 
+reload_app() {
+  pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
+  pm2 start "$ROOT/ecosystem.config.cjs" --update-env
+}
+
 if [ ! -L "$CURRENT" ]; then
   old_sha="$(cat "$ROOT/.deploy-sha" 2>/dev/null || printf legacy)"
   old_sha="${old_sha:0:40}"
@@ -99,9 +104,9 @@ module.exports = { apps: [{ name: process.env.PM2_APP_NAME, cwd: __dirname + '/c
 EOF
 atomic_link "$OLD_TARGET" "$PREVIOUS"
 atomic_link "releases/$RELEASE_ID" "$CURRENT"
-if ! pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env; then
+if ! reload_app; then
   atomic_link "$OLD_TARGET" "$CURRENT"
-  if pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env; then
+  if reload_app; then
     curl -fsSI --retry-connrefused --retry 5 --retry-delay 2 --max-time 15 http://127.0.0.1:3000/login >/dev/null || true
     curl -fsS --max-time 15 http://127.0.0.1:3000/api/health | grep -q '"status":"ok"' || true
   fi
@@ -111,7 +116,7 @@ if ! curl -fsSI --retry-connrefused --retry 5 --retry-delay 2 --max-time 15 http
    ! curl -fsS --max-time 15 http://127.0.0.1:3000/api/health | grep -q '"status":"ok"'; then
   echo "Post-activation healthcheck failed; restoring previous release" >&2
   atomic_link "$OLD_TARGET" "$CURRENT"
-  pm2 startOrReload "$ROOT/ecosystem.config.cjs" --update-env || true
+  reload_app || true
   exit 1
 fi
 if ! curl -fsSI --retry-connrefused --retry 5 --retry-delay 3 --max-time 20 "https://${APP_DOMAIN}/login" > /tmp/ketohoy-login.headers ||
