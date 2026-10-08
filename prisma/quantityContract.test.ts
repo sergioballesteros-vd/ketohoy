@@ -12,7 +12,25 @@ it('real migration preserves rows, ownership, purchases, pantry and unknown lega
   fs.writeFileSync(filename, source.serialize()); source.close()
   const sql = new Database(filename)
   const migration = '20261003200000_quantity_contract'
-  // Bring fixture to the immediately preceding schema, using real earlier migrations on this copy.
+  // Rewind only this disposable clone so the migration under test actually runs in CI too.
+  sql.exec(`
+    DROP INDEX IF EXISTS ShoppingListItem_userId_sourceKey_key;
+    DROP INDEX IF EXISTS UserPreferences_userId_key;
+    DROP INDEX IF EXISTS PantryItem_userId_productId_unit_key;
+    DROP INDEX IF EXISTS WeeklyPlan_userId_weekStart_key;
+    DROP INDEX IF EXISTS WeeklyMeal_planId_dayOfWeek_mealType_key;
+    CREATE INDEX IF NOT EXISTS UserPreferences_userId_idx ON UserPreferences(userId);
+    CREATE INDEX IF NOT EXISTS PantryItem_userId_idx ON PantryItem(userId);
+    CREATE INDEX IF NOT EXISTS WeeklyPlan_userId_idx ON WeeklyPlan(userId);
+  `)
+  for (const [table, column] of [
+    ...['sourceContributions','requiredQuantity','requiredUnit','originalIngredientText','sourceType','sourceKey','purchaseQuantity','pantryItemId','pantryDeltaUnit'].map(column => ['ShoppingListItem', column]),
+    ...['packageQuantity','packageUnit'].map(column => ['Product', column]),
+  ]) {
+    if ((sql.pragma(`table_info(${table})`) as { name: string }[]).some(row => row.name === column)) sql.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`)
+  }
+  sql.prepare('DELETE FROM _prisma_migrations WHERE migration_name >= ?').run(migration)
+  // Apply any missing earlier migrations on this copy before taking the baseline snapshot.
   const applied = new Set((sql.prepare('SELECT migration_name FROM _prisma_migrations').all() as { migration_name: string }[]).map(r => r.migration_name))
   for (const entry of fs.readdirSync('prisma/migrations').sort()) {
     if (entry >= migration || !fs.statSync(`prisma/migrations/${entry}`).isDirectory() || applied.has(entry)) continue
