@@ -1,6 +1,9 @@
 import { Apple, Beef, Carrot, CupSoda, Droplets, Egg, Ellipsis, Fish, Milk, Nut, UtensilsCrossed } from 'lucide-react'
 
 // Product category keys are the stored data model (see ketoRules ProductCategory); label/icon are display only.
+export const PRODUCT_CATEGORIES = ['meat', 'fish', 'eggs', 'dairy', 'vegetables', 'fruit', 'nuts', 'oils', 'sauces', 'drinks', 'other'] as const
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number]
+
 export const CATEGORIES = [
   { key: 'meat', label: 'Carne', icon: Beef },
   { key: 'fish', label: 'Pescado', icon: Fish },

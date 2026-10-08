@@ -1,9 +1,12 @@
 'use client'
 import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { LogoMark } from '@/components/icons'
 import { authButton, authInput } from '@/components/AuthShell'
+import { normalizeInternalReturnTo } from '@/lib/returnTo'
+import { clearShoppingListSnapshots } from '@/lib/shoppingListSnapshot'
 
 type Mode = 'login' | 'register'
 
@@ -16,14 +19,20 @@ const GoogleG = () => (
   </svg>
 )
 
-export default function LoginForm({ initialMode, initialError = null, google = false }: { initialMode: Mode; initialError?: string | null; google?: boolean }) {
-  const [mode, setMode] = useState<Mode>(initialMode)
+export default function LoginForm({ initialError = null, returnTo, google = false }: { initialError?: string | null; returnTo: string; google?: boolean }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const mode: Mode = searchParams.get('modo') === 'registro' ? 'register' : 'login'
   const [error, setError] = useState<string | null>(initialError)
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const switchMode = (next: Mode) => {
-    setMode(next)
+    const params = new URLSearchParams()
+    if (next === 'register') params.set('modo', 'registro')
+    if (returnTo !== '/') params.set('returnTo', returnTo)
+    router.push(`${pathname}${params.size ? `?${params}` : ''}`)
     setError(null)
   }
 
@@ -47,7 +56,12 @@ export default function LoginForm({ initialMode, initialError = null, google = f
         return
       }
       const data = await res.json()
-      window.location.href = data.termsRequired ? '/accept-terms' : '/' // full load so server components see the new session
+      clearShoppingListSnapshots()
+      const destination = normalizeInternalReturnTo(returnTo)
+      const next = data.termsRequired
+        ? `/accept-terms?${new URLSearchParams({ returnTo: destination })}`
+        : destination
+      window.location.assign(next) // full load so server components see the new session
     } catch {
       setError('No se pudo conectar. Inténtalo de nuevo.')
     } finally {
@@ -92,7 +106,8 @@ export default function LoginForm({ initialMode, initialError = null, google = f
             <>
               {/* Plain link, not a form: the CSP's form-action 'self' would block the redirect to Google. */}
               <a
-                href="/api/auth/google"
+                href={`/api/auth/google?${new URLSearchParams({ returnTo: normalizeInternalReturnTo(returnTo) })}`}
+                onClick={clearShoppingListSnapshots}
                 className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-xl text-sm font-semibold"
                 style={{ background: '#eef5ef', color: '#1c321d' }}
               >

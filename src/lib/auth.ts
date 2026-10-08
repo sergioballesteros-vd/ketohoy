@@ -27,8 +27,13 @@ const hashToken = (token: string) => createHash('sha256').update(token).digest('
 
 export async function createSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString('hex')
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000)
-  await db.session.create({ data: { id: hashToken(token), userId, expiresAt } })
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + SESSION_DAYS * 86_400_000)
+  await db.$transaction([
+    db.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+    db.authToken.deleteMany({ where: { expiresAt: { lt: now } } }),
+    db.session.create({ data: { id: hashToken(token), userId, expiresAt } }),
+  ])
   ;(await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',

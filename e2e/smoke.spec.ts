@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { mockMercadonaCatalog } from './mercadona-fixture'
 
 const PAGES = ['/', '/explore', '/inventory', '/meals', '/preferences', '/shopping-list', '/weekly-plan']
 
@@ -19,6 +20,7 @@ for (const path of PAGES) {
     })
     page.on('pageerror', err => errors.push(err.message))
 
+    if (path === '/explore') await mockMercadonaCatalog(page)
     await page.goto(path)
     await page.waitForLoadState('networkidle')
 
@@ -38,19 +40,18 @@ test('generate weekly plan produces a full, varied week', async ({ page }) => {
 })
 
 test('favoriting a product in Explore persists across reload', async ({ page }) => {
+  await mockMercadonaCatalog(page)
   await page.goto('/explore')
   await page.waitForLoadState('networkidle')
-  // exact: true matters here — the product card itself is role="button" with no
-  // aria-label of its own, so its computed accessible name includes the nested
-  // favorite button's label, and a non-exact match would hit the card instead.
-  const favoriteButton = page.getByRole('button', { name: 'Marcar favorito', exact: true }).first()
+  const favoriteButton = page.getByRole('button', { name: /^Marcar .+ como favorito$/, exact: true }).first()
   await expect(favoriteButton).toBeVisible({ timeout: 15_000 })
   await favoriteButton.click()
 
-  await expect(page.getByRole('button', { name: 'Quitar favorito', exact: true }).first()).toBeVisible()
+  const removeFavorite = page.getByRole('button', { name: /^Quitar .+ de favoritos$/, exact: true }).first()
+  await expect(removeFavorite).toBeVisible()
 
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Quitar favorito', exact: true }).first()).toBeVisible({
+  await expect(removeFavorite).toBeVisible({
     timeout: 15_000,
   })
 })

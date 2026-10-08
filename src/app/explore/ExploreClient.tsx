@@ -6,10 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, Minus, Plus, Search, ShoppingBasket, X } from 'lucide-react'
 import { MERCADONA_CATEGORIES as CATEGORIES } from '@/lib/categories'
 import type { MercadonaProduct as MercadonaResult } from '@/lib/mercadona'
+import type { MercadonaCatalogResult } from '@/lib/mercadona'
 import { productosCount } from '@/lib/pluralize'
 import { Chip, KetoBadge, Skeleton, focusRing } from '@/components/ui'
 import ExploreProductSheet from './ExploreProductSheet'
 import { apiFetch } from '@/lib/apiFetch'
+import { closeSheet } from '@/components/Sheet'
 
 type ShoppingItem = {
   id: string
@@ -76,6 +78,7 @@ export default function ExplorePage() {
   const [products, setProducts] = useState<MercadonaResult[]>([])
   const [loading, setLoading] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [catalogStatus, setCatalogStatus] = useState<Pick<MercadonaCatalogResult, 'source' | 'freshness' | 'completeness'> | null>(null)
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([])
   const [detailProduct, setDetailProduct] = useState<MercadonaResult | null>(null)
   // Quantity shown right after a tap, before the server confirms; `pending` locks that product meanwhile.
@@ -139,12 +142,16 @@ export default function ExplorePage() {
       const res = await apiFetch(url, { signal: controller.signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      if (current()) setProducts(data.products ?? [])
+      if (current()) {
+        setProducts(data.products ?? [])
+        setCatalogStatus({ source: data.source ?? 'mercadona', freshness: data.freshness ?? 'fresh', completeness: data.completeness ?? 'complete' })
+      }
     } catch (error) {
       if (!current()) return
       catalogRequest.current = null
       console.error('[ExploreClient] failed to load products', url, error)
       setProducts([])
+      setCatalogStatus(null)
       setLoadFailed(true)
     } finally {
       if (current()) setLoading(false)
@@ -342,7 +349,25 @@ export default function ExplorePage() {
         )}
       </div>
 
-      <section className="mt-2" aria-live="polite">
+      {catalogStatus && (catalogStatus.freshness !== 'fresh' || catalogStatus.completeness === 'partial') && (
+        <p role="status" className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-forest-800 px-3 py-2 text-xs text-forest-200">
+          <span>
+            {catalogStatus.freshness === 'demo'
+              ? catalogStatus.source === 'mixed'
+                ? 'Hay datos de demostración; sus precios y disponibilidad no son actuales.'
+                : 'Catálogo de demostración: precios y disponibilidad no son actuales.'
+              : catalogStatus.freshness === 'stale'
+                ? 'Mostrando la última copia disponible; precios y disponibilidad pueden haber cambiado.'
+                : 'Catálogo parcial: faltan algunos productos y categorías.'}
+            {' '}Puedes seguir explorando.
+          </span>
+          <button type="button" onClick={() => void fetchProducts(lastCatalogUrl.current, true)} className={`font-semibold text-[#a3e635] underline underline-offset-2 ${focusRing}`}>
+            Reintentar
+          </button>
+        </p>
+      )}
+
+      <section className="mt-2">
         {loading ? (
           <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-busy="true">
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -355,7 +380,7 @@ export default function ExplorePage() {
           </div>
         ) : visibleProducts.length > 0 ? (
           <>
-            <p className="mb-3 text-xs text-forest-300">
+            <p aria-live="polite" aria-atomic="true" className="mb-3 text-xs text-forest-300">
               {productosCount(visibleProducts.length)}
               {searchQuery.trim() ? ` para “${searchQuery.trim()}”` : selectedCategory ? ` · ${CATEGORIES.find(c => c.key === selectedCategory)?.label}` : ' · Selección keto'}
             </p>
@@ -389,11 +414,11 @@ export default function ExplorePage() {
                       <button
                         type="button"
                         aria-pressed={fav}
-                        aria-label={fav ? 'Quitar favorito' : 'Marcar favorito'}
+                        aria-label={fav ? `Quitar ${product.name} de favoritos` : `Marcar ${product.name} como favorito`}
                         onClick={() => toggleFavorite(product.id)}
                         className={`absolute top-1 right-1 hit-area flex h-10 w-10 items-center justify-center rounded-full bg-forest-950 ${focusRing} ${fav ? 'text-[#a3e635]' : 'text-forest-50'}`}
                       >
-                        <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
+                        <Heart size={16} aria-hidden="true" fill={fav ? 'currentColor' : 'none'} />
                       </button>
                       {/* "+" first; compact stepper once the product is in the list */}
                       {qty === 0 ? (
@@ -498,7 +523,7 @@ export default function ExplorePage() {
           favorite={!!favoriteProductIds[detailProduct.id]}
           onToggleFavorite={() => toggleFavorite(detailProduct.id)}
           onAdd={quantity => changeQuantity(detailProduct, quantity)}
-          onClose={() => setDetailProduct(null)}
+          onClose={closeSheet(() => setDetailProduct(null))}
         />
       )}
     </main>

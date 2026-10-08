@@ -101,6 +101,10 @@ a {
 @keyframes sheet-out {
   to { opacity: 0; transform: translateY(32px); }
 }
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+.row-enter { animation: row-in 140ms var(--ease-out) both; }
 /* Leaving row: it is removed from state right after (see useLeaving). */
 .leaving { opacity: 0; transform: translateX(-8px); transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in); pointer-events: none; }
 
@@ -133,7 +137,7 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .sheet-overlay, .sheet-panel { animation: none !important; }
-  .leaving, .toast[data-open='false'] { transform: none; }
+  .leaving, .row-enter, .toast[data-open='false'] { transform: none; animation: none !important; }
 }
 
 /* Invisible 44px-minimum touch target centred on the element; its visual size is unchanged.

@@ -5,22 +5,36 @@ import { db } from '@/lib/db'
 import { accessibleProducts } from '@/lib/productAccess'
 import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
+import { PRODUCT_CATEGORIES } from '@/lib/categories'
+
+const boundedAmount = z.number().finite().min(0).max(1000)
+const imageUrlSchema = z.string().max(2048).nullable().optional().transform(value => {
+  if (value == null) return value
+  if (value.startsWith('/') && !value.startsWith('//')) return value
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password &&
+      ['prod-mercadona.imgix.net', 'images.unsplash.com'].includes(url.hostname) ? value : null
+  } catch {
+    return null
+  }
+})
 
 const createProductSchema = z.object({
   ...packageFields,
-  name: z.string().trim().min(1),
-  category: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
+  category: z.enum(PRODUCT_CATEGORIES),
   ketoScore: z.number().int().min(0).max(5).optional(),
-  brand: z.string().nullable().optional(),
+  brand: z.string().trim().max(80).nullable().optional(),
   source: z.literal('manual').optional(),
   mercadonaId: z.null().optional(),
-  unitPrice: z.number().nullable().optional(),
-  imageUrl: z.string().nullable().optional(),
-  netCarbsPer100g: z.number().nonnegative().nullable().optional(),
-  proteinPer100g: z.number().nullable().optional(),
-  fatPer100g: z.number().nullable().optional(),
-  caloriesPer100g: z.number().nullable().optional(),
-  tags: z.array(z.string()).optional(),
+  imageUrl: imageUrlSchema,
+  unitPrice: boundedAmount.nullable().optional(),
+  netCarbsPer100g: boundedAmount.nullable().optional(),
+  proteinPer100g: boundedAmount.nullable().optional(),
+  fatPer100g: boundedAmount.nullable().optional(),
+  caloriesPer100g: boundedAmount.nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
 }).refine(validPackagePair, 'Package quantity and unit must both be specified')
 
 // GET /api/products - shared catalog and own manual products (private API)

@@ -52,3 +52,24 @@ it('home, suggestions, generation and preference creation share defaults for two
     expect(await (await preferences()).json()).toMatchObject(DEFAULT_PREFERENCES)
   }
 })
+
+it('keeps a successful empty Home distinct from a database failure', async () => {
+  const { db } = await import('@/lib/db')
+  const { default: Home } = await import('../page')
+  const user = await db.user.create({ data: { email: 'home-empty-contract@example.test', passwordHash: 'fixture' } })
+  auth.userId = user.id
+
+  vi.spyOn(db.pantryItem, 'findMany').mockResolvedValueOnce([] as never)
+  vi.spyOn(db.recipe, 'findMany').mockResolvedValueOnce([] as never)
+  vi.spyOn(db.shoppingListItem, 'findMany').mockResolvedValueOnce([] as never)
+  vi.spyOn(db.userPreferences, 'findFirst').mockResolvedValueOnce(null)
+  const empty = await Home() as ReactElement<{ stats: { pantryCount: number; recipesAvailable: number; shoppingCount: number; featured: unknown } }>
+  expect(empty.props.stats).toMatchObject({ pantryCount: 0, recipesAvailable: 0, shoppingCount: 0, featured: null })
+
+  vi.restoreAllMocks()
+  vi.spyOn(db.pantryItem, 'findMany').mockRejectedValueOnce(new Error('database failure detail'))
+  await expect(Home()).rejects.toThrow('database failure detail')
+  vi.restoreAllMocks()
+  const recovered = await Home() as ReactElement<{ stats: { pantryCount: number } }>
+  expect(recovered.props.stats.pantryCount).toBe(0)
+})

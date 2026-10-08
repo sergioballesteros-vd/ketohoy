@@ -1,5 +1,6 @@
 import { registrationData } from './registration'
 import { test, expect, type Page } from '@playwright/test'
+import { mockMercadonaCatalog } from './mercadona-fixture'
 
 const dialog = (page: Page) => page.getByRole('dialog')
 
@@ -13,9 +14,17 @@ test.beforeEach(async ({ page }, testInfo) => {
   })
   expect(res.status()).toBe(201)
 })
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' })
+})
 
 test('shopping list: empty state, add, change quantity, buy -> pantry with the bought quantity', async ({ page }) => {
   await page.goto('/shopping-list')
+  await page.evaluate(() => document.addEventListener('animationstart', event => {
+    if ((event as AnimationEvent).animationName === 'row-in') {
+      document.documentElement.dataset.rowEnterCount = String(Number(document.documentElement.dataset.rowEnterCount ?? 0) + 1)
+    }
+  }, true))
   await expect(page.getByText('Lista vacía')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Explorar productos' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Ver recetas' })).toBeVisible()
@@ -42,6 +51,9 @@ test('shopping list: empty state, add, change quantity, buy -> pantry with the b
   // buy: leaves the pending list...
   await row.getByRole('button', { name: /como comprado/ }).click()
   await expect(page.getByText('Todo comprado')).toBeVisible()
+  const boughtRow = page.getByRole('listitem').filter({ hasText: 'Queso E2E' })
+  await expect(boughtRow).toBeVisible()
+  await expect.poll(async () => Number(await page.locator('html').getAttribute('data-row-enter-count'))).toBeGreaterThan(0)
   await expect(page.getByRole('button', { name: /Devolver Queso E2E/ })).toBeVisible()
 
   // ...and lands in the pantry with the bought quantity
@@ -65,6 +77,7 @@ test('shopping list: empty state, add, change quantity, buy -> pantry with the b
 })
 
 test('shopping list: add from Mercadona search, remove at quantity 1 with undo', async ({ page }) => {
+  const fixture = await mockMercadonaCatalog(page, true)
   await page.goto('/shopping-list')
   await page.getByRole('button', { name: 'Añadir', exact: true }).click()
   await page.getByLabel('Buscar productos de Mercadona').fill('leche')
@@ -76,12 +89,28 @@ test('shopping list: add from Mercadona search, remove at quantity 1 with undo',
   const row = page.getByRole('listitem').first()
   await expect(row.getByRole('button', { name: /Quitar .* de la lista/ })).toBeVisible({ timeout: 10_000 })
   await row.getByRole('button', { name: /Quitar .* de la lista/ }).click()
+  await expect(row).toHaveClass(/leaving/)
   await expect(page.getByText('Lista vacía')).toBeVisible()
+  await page.route('**/api/shopping-list', async route => {
+    if (route.request().method() === 'POST') {
+      fixture.setShoppingQuantity(1)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      return route.fulfill({ status: 200, json: fixture.shoppingRow })
+    }
+    if (route.request().method() === 'GET') {
+      const response = await route.fetch()
+      return route.fulfill({ response, json: fixture.mergeShoppingItems(await response.json()) })
+    }
+    return route.continue()
+  })
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByRole('listitem').first()).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('listitem').first()).toHaveClass(/row-enter/)
+  await page.unroute('**/api/shopping-list')
 })
 
 test('pantry: add manually and via search, edit quantity, remove with undo', async ({ page }) => {
+  await mockMercadonaCatalog(page, true)
   await page.goto('/inventory')
   await expect(page.getByText('Tu despensa está vacía')).toBeVisible()
 
@@ -108,9 +137,58 @@ test('pantry: add manually and via search, edit quantity, remove with undo', asy
   // remove (secondary action inside the sheet) + undo
   await page.getByRole('button', { name: /Aceitunas E2E/ }).click()
   await page.getByRole('button', { name: 'Quitar de la despensa' }).click()
+  await expect(page.getByRole('button', { name: /Aceitunas E2E/ }).locator('xpath=..')).toHaveClass(/leaving/)
   await expect(page.getByRole('button', { name: /Aceitunas E2E/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByRole('button', { name: /Aceitunas E2E/ })).toContainText('5 kg')
+  await expect(page.getByRole('button', { name: /Aceitunas E2E/ }).locator('xpath=..')).toHaveClass(/row-enter/)
+})
+
+test('KH-041 long-list row motion stays usable across viewport widths and reduced motion', async ({ page }) => {
+  for (let index = 0; index < 40; index++) {
+    const response = await page.request.post('/api/shopping-list', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { name: `Long list ${String(index).padStart(2, '0')}`, quantity: 1 },
+    })
+    expect(response.ok()).toBe(true)
+  }
+  await page.goto('/shopping-list')
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
+      const result = animate.apply(this, args)
+      if ((this as HTMLElement).dataset.listRow) {
+        const root = document.documentElement
+        root.dataset.rowFlipCount = String(Number(root.dataset.rowFlipCount ?? 0) + 1)
+      }
+      return result
+    }
+  })
+  let restored = page.getByRole('listitem').filter({ hasText: 'Long list 20' })
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 500 ? 844 : 900 })
+    await restored.evaluate(element => element.scrollIntoView({ block: 'center' }))
+    await restored.getByRole('button', { name: 'Quitar Long list 20 de la lista' }).click()
+    await expect(restored).toHaveClass(/leaving/)
+    if (width === 390) await page.screenshot({ path: '/tmp/kh041-row-remove-390.png' })
+    await expect(restored).toHaveCount(0)
+    await expect.poll(async () => Number(await page.locator('html').getAttribute('data-row-flip-count'))).toBeGreaterThan(0)
+    await page.getByRole('button', { name: 'Deshacer', exact: true }).click()
+    restored = page.getByRole('listitem').filter({ hasText: 'Long list 20' })
+    await expect(restored).toBeVisible()
+    await expect(restored).toHaveClass(/row-enter/)
+    await expect(restored).not.toHaveClass(/row-enter/)
+    if (width === 390) await page.screenshot({ path: '/tmp/kh041-row-undo-390.png' })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await restored.getByRole('button', { name: 'Quitar Long list 20 de la lista' }).click()
+  await expect(restored).toHaveCount(0)
+  await page.getByRole('button', { name: 'Deshacer', exact: true }).click()
+  const reducedRestore = page.getByRole('listitem').filter({ hasText: 'Long list 20' })
+  await expect(reducedRestore).toBeVisible()
+  await expect(reducedRestore).not.toHaveClass(/row-enter/)
 })
 
 test('buy then un-buy: pantry goes 3 -> 5 -> 3, and a product not in the pantry goes 0 -> 2 -> gone', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupTestDb, post } from '@/lib/__tests__/testDb'
 
+const provider = vi.hoisted(() => ({ error: null as Error | null }))
 const jar = new Map<string, string>()
 vi.mock('next/headers', () => ({
   cookies: async () => ({
@@ -13,7 +14,10 @@ vi.mock('next/headers', () => ({
 // Capture "emails" instead of logging them.
 const mails: { to: string; text: string }[] = []
 vi.mock('@/lib/mailer', () => ({
-  sendMail: async (m: { to: string; text: string }) => void mails.push(m),
+  sendMail: async (m: { to: string; text: string }) => {
+    if (provider.error) throw provider.error
+    mails.push(m)
+  },
 }))
 
 const tokenFrom = (text: string) => /token=([0-9a-f]+)/.exec(text)![1]
@@ -43,6 +47,7 @@ beforeAll(async () => {
 afterAll(() => cleanup())
 beforeEach(() => {
   mails.length = 0
+  provider.error = null
 })
 
 const req = (path: string, body: unknown, ip: string) =>
@@ -79,6 +84,40 @@ describe('email verification', () => {
 })
 
 describe('password reset', () => {
+  it('keeps valid-email responses identical for existing, missing, and provider-failure cases', async () => {
+    const user = await db.user.create({ data: { email: 'reset-contract@example.com', passwordHash: 'fixture' } })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const existingSuccess = await forgot(req('forgot', { email: user.email }, '10.10.10.1'))
+
+    provider.error = Object.assign(new Error('token=private API key=secret'), { name: 'TimeoutError' })
+    const existingFailure = await forgot(req('forgot', { email: user.email }, '10.10.10.2'))
+    const missing = await forgot(req('forgot', { email: 'missing-reset@example.com' }, '10.10.10.3'))
+
+    const responses = await Promise.all([existingSuccess, existingFailure, missing].map(async response => ({
+      status: response.status,
+      body: await response.json(),
+    })))
+    expect(responses).toEqual([
+      { status: 200, body: { success: true } },
+      { status: 200, body: { success: true } },
+      { status: 200, body: { success: true } },
+    ])
+    expect(log).toHaveBeenCalledWith('password reset email failed', 'TimeoutError')
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/private|secret|reset-contract@example\.com/)
+    expect(mails).toHaveLength(1)
+    provider.error = null
+    log.mockRestore()
+  })
+
+  it('continues to reject malformed reset requests', async () => {
+    const invalidEmail = await forgot(req('forgot', { email: 'not-an-email' }, '10.10.11.1'))
+    const invalidBody = await forgot(new Request('http://t/api/auth/forgot', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.10.11.2' }, body: '{',
+    }))
+    expect(invalidEmail.status).toBe(400)
+    expect(invalidBody.status).toBe(400)
+  })
+
   it('answers the same for unknown emails and sends nothing', async () => {
     const res = await forgot(req('forgot', { email: 'ghost@example.com' }, '3.3.3.3'))
     expect(res.status).toBe(200)

@@ -39,7 +39,7 @@ test('home immediately reflects fish preferences, pantry and shopping writes for
     }
     const recipes = recipesFrom(sql)
     const hour = Number(new Intl.DateTimeFormat('es', { hour: 'numeric', hour12: false, timeZone: 'Europe/Madrid' }).format(new Date())) % 24
-    const candidate = recipes.find(r => r.prepTimeMinutes <= 20 && r.imageUrl && JSON.parse(r.mealTypes).includes(getMealSlot(hour)) && r.ingredients.some(i => FISH_TERMS.some(term => i.name.toLowerCase().includes(term))))!
+    const candidate = recipes.find(r => r.prepTimeMinutes <= 20 && JSON.parse(r.mealTypes).includes(getMealSlot(hour)) && r.ingredients.some(i => FISH_TERMS.some(term => i.name.toLowerCase().includes(term))))!
     expect(candidate).toBeDefined()
     for (const ingredient of candidate.ingredients.filter(i => !i.optional)) {
       // Private products through the public contract when a required ingredient has no catalog ID.

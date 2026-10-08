@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Check, Minus, Plus, ShoppingBasket, Trash2 } from 'lucide-react'
 import AddProductSheet from '@/components/AddProductSheet'
 import { useToast } from '@/components/Toast'
@@ -10,6 +10,8 @@ import { formatShoppingQuantity } from '@/lib/shoppingList'
 import { pluralize } from '@/lib/pluralize'
 import { apiFetch } from '@/lib/apiFetch'
 import ShoppingListExperiment from './ShoppingListExperiment'
+import { closeSheet } from '@/components/Sheet'
+import { clearShoppingListSnapshots, makeShoppingListSnapshot, parseShoppingListSnapshot, SHOPPING_ACTIVE_ACCOUNT_KEY, snapshotKey, subscribeToSessionReset } from '@/lib/shoppingListSnapshot'
 
 export type ShoppingItem = {
   id: string
@@ -39,10 +41,10 @@ async function loadShoppingListItems(): Promise<ShoppingItem[]> {
   const res = await apiFetch('/api/shopping-list')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  return Array.isArray(data) ? data : []
+  if (!Array.isArray(data) || !data.every(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.checked === 'boolean')) throw new Error('Invalid shopping list')
+  return data
 }
 
-const LEAVE_MS = 140
 function NeedAndPackage({ item }: { item: ShoppingItem }) {
   return <span className="mt-0.5 block break-words text-xs text-forest-300">
     <span className="block">{item.requiredQuantity != null && item.requiredUnit
@@ -62,8 +64,13 @@ export default function ShoppingListPage() {
   const [items, setItems] = useState<ShoppingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [snapshotAt, setSnapshotAt] = useState<string | null>(null)
+  const [offline, setOffline] = useState(false)
+  const [readOnly, setReadOnly] = useState(false)
   const [adding, setAdding] = useState<null | 'search' | 'manual'>(null)
   const [leaving, setLeaving] = useState<Set<string>>(new Set())
+  const [entering, setEntering] = useState<Set<string>>(new Set())
   const { toast, show } = useToast()
   const mutations = useRef(new Set<string>())
   const pendingChecks = useRef(new Map<string, { target: boolean; queued: ShoppingItem | null }>())
@@ -79,13 +86,73 @@ export default function ShoppingListPage() {
   const mounted = useRef(true)
   const generation = useRef(0)
   const rowOrder = useRef<string[]>([])
+  const knownRows = useRef<Set<string> | null>(null)
+  const rowPositions = useRef(new Map<string, { top: number; height: number }>())
+
+  const captureRowPositions = () => {
+    rowPositions.current = new Map(Array.from(document.querySelectorAll<HTMLElement>('[data-list-row]')).flatMap(row => {
+      const id = row.dataset.listRow
+      if (!id) return []
+      const rect = row.getBoundingClientRect()
+      return [[id, { top: rect.top, height: rect.height }] as const]
+    }))
+  }
+
+  useLayoutEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-list-row]')).map(row => ({ row, id: row.dataset.listRow, rect: row.getBoundingClientRect() }))
+    const positions = new Map<string, { top: number; height: number }>()
+    rows.forEach(({ row, id, rect }) => {
+      if (!id) return
+      const top = rect.top
+      const previous = rowPositions.current.get(id)
+      const visible = rect.bottom > 0 && rect.top < window.innerHeight
+      const wasVisible = previous && previous.top + previous.height > 0 && previous.top < window.innerHeight
+      if (!reduce && previous && (visible || wasVisible) && Math.abs(previous.top - top) > 1) {
+        row.animate([{ transform: `translateY(${previous.top - top}px)` }, { transform: 'translateY(0)' }], { duration: 140, easing: 'cubic-bezier(.22,1,.36,1)' })
+      }
+      positions.set(id, { top, height: rect.height })
+    })
+    rowPositions.current = positions
+  }, [items])
+
+  const clearEntering = (id: string) => setEntering(rows => {
+    if (!rows.has(id)) return rows
+    const next = new Set(rows)
+    next.delete(id)
+    return next
+  })
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
   const refresh = useCallback(async () => {
     const current = ++generation.current
+    let verifiedAccount: string | null = null
+    let sessionInvalid = false
     try {
+      const identity = await apiFetch('/api/auth/me')
+      if (!identity.ok) {
+        if (identity.status === 401 || identity.status === 403) { sessionInvalid = true; clearShoppingListSnapshots() }
+        throw new Error(`Identity HTTP ${identity.status}`)
+      }
+      const identityData: unknown = await identity.json()
+      if (!identityData || typeof identityData !== 'object' || typeof (identityData as { id?: unknown }).id !== 'string') throw new Error('Invalid identity')
+      verifiedAccount = (identityData as { id: string }).id
       const rows = await loadShoppingListItems()
       if (!mounted.current || current !== generation.current) return
+      const previousAccount = localStorage.getItem(SHOPPING_ACTIVE_ACCOUNT_KEY)
+      if (previousAccount && previousAccount !== verifiedAccount) clearShoppingListSnapshots()
+      const snapshot = makeShoppingListSnapshot(verifiedAccount, rows)
+      localStorage.setItem(snapshotKey(verifiedAccount), JSON.stringify(snapshot))
+      localStorage.setItem(SHOPPING_ACTIVE_ACCOUNT_KEY, verifiedAccount)
+      setAccountId(verifiedAccount)
+      setSnapshotAt(snapshot.capturedAt)
+      setOffline(false)
+      setReadOnly(false)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && knownRows.current) {
+        const added = rows.filter(row => !knownRows.current!.has(row.id)).map(row => row.id)
+        if (added.length) setEntering(existing => new Set([...existing, ...added]))
+      }
+      knownRows.current = new Set(rows.map(row => row.id))
       if (redesign) {
         if (rowOrder.current.length === 0) rowOrder.current = rows.map(row => row.id)
         else {
@@ -95,15 +162,48 @@ export default function ShoppingListPage() {
           rows.sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity))
         }
       }
+      captureRowPositions()
       setItems(rows)
       setError(null)
     } catch {
       if (!mounted.current || current !== generation.current) return
-      setError('No se pudo cargar la lista de compra')
+      if (sessionInvalid) {
+        setItems([]); setAccountId(null); setSnapshotAt(null); setReadOnly(true); setOffline(false)
+        setError('La sesión ha terminado. Inicia sesión para volver a consultar tu lista.')
+        return
+      }
+      const activeAccount = verifiedAccount ?? (!navigator.onLine ? localStorage.getItem(SHOPPING_ACTIVE_ACCOUNT_KEY) : null)
+      const snapshot = activeAccount ? parseShoppingListSnapshot(localStorage.getItem(snapshotKey(activeAccount)), activeAccount) : null
+      setItems(snapshot ? snapshot.items as ShoppingItem[] : [])
+      setAccountId(snapshot ? activeAccount : null)
+      setSnapshotAt(snapshot?.capturedAt ?? null)
+      const isOffline = !navigator.onLine
+      setOffline(isOffline)
+      setReadOnly(true)
+      setError(isOffline ? null : snapshot ? 'No se pudo actualizar la lista. Se muestra la última copia guardada.' : 'No se pudo cargar la lista de compra')
     } finally {
       setLoading(false)
     }
   }, [redesign])
+
+  useEffect(() => {
+    const onOffline = () => {
+      setOffline(true)
+      setReadOnly(true)
+      const id = accountId ?? localStorage.getItem(SHOPPING_ACTIVE_ACCOUNT_KEY)
+      const snapshot = id ? parseShoppingListSnapshot(localStorage.getItem(snapshotKey(id)), id) : null
+      if (snapshot) { setItems(snapshot.items as ShoppingItem[]); setSnapshotAt(snapshot.capturedAt); setAccountId(id) }
+    }
+    const onOnline = () => { void refresh() }
+    const onSessionReset = () => {
+      setItems([]); setAccountId(null); setSnapshotAt(null); setOffline(false); setReadOnly(true)
+      setError('La sesión ha terminado. Inicia sesión para volver a consultar tu lista.')
+    }
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
+    const unsubscribe = subscribeToSessionReset(onSessionReset)
+    return () => { window.removeEventListener('offline', onOffline); window.removeEventListener('online', onOnline); unsubscribe() }
+  }, [accountId, refresh])
 
   useEffect(() => {
     void (async () => {
@@ -121,8 +221,15 @@ export default function ShoppingListPage() {
   // Plays the exit (opacity/transform) before the row leaves the list; the request is not delayed.
   const leave = async (id: string) => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const row = document.getElementById(`shopping-row-${id}`)
+    if (!row) return
+    if (row.classList.contains('row-enter')) {
+      clearEntering(id)
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    }
     setLeaving(s => new Set(s).add(id))
-    await new Promise(r => setTimeout(r, LEAVE_MS))
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    await Promise.all(row.getAnimations().map(animation => animation.finished.catch(() => {})))
   }
 
   const request = async (url: string, init?: RequestInit) => {
@@ -133,6 +240,7 @@ export default function ShoppingListPage() {
 
   // Buying moves the item into the pantry on the server (see pantryTransfer). Optimistic so the tick feels instant.
   const toggle = async (item: ShoppingItem) => {
+    if (readOnly) return
     if (mutations.current.has(item.id)) {
       const check = pendingChecks.current.get(item.id)
       // Duplicate activation has the old checked value; an inverse action uses the new visible value.
@@ -144,12 +252,16 @@ export default function ShoppingListPage() {
     mutations.current.add(item.id)
     setPendingMutations(new Set(mutations.current))
     generation.current++
+    captureRowPositions()
     setItems(list => list.map(i => (i.id === item.id ? { ...i, checked: !i.checked } : i)))
     let success = false
     try {
       await request(`/api/shopping-list/${item.id}/check`, { method: 'PATCH' })
       success = true
-      if (mounted.current) show(item.checked ? `${item.name} vuelve a la lista` : `${item.name} está en tu despensa`, item.checked ? undefined : { label: 'Ver', href: '/inventory' })
+      if (mounted.current) {
+        if (!redesign && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setEntering(rows => new Set(rows).add(item.id))
+        show(item.checked ? `${item.name} vuelve a la lista` : `${item.name} está en tu despensa`, item.checked ? undefined : { label: 'Ver', href: '/inventory' })
+      }
     } catch {
       if (mounted.current) {
         setItems(list => list.map(row => row.id === item.id ? item : row))
@@ -167,7 +279,7 @@ export default function ShoppingListPage() {
 
   // Attach the rejection handler immediately: the request can fail during the existing row exit.
   const mutateRow = async (item: ShoppingItem, delta?: number) => {
-    if (mutations.current.has(item.id)) return
+    if (readOnly || mutations.current.has(item.id)) return
     mutations.current.add(item.id)
     setPendingMutations(new Set(mutations.current))
     generation.current++
@@ -187,12 +299,17 @@ export default function ShoppingListPage() {
       ...(delta === undefined ? {} : { body: JSON.stringify({ delta }) }),
     }).then(() => true, () => false)
     if (removing) await leave(item.id)
-    if (mounted.current) setItems(list => removing ? list.filter(row => row.id !== item.id) : list.map(row => row.id === item.id ? { ...row, quantity: String((item.purchaseQuantity ?? 0) + delta!), purchaseQuantity: (item.purchaseQuantity ?? 0) + delta! } : row))
+    if (mounted.current) {
+      captureRowPositions()
+      setItems(list => removing ? list.filter(row => row.id !== item.id) : list.map(row => row.id === item.id ? { ...row, quantity: String((item.purchaseQuantity ?? 0) + delta!), purchaseQuantity: (item.purchaseQuantity ?? 0) + delta! } : row))
+    }
     const success = await result
     if (mounted.current) {
       setLeaving(ids => { const next = new Set(ids); next.delete(item.id); return next })
       if (!success) {
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setEntering(ids => new Set(ids).add(item.id))
         // Merge only this row; never replace newer state of other products with an old list snapshot.
+        captureRowPositions()
         setItems(list => list.some(row => row.id === item.id) ? list.map(row => row.id === item.id ? item : row) : [...list, item])
       }
       await refresh()
@@ -215,7 +332,7 @@ export default function ShoppingListPage() {
   const undoable = (item: ShoppingItem) => {
     let restored = false
     const undo = async () => {
-      if (restored || mutations.current.has(item.id)) return
+      if (readOnly || restored || mutations.current.has(item.id)) return
       mutations.current.add(item.id)
       generation.current++
       try {
@@ -243,7 +360,7 @@ export default function ShoppingListPage() {
 
   // Bought items are already in the pantry; this only tidies the list.
   const clearBought = async () => {
-    if (!bought.length || mutations.current.size) return
+    if (readOnly || !bought.length || mutations.current.size) return
     const ids = bought.map(item => item.id)
     ids.forEach(id => mutations.current.add(id))
     setPendingMutations(new Set(mutations.current))
@@ -261,12 +378,42 @@ export default function ShoppingListPage() {
     }
   }
 
+  if (readOnly) return <main className="min-h-screen px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-8">
+    <h1 className="text-xl min-[360px]:text-2xl font-semibold text-forest-50">Lista de compra</h1>
+    <section role="status" aria-live="polite" className="mt-4 rounded-xl border border-forest-600 bg-forest-900 px-4 py-3">
+      <h2 className="font-semibold text-[#c7f23a]">{offline ? 'Sin conexión' : snapshotAt ? 'No se pudo actualizar' : 'Lista no disponible'}</h2>
+      <p className="mt-1 text-sm text-forest-100">{offline
+        ? snapshotAt ? 'Estás viendo la última copia guardada de tu lista. Puedes consultarla, pero no modificarla hasta recuperar la conexión.' : 'No hay una copia disponible sin conexión. Abre la lista con conexión para guardar una copia.'
+        : snapshotAt ? 'No se pudo confirmar la conexión con el servidor. Esta copia puede estar desactualizada; solo puedes consultarla.' : error}</p>
+      {snapshotAt && <p className="mt-2 text-sm text-forest-200">Última copia guardada: <time dateTime={snapshotAt}>{new Date(snapshotAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
+      <button type="button" onClick={() => void refresh()} className={`mt-3 min-h-10 rounded-full bg-[#a3e635] px-4 text-sm font-semibold text-forest-950 ${focusRing}`}>Reintentar</button>
+    </section>
+    {snapshotAt && items.length === 0 && <p className="mt-5 text-sm text-forest-200">Tu lista estaba vacía cuando se guardó la copia.</p>}
+    {(['Pendiente', 'Comprado · en tu despensa'] as const).map((heading, index) => {
+      const rows = items.filter(item => item.checked === (index === 1))
+      return rows.length > 0 && <section key={heading} className="mt-5" aria-label={heading}>
+        <h2 className="mb-1 text-xs font-semibold tracking-wider text-forest-300 uppercase">{heading}</h2>
+        <ul className="divide-y divide-forest-800">
+          {rows.map(item => <li key={item.id} className="py-3">
+            <span className="font-medium text-forest-50">{item.name}</span>
+            <span className="mt-1 block text-xs text-forest-300">{item.requiredQuantity != null && item.requiredUnit ? `Necesidad: ${formatShoppingQuantity(item.requiredQuantity)} ${item.requiredUnit}` : item.originalIngredientText ? `Necesidad: ${item.originalIngredientText}` : 'Cantidad necesaria no especificada'}</span>
+            <span className="block text-xs text-forest-300">{item.product?.packageQuantity != null && item.product.packageUnit ? `Envase: ${formatShoppingQuantity(item.product.packageQuantity)} ${item.product.packageUnit}` : 'Contenido del envase no especificado'}</span>
+            <span className="block text-xs text-forest-300">{item.purchaseQuantity != null ? `Compra: ${formatShoppingQuantity(item.purchaseQuantity)} ${pluralize(item.purchaseQuantity, 'paquete', 'paquetes')}` : 'Paquetes por elegir'}</span>
+          </li>)}
+        </ul>
+      </section>
+    })}
+    <p className="mt-8 text-xs text-forest-400">La copia queda en este navegador. Si el dispositivo está desbloqueado, otras personas con acceso al navegador podrían verla.</p>
+  </main>
+
   if (redesign) return <main data-shopping-redesign="true" className="min-h-screen bg-[#f7f5ef] px-4 pt-[calc(env(safe-area-inset-top)+1rem)] text-forest-950">
     {loading ? <div className="space-y-3" aria-busy="true">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 bg-stone-100" />)}</div> : error ? <p role="alert" className="text-sm text-red-800">{error}{' '}<button type="button" onClick={() => void refresh()} className="font-semibold underline">Reintentar</button></p> : <ShoppingListExperiment
       items={items}
       grouping={grouping}
       pendingMutations={pendingMutations}
       leaving={leaving}
+      entering={entering}
+      onEnterEnd={clearEntering}
       onToggle={item => void toggle(item)}
       onChange={(item, delta) => void change(item, delta)}
       onRemove={item => void remove(item)}
@@ -319,7 +466,7 @@ export default function ShoppingListPage() {
                 const qty = item.purchaseQuantity ?? 0
                 const price = item.product?.unitPrice
                 return (
-                  <li key={item.id} className={`flex min-h-16 items-center gap-2 py-1.5 ${leaving.has(item.id) ? 'leaving' : ''}`}>
+                  <li key={item.id} id={`shopping-row-${item.id}`} data-list-row={item.id} onAnimationEnd={() => clearEntering(item.id)} className={`flex min-h-16 items-center gap-2 py-1.5 ${leaving.has(item.id) ? 'leaving' : ''} ${entering.has(item.id) ? 'row-enter' : ''}`}>
                     <button
                       type="button"
                       aria-disabled={pendingMutations.has(item.id) || undefined}
@@ -437,7 +584,7 @@ export default function ShoppingListPage() {
               </div>
               <ul className="divide-y divide-forest-800">
                 {bought.map(item => (
-                  <li key={item.id} className="flex min-h-14 items-center gap-2 py-1">
+                  <li key={item.id} id={`shopping-row-${item.id}`} data-list-row={item.id} onAnimationEnd={() => clearEntering(item.id)} className={`flex min-h-14 items-center gap-2 py-1 ${entering.has(item.id) ? 'row-enter' : ''}`}>
                     <button
                       type="button"
                       aria-disabled={pendingMutations.has(item.id) || undefined}
@@ -465,7 +612,7 @@ export default function ShoppingListPage() {
           owned={owned}
           startManual={adding === 'manual'}
           onChanged={refresh}
-          onClose={() => setAdding(null)}
+          onClose={closeSheet(() => setAdding(null))}
         />
       )}
       {toast}

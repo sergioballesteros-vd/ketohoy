@@ -12,6 +12,9 @@ import { getMealSlot } from '@/lib/mealSlot'
 import { DEFAULT_PREFERENCES, scoreRecipe } from '@/lib/recipeScoring'
 import { type RecipeAvailability } from '@/lib/recipeAvailability'
 import type { RecipeWithIngredients } from '@/lib/recipeScoring'
+import { getMonday } from '@/lib/dateUtils'
+import { isCompleteShoppingPlan, weeklySourcesSchema } from '@/lib/weeklyShopping'
+import { firstUseGuideStep } from '@/lib/firstUseGuide'
 
 export type HomeRecipe = {
   id: string
@@ -24,74 +27,85 @@ export type HomeRecipe = {
   availability: RecipeAvailability
 }
 
-const EMPTY_STATS = {
-  pantryCount: 0,
-  recipesAvailable: 0,
-  shoppingCount: 0,
-  featured: null as HomeRecipe | null,
-  more: [] as HomeRecipe[],
-}
-
 async function getStats(userId: string, mealType: string) {
-  try {
-    const [pantryItems, allRecipes, shoppingItems, prefs] = await Promise.all([
-      db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
-      db.recipe.findMany({ include: { ingredients: true } }),
-      db.shoppingListItem.findMany({ where: { userId, checked: false } }),
-      db.userPreferences.findFirst({ where: { userId } }),
-    ])
+  const weekStart = getMonday(new Date())
+  const [pantryItems, allRecipes, shoppingItems, prefs, anyPlan, currentPlan] = await Promise.all([
+    db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
+    db.recipe.findMany({ include: { ingredients: true } }),
+    db.shoppingListItem.findMany({ where: { userId, checked: false } }),
+    db.userPreferences.findUnique({ where: { userId } }),
+    db.weeklyPlan.findFirst({ where: { userId }, select: { id: true } }),
+    db.weeklyPlan.findUnique({ where: { userId_weekStart: { userId, weekStart } }, include: { meals: { include: { recipe: { include: { ingredients: true } } } } } }),
+  ])
 
-    const preferences = {
-      ketoMode: prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
-        ? prefs.ketoMode : DEFAULT_PREFERENCES.ketoMode,
-      avoidFish: prefs?.avoidFish ?? DEFAULT_PREFERENCES.avoidFish,
-      avoidPork: prefs?.avoidPork ?? DEFAULT_PREFERENCES.avoidPork,
-      avoidDairy: prefs?.avoidDairy ?? DEFAULT_PREFERENCES.avoidDairy,
-      maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
+  const completePlan = currentPlan && isCompleteShoppingPlan(currentPlan)
+  const weeklyShoppingItems = completePlan ? await db.shoppingListItem.findMany({
+    where: { userId, sourceType: 'weekly-plan', sourceKey: { contains: currentPlan.id } },
+    select: { sourceKey: true, sourceContributions: true },
+  }) : []
+  const hasPreparedCurrentPlan = Boolean(completePlan && weeklyShoppingItems.some(item => {
+    try {
+      const key: unknown = JSON.parse(item.sourceKey ?? 'null')
+      const contributions = weeklySourcesSchema.safeParse(JSON.parse(item.sourceContributions ?? 'null'))
+      return Array.isArray(key) && key[0] === 'weekly-plan' && key[1] === currentPlan.id &&
+        contributions.success && contributions.data.planId === currentPlan.id
+    } catch {
+      return false
     }
-    const base = { pantry: pantryItems, userId, preferences }
-    const scoreAll = (extra: { mealType?: string; minAvailability?: number }) =>
-      allRecipes
-        .map(r => scoreRecipe(r as RecipeWithIngredients, { ...base, ...extra }))
-        .filter((s): s is NonNullable<typeof s> => s !== null)
+  }))
+  const onboardingStep = firstUseGuideStep(Boolean(anyPlan), Boolean(completePlan), hasPreparedCurrentPlan)
 
-    const recipesAvailable = scoreAll({}).length
+  const preferences = {
+    ketoMode: prefs?.ketoMode === 'strict' || prefs?.ketoMode === 'flexible' || prefs?.ketoMode === 'low_carb'
+      ? prefs.ketoMode : DEFAULT_PREFERENCES.ketoMode,
+    avoidFish: prefs?.avoidFish ?? DEFAULT_PREFERENCES.avoidFish,
+    avoidPork: prefs?.avoidPork ?? DEFAULT_PREFERENCES.avoidPork,
+    avoidDairy: prefs?.avoidDairy ?? DEFAULT_PREFERENCES.avoidDairy,
+    maxCookingMinutes: prefs?.maxCookingMinutes ?? DEFAULT_PREFERENCES.maxCookingMinutes,
+  }
+  const base = { pantry: pantryItems, userId, preferences }
+  const scoreAll = (extra: { mealType?: string; minAvailability?: number }) =>
+    allRecipes
+      .map(r => scoreRecipe(r as RecipeWithIngredients, { ...base, ...extra }))
+      .filter((s): s is NonNullable<typeof s> => s !== null)
 
-    // Today's pick: fits the current meal, has a photo (a giant placeholder is a bad hero),
-    // prefers verified sufficiency, then best score. Wider pools are only used if the tighter one has no photo at all.
-    const pools = [
-      scoreAll({ mealType }),
-      scoreAll({ mealType, minAvailability: 0 }),
-      scoreAll({ minAvailability: 0 }),
-    ]
-    const pool = pools.find(list => list.some(s => s.recipe.imageUrl)) ?? pools.find(list => list.length > 0) ?? []
-    const ranked = [...pool].sort(
-      (a, b) =>
-        Number(!a.recipe.imageUrl) - Number(!b.recipe.imageUrl) ||
-        Number(!a.availability.ready) - Number(!b.availability.ready) ||
-        b.score - a.score
-    )
-    const toHome = (s: (typeof ranked)[number]): HomeRecipe => ({
-      id: s.recipe.id,
-      title: s.recipe.title,
-      prepTimeMinutes: s.recipe.prepTimeMinutes,
-      difficulty: s.recipe.difficulty,
-      imageUrl: s.recipe.imageUrl ?? null,
-      missingCount: s.missingIngredients.length,
-      totalCount: s.availability.total,
-      availability: s.availability,
-    })
-    const [first, ...rest] = ranked
+  const recipesAvailable = scoreAll({}).length
 
-    return {
-      pantryCount: pantryItems.length,
-      recipesAvailable,
-      shoppingCount: shoppingItems.length,
-      featured: first ? toHome(first) : null,
-      more: rest.slice(0, 4).map(toHome),
-    }
-  } catch {
-    return EMPTY_STATS
+  // Today's pick still prefers recipes with stored photos; RecipeImage only renders reviewed ones.
+  const pools = [
+    scoreAll({ mealType }),
+    scoreAll({ mealType, minAvailability: 0 }),
+    scoreAll({ minAvailability: 0 }),
+  ]
+  const pool = pools.find(list => list.some(s => s.recipe.imageUrl)) ?? pools.find(list => list.length > 0) ?? []
+  const ranked = [...pool].sort(
+    (a, b) =>
+      Number(!a.recipe.imageUrl) - Number(!b.recipe.imageUrl) ||
+      Number(!a.availability.ready) - Number(!b.availability.ready) ||
+      b.score - a.score
+  )
+  const toHome = (s: (typeof ranked)[number]): HomeRecipe => ({
+    id: s.recipe.id,
+    title: s.recipe.title,
+    prepTimeMinutes: s.recipe.prepTimeMinutes,
+    difficulty: s.recipe.difficulty,
+    imageUrl: s.recipe.imageUrl ?? null,
+    missingCount: s.missingIngredients.length,
+    totalCount: s.availability.total,
+    availability: s.availability,
+  })
+  const [first, ...rest] = ranked
+
+  return {
+    pantryCount: pantryItems.length,
+    recipesAvailable,
+    shoppingCount: shoppingItems.length,
+    onboarding: {
+      show: onboardingStep !== null,
+      step: (onboardingStep ?? 2) as 2 | 3,
+    },
+    featured: first ? toHome(first) : null,
+    more: rest.slice(0, 4).map(toHome),
   }
 }
 
@@ -109,6 +123,21 @@ export const metadata: Metadata = {
   description: 'Genera tu menú keto semanal con lo que ya tienes en casa y compra solo lo que falta, con productos de Mercadona.',
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
+  openGraph: {
+    title: 'KetoHoy · Planificador de menú keto con productos de Mercadona',
+    description: 'Genera tu menú keto semanal con lo que ya tienes en casa y compra solo lo que falta, con productos de Mercadona.',
+    type: 'website',
+    url: '/',
+    siteName: 'KetoHoy',
+    locale: 'es_ES',
+    images: [{ url: '/brand/ketohoy-icon-512.png', width: 512, height: 512, alt: 'Icono verde de KetoHoy sobre fondo verde oscuro' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'KetoHoy · Planificador de menú keto con productos de Mercadona',
+    description: 'Genera tu menú keto semanal con lo que ya tienes en casa y compra solo lo que falta, con productos de Mercadona.',
+    images: [{ url: '/brand/ketohoy-icon-512.png', alt: 'Icono verde de KetoHoy sobre fondo verde oscuro' }],
+  },
 }
 
 export default async function HomePage() {
@@ -118,5 +147,5 @@ export default async function HomePage() {
   const hour = madridHour()
   const stats = await getStats(user.id, getMealSlot(hour))
 
-  return <HomePageClient stats={stats} />
+  return <HomePageClient userId={user.id} stats={stats} />
 }

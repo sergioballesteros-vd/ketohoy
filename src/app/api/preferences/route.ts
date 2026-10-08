@@ -6,9 +6,11 @@ import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
 
 async function getOrCreatePreferences(userId: string) {
-  const existing = await db.userPreferences.findFirst({ where: { userId } })
-  if (existing) return existing
-  return db.userPreferences.create({ data: { userId, ...DEFAULT_PREFERENCES } })
+  return db.userPreferences.upsert({
+    where: { userId },
+    update: {},
+    create: { userId, ...DEFAULT_PREFERENCES },
+  })
 }
 
 const patchPreferencesSchema = z.object({

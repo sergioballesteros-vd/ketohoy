@@ -5,6 +5,7 @@ import { Check, ChevronLeft, Loader2, LogOut } from 'lucide-react'
 import type { KetoMode } from '@/lib/recipeScoring'
 import { Skeleton, focusRing } from '@/components/ui'
 import { apiFetch } from '@/lib/apiFetch'
+import { clearShoppingListSnapshots } from '@/lib/shoppingListSnapshot'
 
 type Preferences = {
   id: string
@@ -33,6 +34,10 @@ function preferenceValues(prefs: Preferences | null) {
   return JSON.stringify({ ketoMode, avoidFish, avoidPork, avoidDairy, maxCookingMinutes })
 }
 
+function clearLocalFavorites() {
+  try { localStorage.removeItem('ketohoy:favoriteProductIds') } catch { /* Browser storage can be disabled. */ }
+}
+
 export default function PreferencesPage() {
   const [prefs, setPrefs] = useState<Preferences | null>(null)
   const allowLeave = useRef(false)
@@ -43,6 +48,12 @@ export default function PreferencesPage() {
   const [error, setError] = useState<string | null>(null)
   const [account, setAccount] = useState<{ email: string; emailVerified: boolean } | null>(null)
   const [resend, setResend] = useState<'idle' | 'busy' | 'sent' | 'error'>('idle')
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
 
   useEffect(() => {
     apiFetch('/api/auth/me')
@@ -293,6 +304,107 @@ export default function PreferencesPage() {
               </p>
             </div>
           )}
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              setExportError('')
+              let favoriteProductIds: string[] = []
+              try {
+                const stored = JSON.parse(localStorage.getItem('ketohoy:favoriteProductIds') ?? '[]')
+                if (Array.isArray(stored)) favoriteProductIds = stored.filter((id): id is string => typeof id === 'string')
+              } catch { /* An invalid local cache does not block server data export. */ }
+              try {
+                const response = await apiFetch('/api/account/export', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ favoriteProductIds }),
+                })
+                if (!response.ok) throw new Error('export failed')
+                const url = URL.createObjectURL(await response.blob())
+                const link = document.createElement('a')
+                link.href = url
+                link.download = 'ketohoy-data-export.json'
+                link.click()
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+              } catch {
+                setExportError('No se pudieron exportar los datos. Inténtalo de nuevo más tarde.')
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className={`mt-4 inline-flex min-h-11 items-center rounded-lg px-1 font-semibold text-[#a3e635] underline underline-offset-4 disabled:opacity-60 ${focusRing}`}
+          >
+            {exporting ? 'Preparando descarga…' : 'Exportar mis datos'}
+          </button>
+          <p className="mt-1 text-xs text-forest-400">Descarga un archivo JSON con tus datos de cuenta y contenido.</p>
+          <p role="status" className="text-sm text-red-300">{exportError}</p>
+          <details className="mt-5 rounded-xl border border-red-900/60 p-3">
+            <summary className={`min-h-11 cursor-pointer py-2 font-semibold text-red-300 ${focusRing}`}>
+              Eliminar cuenta
+            </summary>
+            <p className="mt-2 text-sm text-forest-200">
+              Se eliminarán de la base activa tu cuenta, preferencias, despensa, compras, planes y productos manuales privados. Las copias históricas expiran según su retención y no se borran instantáneamente.
+            </p>
+            <form
+              className="mt-4 space-y-3"
+              onSubmit={async event => {
+                event.preventDefault()
+                setDeleting(true)
+                setDeleteError('')
+                try {
+                  const response = await apiFetch('/api/account/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirmEmail, password: deletePassword }),
+                  })
+                  if (!response.ok) {
+                    setDeleteError(response.status === 400 ? 'Comprueba el email y la contraseña.' : 'No se pudo completar el borrado. Inténtalo de nuevo más tarde.')
+                    return
+                  }
+                  allowLeave.current = true
+                  clearLocalFavorites()
+                  clearShoppingListSnapshots()
+                  window.location.replace('/login')
+                } catch {
+                  setDeleteError('No se pudo completar el borrado. Inténtalo de nuevo más tarde.')
+                } finally {
+                  setDeleting(false)
+                }
+              }}
+            >
+              <label className="block text-sm text-forest-100">
+                Escribe tu email para confirmar
+                <input
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={confirmEmail}
+                  onChange={event => setConfirmEmail(event.target.value)}
+                  className="mt-1 h-11 w-full rounded-lg border border-forest-700 bg-forest-950 px-3 text-forest-50"
+                />
+              </label>
+              <label className="block text-sm text-forest-100">
+                Contraseña actual (si tu cuenta tiene contraseña)
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={event => setDeletePassword(event.target.value)}
+                  className="mt-1 h-11 w-full rounded-lg border border-forest-700 bg-forest-950 px-3 text-forest-50"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={deleting}
+                className={`min-h-11 rounded-lg bg-red-900 px-4 font-semibold text-white disabled:opacity-60 ${focusRing}`}
+              >
+                {deleting ? 'Eliminando cuenta…' : 'Eliminar permanentemente mi cuenta'}
+              </button>
+              <p role="alert" className="text-sm text-red-300">{deleteError}</p>
+            </form>
+          </details>
         </section>
       )}
 
@@ -301,8 +413,11 @@ export default function PreferencesPage() {
         onClick={async () => {
           if (dirty && !window.confirm('Tienes cambios sin guardar. ¿Quieres salir y perderlos?')) return
           allowLeave.current = true
-          await fetch('/api/auth/logout', { method: 'POST' })
-          window.location.replace('/login')
+          try { await fetch('/api/auth/logout', { method: 'POST' }) } catch { /* Clear local private data even when the network is gone. */ } finally {
+            clearLocalFavorites()
+            clearShoppingListSnapshots()
+            window.location.replace('/login')
+          }
         }}
         className={`mx-auto mt-8 flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-forest-300 hover:text-forest-50 ${focusRing}`}
       >

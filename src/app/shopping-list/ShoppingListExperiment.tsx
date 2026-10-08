@@ -19,6 +19,8 @@ type Props = {
   grouping: 'flat' | 'zones'
   pendingMutations: Set<string>
   leaving: Set<string>
+  entering: Set<string>
+  onEnterEnd: (id: string) => void
   onToggle: (item: ShoppingItem) => void
   onChange: (item: ShoppingItem, delta: number) => void
   onRemove: (item: ShoppingItem) => void
@@ -97,9 +99,11 @@ function RowDetails({ item, disabled, onChange, onRemove }: {
   </details>
 }
 
-function ShoppingRow({ item, pendingMutations, leaving, onToggle, onChange, onRemove }: Props & { item: ShoppingItem }) {
+function ShoppingRow({ item, pendingMutations, leaving, entering, onEnterEnd, onToggle, onChange, onRemove }: Props & { item: ShoppingItem }) {
   const checked = item.checked
-  return <li className={`relative border-b border-stone-200 ${leaving.has(item.id) ? 'leaving' : ''}`}>
+  return <li id={`shopping-row-${item.id}`} data-list-row={item.id} className={`relative border-b border-stone-200 ${leaving.has(item.id) ? 'leaving' : ''} ${entering.has(item.id) ? 'row-enter' : ''}`} onAnimationEnd={event => {
+    if (event.target === event.currentTarget) onEnterEnd(item.id)
+  }}>
     <div className="flex min-h-[4.5rem] items-center gap-2 py-1 pr-11">
       <button
         type="button"

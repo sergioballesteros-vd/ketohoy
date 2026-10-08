@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { db } from '@/lib/db'
 import { LogoMark } from '@/components/icons'
 import { focusRing } from '@/components/ui'
+import { RecipeImage, RecipeImageAttribution } from '@/components/RecipeImage'
+import { landingRecipeReview } from '@/lib/recipeImages'
 
 const STEPS = [
   { title: 'Añade lo que tienes en casa', text: 'Elige también tu modo keto y los alimentos que quieres evitar.' },
@@ -21,11 +22,11 @@ const cta =
 
 export default async function Landing() {
   const recipes = await db.recipe.findMany({
-    where: { imageUrl: { not: null } },
+    where: { title: { in: landingRecipeReview.map(({ title }) => title) } },
     orderBy: { createdAt: 'asc' },
-    take: 4,
-    select: { id: true, title: true, prepTimeMinutes: true, imageUrl: true },
+    select: { id: true, title: true, prepTimeMinutes: true },
   })
+  recipes.sort((a, b) => landingRecipeReview.findIndex(recipe => recipe.title === a.title) - landingRecipeReview.findIndex(recipe => recipe.title === b.title))
 
   return (
     <main className="px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-10">
@@ -71,17 +72,18 @@ export default async function Landing() {
           <ul className="mt-4 grid grid-cols-2 gap-3">
             {recipes.map(r => (
               <li key={r.id}>
-                <Link href={`/recipes/${r.id}`} className={`group block overflow-hidden rounded-lg bg-forest-900 ${focusRing}`}>
-                  <span className="relative block aspect-[4/3] bg-forest-800">
-                    <Image src={r.imageUrl!} alt="" fill sizes="(min-width: 768px) 360px, 45vw" className="object-cover" />
-                  </span>
-                  <span className="block p-3">
+                <div className="overflow-hidden rounded-lg bg-forest-900">
+                  <Link href={`/recipes/${r.id}`} className="group block">
+                    <RecipeImage title={r.title} className="aspect-[4/3]" sizes="(min-width: 768px) 360px, 45vw" />
+                  </Link>
+                  <RecipeImageAttribution title={r.title} />
+                  <Link href={`/recipes/${r.id}`} className={`group block p-3 ${focusRing}`}>
                     <span className="line-clamp-2 text-sm font-semibold text-forest-50">{r.title}</span>
                     <span className="mt-1 flex items-center gap-1 text-xs text-forest-300">
                       {r.prepTimeMinutes} min
                     </span>
-                  </span>
-                </Link>
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>
@@ -98,6 +100,14 @@ export default async function Landing() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section className="mt-8 rounded-2xl bg-forest-900 p-5" aria-labelledby="landing-final-cta">
+        <h2 id="landing-final-cta" className="text-xl font-semibold text-forest-50">Empieza a planificar tu semana</h2>
+        <p className="mt-2 text-sm leading-relaxed text-forest-300">
+          Organiza tus recetas, despensa y compra en un mismo lugar.
+        </p>
+        <Link href="/login?modo=registro" className={`${cta} mt-5 w-full sm:w-fit`}>Crear cuenta gratis</Link>
       </section>
 
       <footer className="mt-10 border-t border-forest-800 pt-5 text-sm text-forest-300">

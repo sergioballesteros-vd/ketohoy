@@ -1,8 +1,9 @@
 import { registrationData } from './registration'
 import { test, expect } from '@playwright/test'
+import { mockMercadonaCatalog, mercadonaProduct } from './mercadona-fixture'
 
-test.beforeEach(async ({ page }) => {
-  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': '127.0.0.2' })
+test.beforeEach(async ({ page }, info) => {
+  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `ui-${info.testId}` })
 })
 
 test('recipes: filter chips toggle, clear resets, a card opens its recipe', async ({ page }) => {
@@ -23,7 +24,25 @@ test('recipes: filter chips toggle, clear resets, a card opens its recipe', asyn
   await expect(page).toHaveURL(/\/recipes\/.+/)
 })
 
-test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH with negative delta)', async ({ page }) => {
+test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH with negative delta)', async ({ page, context }, info) => {
+  await context.clearCookies()
+  const registered = await page.request.post('/api/auth/register', {
+    headers: { 'X-Forwarded-For': `ui-explore-${info.testId}` },
+    data: registrationData('ui-explore'),
+  })
+  expect(registered.status()).toBe(201)
+  let quantity = 0
+  const shoppingItem = () => ({ id: 'fixture-shopping-row', name: mercadonaProduct.name, purchaseQuantity: quantity, sourceType: 'manual', requiredQuantity: null, originalIngredientText: null, checked: false, product: { id: mercadonaProduct.id, mercadonaId: mercadonaProduct.mercadonaId, name: mercadonaProduct.name, imageUrl: null, unitPrice: mercadonaProduct.unitPrice, category: mercadonaProduct.category } })
+  await page.route('**/api/mercadona/search**', route => route.fulfill({ json: { products: [mercadonaProduct], source: 'mercadona', completeness: 'complete', freshness: 'fresh' } }))
+  await page.route('**/api/mercadona/add', async route => {
+    quantity += Number((route.request().postDataJSON() as { quantity?: number }).quantity ?? 1)
+    await route.fulfill({ status: 200, json: {} })
+  })
+  await page.route('**/api/shopping-list', route => route.fulfill({ json: quantity > 0 ? [shoppingItem()] : [] }))
+  await page.route('**/api/shopping-list/*/quantity', async route => {
+    quantity += Number((route.request().postDataJSON() as { delta: number }).delta)
+    await route.fulfill({ status: 200, json: {} })
+  })
   await page.goto('/explore')
   const added = page.waitForResponse(response => response.url().endsWith('/api/mercadona/add'))
   await page.getByRole('button', { name: /^Añadir .* a la lista$/ }).first().click()
@@ -38,20 +57,20 @@ test('explore: "+" becomes a stepper, "−" goes back to "+" (quantity PATCH wit
   await expect(page.getByRole('link', { name: /Ver lista/ })).toHaveCount(0, { timeout: 15_000 })
 })
 
-test('home: the hero recipe has a photo (no placeholder as the protagonist)', async ({ page }) => {
-  // Photos come from the manual backfill, so a freshly seeded DB (CI) has none to prefer.
-  const res = await page.request.get('/api/recipes/suggestions?limit=100')
-  const data = await res.json()
-  const items: { recipe: { imageUrl?: string | null } }[] = Array.isArray(data) ? data : data.items
-  test.skip(!items.some(s => s.recipe.imageUrl), 'no recipe photos in this database')
-
+test('home: the hero recipe shows a photo only when it has been reviewed', async ({ page }) => {
   await page.goto('/')
   const hero = page.getByRole('region', { name: 'Recomendación de hoy' })
   await expect(hero).toBeVisible()
-  await expect(hero.locator('img')).toBeVisible()
+  const title = (await hero.locator('h2').textContent())?.trim()
+  if (title === 'Huevos fritos con bacon' || title === 'Tortilla de queso y jamón') {
+    await expect(hero.locator('img')).toBeVisible()
+  } else {
+    await expect(hero.getByRole('img', { name: 'Sin foto revisada' })).toBeVisible()
+  }
 })
 
 test('sheets: Escape closes, focus goes back to the trigger, page behind does not scroll while open', async ({ page }) => {
+  await mockMercadonaCatalog(page)
   await page.goto('/explore')
   const trigger = page.locator('main ul li').first().getByRole('button').filter({ hasText: '€' })
   await trigger.click()
@@ -64,6 +83,7 @@ test('sheets: Escape closes, focus goes back to the trigger, page behind does no
 })
 
 test('mobile: main screens and product sheets fit at 320 and 390px; keto radios support arrow keys', async ({ page }) => {
+  await mockMercadonaCatalog(page)
   const assertFits = async () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   }
@@ -97,12 +117,14 @@ test('mobile: main screens and product sheets fit at 320 and 390px; keto radios 
   await expect(page.getByRole('radio', { name: /^Keto flexible/ })).toBeChecked()
 })
 
-test('product sheet: a failed add stays visible in the dialog and can be retried', async ({ page }) => {
+test('product sheet: a failed add stays visible in the dialog and can be retried', async ({ page, context }, info) => {
+  await context.clearCookies()
   const registered = await page.request.post('/api/auth/register', {
-    headers: { 'X-Forwarded-For': '127.0.0.2' },
+    headers: { 'X-Forwarded-For': `ui-sheet-${info.testId}` },
     data: registrationData(),
   })
   expect(registered.status()).toBe(201)
+  await mockMercadonaCatalog(page)
   await page.goto('/explore')
   await page.locator('main ul li').first().getByRole('button').filter({ hasText: '€' }).click()
   const dialog = page.getByRole('dialog')

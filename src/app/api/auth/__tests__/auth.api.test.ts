@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { setupTestDb, post } from '@/lib/__tests__/testDb'
+import { setupFreshTestDb, post } from '@/lib/__tests__/testDb'
 
 // In-memory cookie jar standing in for next/headers' request-scoped cookies().
 const jar = new Map<string, string>()
@@ -24,7 +24,7 @@ let db: typeof import('@/lib/db').db
 let productId: string
 
 beforeAll(async () => {
-  ;({ cleanup } = setupTestDb())
+  ;({ cleanup } = setupFreshTestDb())
   ;({ POST: register } = await import('../register/route'))
   ;({ POST: login } = await import('../login/route'))
   ;({ POST: logout } = await import('../logout/route'))
@@ -32,7 +32,7 @@ beforeAll(async () => {
   ;({ DELETE: pantryDELETE } = await import('../../pantry/[id]/route'))
   ;({ POST: acceptTerms } = await import('../accept-terms/route'))
   ;({ db } = await import('@/lib/db'))
-  productId = (await db.product.findFirstOrThrow()).id
+  productId = (await db.product.create({ data: { name: 'Auth integration fixture', category: 'other', source: 'mercadona', mercadonaId: 'auth-integration-fixture' } })).id
 })
 
 afterAll(() => cleanup())
@@ -84,5 +84,18 @@ describe('auth + per-user data isolation', () => {
 
     await login(post('http://t/l', creds('alice@example.com')))
     expect((await (await pantryGET()).json()).map((i: { id: string }) => i.id)).toContain(created.id)
+  })
+
+  it('purges expired sessions and auth tokens atomically when a new session is created', async () => {
+    const res = await register(post('http://t/r', registration('expiry@example.com')))
+    expect(res.status).toBe(201)
+    const user = await db.user.findUniqueOrThrow({ where: { email: 'expiry@example.com' } })
+    await db.session.create({ data: { id: 'expired-session', userId: user.id, expiresAt: new Date(Date.now() - 1000) } })
+    await db.authToken.create({ data: { id: 'expired-token', userId: user.id, type: 'reset', expiresAt: new Date(Date.now() - 1000) } })
+    await db.authToken.create({ data: { id: 'live-token', userId: user.id, type: 'verify', expiresAt: new Date(Date.now() + 86400000) } })
+    expect((await login(post('http://t/l', creds('expiry@example.com')))).status).toBe(200)
+    expect(await db.session.findUnique({ where: { id: 'expired-session' } })).toBeNull()
+    expect(await db.authToken.findUnique({ where: { id: 'expired-token' } })).toBeNull()
+    expect(await db.authToken.findUnique({ where: { id: 'live-token' } })).not.toBeNull()
   })
 })

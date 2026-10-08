@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
-import { searchMercadonaProducts, searchMercadonaProductsByQueries, TRENDING_MERCADONA_QUERIES } from '@/lib/mercadona'
+import { searchMercadonaProductsByQueriesResult, searchMercadonaProductsResult, TRENDING_MERCADONA_QUERIES } from '@/lib/mercadona'
 import { rateLimit } from '@/lib/rateLimit'
 
 // GET /api/mercadona/search?q=queso
@@ -16,8 +16,8 @@ export const GET = withErrorHandling(async (request: Request) => {
   }
 
   const normalized = q.trim().toLowerCase()
-  const products = normalized === 'keto'
-    ? await searchMercadonaProductsByQueries(TRENDING_MERCADONA_QUERIES)
-    : await searchMercadonaProducts(q)
-  return NextResponse.json({ products, available: products.length > 0 })
+  const result = normalized === 'keto'
+    ? await searchMercadonaProductsByQueriesResult(TRENDING_MERCADONA_QUERIES)
+    : await searchMercadonaProductsResult(q)
+  return NextResponse.json({ ...result, available: result.products.length > 0 })
 })

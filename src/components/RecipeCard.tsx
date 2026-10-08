@@ -1,9 +1,9 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Check, ChefHat, ListPlus, Loader2 } from "lucide-react";
+import { Check, ListPlus, Loader2 } from "lucide-react";
 import { ToneLabel, focusRing } from "@/components/ui";
+import { RecipeImage, RecipeImageAttribution } from "@/components/RecipeImage";
 
 import { recipeAvailabilityLabel, type RecipeAvailability } from "@/lib/recipeAvailability";
 
@@ -67,21 +67,7 @@ export default function RecipeCard({
   return (
     <li className="min-w-0">
       <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-forest-800">
-        {recipe.imageUrl ? (
-          <Image
-            src={recipe.imageUrl}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"
-            className="object-cover"
-          />
-        ) : (
-          <ChefHat
-            className="absolute inset-0 m-auto text-forest-500"
-            size={32}
-            strokeWidth={1.5}
-          />
-        )}
+        <RecipeImage title={recipe.title} className="h-full" sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw" />
         {/* pointer-only hit area; the title below is the keyboard/AT link */}
         <Link
           href={`/recipes/${recipe.id}`}
@@ -125,6 +111,7 @@ export default function RecipeCard({
           </button>
         )}
       </div>
+      <RecipeImageAttribution title={recipe.title} />
 
       {(missing > 0 || !hideReady) && (
         <p className="mt-2 text-xs text-forest-200">

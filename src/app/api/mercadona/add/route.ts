@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { getMercadonaProduct } from '@/lib/mercadona'
+import type { NutritionalData } from '@/lib/openFoodFacts'
+import { OpenFoodFactsError } from '@/lib/openFoodFacts'
 import { formatShoppingQuantity } from '@/lib/shoppingList'
 import { positiveQuantity, purchaseQuantityInput } from '@/lib/quantities'
 import { addPantryPresence } from '@/lib/pantryAddition'
@@ -31,8 +33,34 @@ export const POST = withErrorHandling(async (request: Request) => {
     await request.json()
   )
 
-  // 1. Get full Mercadona product detail
-  const merc = await getMercadonaProduct(String(mercadonaId))
+  const existing = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
+  if (existing && (existing.source !== 'mercadona' || existing.ownerId !== null)) {
+    throw new ApiError('Product catalog conflict', 409)
+  }
+  const knownNutrition: NutritionalData | undefined = existing?.nutritionSource === 'openfoodfacts' && existing.nutritionConvention === 'available_excluding_fiber' && existing.netCarbsPer100g != null
+    ? {
+        availableCarbsPer100g: existing.netCarbsPer100g, fat: existing.fatPer100g,
+        protein: existing.proteinPer100g, calories: existing.caloriesPer100g,
+        sugars: null, fiber: existing.fiberPer100g,
+      }
+    : undefined
+
+  // Detail provides product metadata directly; an existing valid OFF row avoids another OFF request.
+  let merc
+  try {
+    merc = await getMercadonaProduct(String(mercadonaId), knownNutrition)
+  } catch (error) {
+    if (error instanceof OpenFoodFactsError) {
+      console.warn('[mercadona] import nutrition failed', error.kind)
+      throw new ApiError('No se pudo consultar la información nutricional', 503)
+    }
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      console.warn('[mercadona] import detail failed', 'timeout')
+      throw new ApiError('Mercadona no respondió a tiempo', 503)
+    }
+    console.warn('[mercadona] import detail failed', 'provider_error')
+    throw new ApiError('No se pudo consultar Mercadona', 503)
+  }
   if (!merc) {
     throw new ApiError('Mercadona product not found', 404)
   }
@@ -52,18 +80,16 @@ export const POST = withErrorHandling(async (request: Request) => {
     caloriesPer100g: calories,
     nutritionSource: classification.source === 'nutrition' ? 'openfoodfacts' : classification.source === 'category_estimate' ? 'category' : 'unknown',
   }
-  let product = await db.product.findUnique({ where: { mercadonaId: String(mercadonaId) } })
-  if (product && (product.source !== 'mercadona' || product.ownerId !== null)) {
-    throw new ApiError('Product catalog conflict', 409)
-  }
+  let product = existing
   if (product) {
+    const preserveKnownNutrition = nutritionFields.nutritionSource !== 'openfoodfacts' && product.nutritionSource === 'openfoodfacts' && product.nutritionConvention === 'available_excluding_fiber' && product.netCarbsPer100g !== null
     product = await db.product.update({
       where: { id: product.id },
       data: {
         name: merc.name,
         category: merc.category,
         ketoScore,
-        ...nutritionFields,
+        ...(preserveKnownNutrition ? {} : nutritionFields),
         unitPrice: merc.unitPrice,
         imageUrl: merc.imageUrl,
       },

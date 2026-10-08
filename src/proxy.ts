@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Reachable without a session: landing, login + account recovery, recipe pages (indexable content),
-// and the auth API itself. Everything else redirects to /login (pages) or answers 401 (API).
-const PUBLIC_EXACT = new Set(['/', '/login', '/forgot-password', '/reset-password', '/verify-email', '/legal'])
+// Reachable without a session: landing, login + account recovery, recipe pages, and health/auth APIs.
+// Everything else redirects to /login (pages) or answers 401 (API).
+const PUBLIC_EXACT = new Set(['/', '/login', '/forgot-password', '/reset-password', '/verify-email', '/legal', '/api/health'])
 const isPublic = (path: string) => PUBLIC_EXACT.has(path) || path.startsWith('/recipes/') || path.startsWith('/api/auth/')
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -53,5 +53,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|.*\\.(?:jpg|jpeg|png|svg|ico|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|offline-shopping-list\\.(?:html|js)$|robots.txt|sitemap.xml|.*\\.(?:jpg|jpeg|png|svg|ico|webp)$).*)'],
 }

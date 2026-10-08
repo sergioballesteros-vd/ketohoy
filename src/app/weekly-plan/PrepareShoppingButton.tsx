@@ -5,7 +5,7 @@ import { focusRing } from '@/components/ui'
 import { apiFetch } from '@/lib/apiFetch'
 
 type Summary = { needs: number; created: number; updated: number; unchanged: number; unknown: number; historical: number }
-export default function PrepareShoppingButton({ planId, incomplete, disabled }: { planId: string; incomplete: boolean; disabled: boolean }) {
+export default function PrepareShoppingButton({ planId, incomplete, disabled, compact = false }: { planId: string; incomplete: boolean; disabled: boolean; compact?: boolean }) {
   const active = useRef(false)
   const [preparing, setPreparing] = useState(false)
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -29,7 +29,7 @@ export default function PrepareShoppingButton({ planId, incomplete, disabled }: 
   }
   return <div className="mt-3 max-w-xl">
     <button type="button" onClick={() => void prepare()} disabled={preparing || incomplete || disabled} aria-busy={preparing}
-      className={`min-h-11 w-full rounded-xl bg-[#a3e635] px-3 py-2 text-sm font-semibold text-forest-950 disabled:opacity-50 sm:w-auto ${focusRing}`}>
+      className={`min-h-11 w-full rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:w-auto ${compact ? 'border border-forest-600 bg-forest-800 text-forest-50 hover:bg-forest-700' : 'bg-[#a3e635] text-forest-950'} ${focusRing}`}>
       {preparing ? 'Preparando compra…' : 'Preparar compra de esta semana'}
     </button>
     {incomplete && <p className="mt-1 text-sm text-forest-200">Plan incompleto: genera las 28 comidas para preparar la compra semanal.</p>}

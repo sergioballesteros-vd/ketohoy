@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { withErrorHandling } from '@/lib/apiError'
-import { ensureRecipeImage } from '@/lib/recipeImage'
+import { reviewedRecipeImage } from '@/lib/recipeImages'
 import { DEFAULT_PREFERENCES, scoreRecipe, sortSuggestions } from '@/lib/recipeScoring'
 import type { RecipeWithIngredients, ScoringOptions } from '@/lib/recipeScoring'
 
@@ -18,7 +18,7 @@ export const GET = withErrorHandling(async (request: Request) => {
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
     db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
-    db.userPreferences.findFirst({ where: { userId } }),
+    db.userPreferences.findUnique({ where: { userId } }),
   ])
 
   const preferences: ScoringOptions['preferences'] = prefs
@@ -62,19 +62,10 @@ export const GET = withErrorHandling(async (request: Request) => {
     sorted = sorted.filter(s => s.availability.ready)
   }
 
-  const items = await Promise.all(
-    sorted.slice(0, limit).map(async suggestion => {
-      const imageUrl = await ensureRecipeImage(
-        suggestion.recipe.id,
-        suggestion.recipe.title,
-        suggestion.recipe.imageUrl
-      )
-
-      return imageUrl === suggestion.recipe.imageUrl
-        ? suggestion
-        : { ...suggestion, recipe: { ...suggestion.recipe, imageUrl } }
-    })
-  )
+  const items = sorted.slice(0, limit).map(suggestion => ({
+    ...suggestion,
+    recipe: { ...suggestion.recipe, imageUrl: reviewedRecipeImage(suggestion.recipe.title)?.url ?? null },
+  }))
 
   return NextResponse.json({
     items,

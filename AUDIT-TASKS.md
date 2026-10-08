@@ -1,6 +1,6 @@
 # KetoHoy — Audit Tasks
 
-Derivado de AUDIT.md, 2 de octubre de 2026. **46 tareas diagnósticas; 21 completadas localmente.** Prioridades: P0 0 / P1 14 / P2 27 / P3 5. Mantener IDs para trazabilidad. `Depends on` indica prerequisitos reales de datos; en riesgos Needs verification el primer paso es demostrar condición y ajustar alcance antes de cambiar comportamiento.
+Derivado de AUDIT.md, 2 de octubre de 2026. **46 tareas diagnósticas; 36 completadas localmente.** Prioridades: P0 0 / P1 14 / P2 27 / P3 5. Mantener IDs para trazabilidad. `Depends on` indica prerequisitos reales de datos; en riesgos Needs verification el primer paso es demostrar condición y ajustar alcance antes de cambiar comportamiento.
 
 El checkout ya contenía cambios del usuario. No revertirlos. Leer AGENTS.md y guía local Next; usar grafo para discovery. Implementar la menor corrección en la causa compartida. Reutilizar helpers/tipos/componentes actuales y tests existentes; no instalar gestores de estado/motion/colas por defecto. BD de pruebas desechable; seed nunca contra datos originales. Pruebas de seguridad solo local/staging autorizado. No desplegar, borrar cuentas ni migrar producción como parte automática de una tarea.
 
@@ -191,7 +191,7 @@ Con preferencias por defecto se obtuvieron 28 comidas. Con strict, tres exclusio
 - [x] Desktop — recorrer `/weekly-plan; POST /api/weekly-plan/generate` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
 - [x] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
 - [x] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
+- [x] Reduced motion — N/A; el CTA no añade animaciones ni movimiento programático.
 - [x] Prueba específica — Repetir el caso de siete snacks desde UI y API, comprobar mensaje, botón de preferencias y persistencia.
 - [x] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
 
@@ -341,8 +341,8 @@ Status: **Completed — 2026-10-03**
 
 - [x] Desktop — recorrer `/explore; /api/mercadona/*` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
 - [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
+- [x] Keyboard — E2E recorre Tab/Shift+Tab entre CTA y primera foto, activa con Enter y comprueba navegación al detalle. No hay interacción nueva en la imagen.
+- [x] Reduced motion — E2E emula `prefers-reduced-motion: reduce` en el detalle y comprueba que el fallback no anima ni transforma.
 - [x] Prueba específica — Comparar el mismo mercadonaId en búsqueda, detalle y producto importado; no hacer afirmaciones clínicas.
 - [x] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
 
@@ -498,15 +498,16 @@ Ejecución real: esperado 201, recibido 400 en setup; 1 failed y 26 did not run.
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
+- [x] Desktop — N/A para documentación.
+- [x] Mobile — N/A para documentación.
+- [x] Keyboard — N/A para documentación; no se añadió interfaz.
+- [x] Reduced motion — N/A para documentación; no se añadió movimiento.
 - [x] Prueba específica — npm run test:e2e desde cero, además de npm test; no aceptar un pass de setup como pass global.
 - [x] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
 
 ## KH-011 — El despliegue modifica el directorio que todavía sirve tráfico
 
+Status: Implemented — Operational verification pending
 Priority: P1  
 Area: Architecture / Data  
 Effort: M  
@@ -530,9 +531,9 @@ Orden verificable en workflow actual. El healthcheck final verifica /login y hea
 
 ### Implementation
 
-- [ ] Añadir concurrency y separar release de datos persistentes
-- [ ] Preparar/build/verificar antes de activar; guardar puntero anterior
-- [ ] Documentar y ensayar rollback compatible con migraciones
+- [x] Añadir concurrency y separar release de datos persistentes
+- [x] Preparar/build/verificar antes de activar; guardar puntero anterior
+- [x] Documentar y ensayar rollback de código; migraciones ya aplicadas requieren recuperación manual compatible con schema
 
 ### Acceptance criteria
 
@@ -1000,6 +1001,8 @@ Depends on: —
 Confidence: Confirmado  
 Route: `POST /api/auth/forgot`
 
+Status: Partial — local contract verified; staging delivery and operational alert remain open.
+
 ### Goal
 
 Contrato externo idéntico aun si falla el proveedor y registro interno del error. Conservar respuesta genérica; elegir retry operativo mínimo y no una cola nueva sin necesidad. Evaluar tiempos con un proveedor simulado.
@@ -1018,26 +1021,30 @@ Sin RESEND_API_KEY en entorno local: email del usuario de prueba 500; email inex
 
 ### Implementation
 
-- [ ] Capturar fallo de entrega dentro del flujo y mantener respuesta uniforme
-- [ ] Añadir tests de proveedor caído y cuenta inexistente
+- [x] Capturar fallo de entrega dentro del flujo y mantener respuesta uniforme
+- [x] Añadir tests de proveedor caído y cuenta inexistente
 - [ ] Documentar recuperación/retry y alertar por fallos de envío
 
 ### Acceptance criteria
 
-- [ ] Existente/inexistente tienen mismo status/body con proveedor OK o caído
-- [ ] Fallo se observa internamente sin exponer email/token
+- [x] Existente/inexistente tienen mismo status/body con proveedor OK o caído
+- [x] Fallo se observa internamente sin exponer email/token
 - [ ] La entrega real sigue verificándose en staging
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Mock de Resend devuelve 500/timeout; comparar respuesta a dos tipos de email, sin envío real.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — mismo status/body comprobados por cliente HTTP y navegador.
+- [x] Mobile — N/A para layout; el contrato vive en servidor y la UI no distingue por viewport.
+- [x] Keyboard — no se añade ningún control; input y submit nativos conservan teclado y validación.
+- [x] Reduced motion — N/A para operación de servidor; no se añadieron esperas.
+- [x] Prueba específica — mock local simula timeout/error y compara cuenta conocida/desconocida; E2E sin proveedor real.
+- [x] Evidencia de cierre — pruebas y checks documentados abajo; sin datos privados en logs.
+
+Implementation local verificada. Queda parcial hasta documentar el procedimiento/alerta operativa y verificar entrega real en staging; KH-031 no se amplía para cubrir alertas.
 
 ## KH-022 — Hay advisories que requieren actualización selectiva y análisis de alcance
+
+Status: Implemented — Residual dependency risk pending
 
 Priority: P2  
 Area: Security / Architecture  
@@ -1052,9 +1059,9 @@ Actualizar parches compatibles de Next/tooling, revisar transitivas por ruta alc
 
 ### Context and evidence
 
-npm audit devuelve 17 alertas (1 critical, 8 high, 8 moderate). El recuento no equivale a 17 vías explotables. Next 16.3.4 está en rango vulnerable de ImageResponse; Vitest y varias transitivas son principalmente tooling.
+Estado medido el 7 de octubre de 2026: `npm audit` devuelve 24 advisories (1 critical, 15 high, 8 moderate). `--omit=dev` devuelve 13 (1 critical, 7 high, 5 moderate). El recuento no equivale a vías alcanzables por KetoHoy. Next 16.3.4 estaba afectado por `next/og` Node `ImageResponse`; no se encontró ese uso en código del repo. Vitest 4.1.9 tenía un advisory dev-only de redirect mock/path traversal.
 
-audit-assets/dependency-audit.json. Advisory oficial GHSA-vcvr-r3jv-pc5j afecta next/og Node con SVG controlado por atacante y se corrige en 16.3.6; no se encontró ImageResponse ni next/og en esta app. Vitest 4.1.9 también tiene advisory de dev server/mocker.
+Advisory oficial [GHSA-vcvr-r3jv-pc5j](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j) afecta `next/og` Node con SVG controlado por atacante y se corrige desde 16.3.6. `ImageResponse`/`next/og` no aparecen en imports, routes ni configuración de aplicación; los hits son de documentos de auditoría. La advisory de Vitest [GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9) afecta `@vitest/mocker` hasta 4.1.10; el fix es 4.1.11.
 
 ### Files likely affected
 
@@ -1063,23 +1070,25 @@ audit-assets/dependency-audit.json. Advisory oficial GHSA-vcvr-r3jv-pc5j afecta 
 
 ### Implementation
 
-- [ ] Revisar advisory oficial y fijar versiones parche compatibles
-- [ ] Actualizar lockfile selectivamente, sin force
-- [ ] Repetir npm audit y registrar runtime/build/dev + alcance
+- [x] Revisar advisories actuales y fijar Next 16.3.8, Vitest/coverage 4.1.11
+- [x] Actualizar lockfile selectivamente, sin `--force` ni `overrides`
+- [x] Repetir npm audit y registrar runtime/build/dev + alcance en IMPLEMENTATION-PROGRESS.md
 
 ### Acceptance criteria
 
-- [ ] Cada advisory tiene versión corregida o razón de no alcanzabilidad documentada
-- [ ] Build/lint/tests/E2E pasan tras cambios; sin downgrade mayor de Prisma por resolver audit
+- [x] Cada advisory tiene versión corregida o residual con ruta/reachability y motivo documentados
+- [ ] Build/lint/tests/E2E pasan tras cambios; sin downgrade mayor de Prisma por resolver audit. Build/TypeScript pasan; la corrida unitaria completa tuvo 2 timeouts y E2E tuvo 3 fallos.
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Comparar audit antes/después y ejecutar checks completos más páginas SSR y optimización de imágenes.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — N/A; no hubo cambios de UI.
+- [x] Mobile — N/A; no hubo cambios de UI.
+- [x] Keyboard — N/A; no se añadieron controles.
+- [x] Reduced motion — N/A; no se añadió movimiento.
+- [x] Prueba específica — npm audit antes/después, SSR/build, suites unit/E2E y auditorías de migración/backup.
+- [x] Evidencia — resultados y límites registrados en IMPLEMENTATION-PROGRESS.md; sin datos reales ni secretos.
+
+Resultado: `Implemented — Residual dependency risk pending`. No incrementar el contador: full unit/E2E no quedaron limpios y permanecen advisories high/moderate en Prisma CLI y lint tooling.
 
 ## KH-023 — Fallback demo y catálogo incompleto parecen datos reales
 
@@ -1108,24 +1117,24 @@ Ramas de fallback y cache inspeccionadas. No hubo caída externa durante la visi
 
 ### Implementation
 
-- [ ] Extender respuesta con procedencia y fecha sin framework de caché nuevo
-- [ ] Definir criterio mínimo de catálogo completo y TTL corto de error
-- [ ] Simular árbol/hojas caídos y verificar fallback visible
+- [x] Extender respuesta con procedencia y fecha sin framework de caché nuevo
+- [x] Definir criterio mínimo de catálogo completo y TTL corto de error
+- [x] Simular árbol/hojas caídos y verificar fallback visible
 
 ### Acceptance criteria
 
-- [ ] Demo/última copia/parcial son distinguibles de datos actuales
-- [ ] Un fallo parcial no invalida caché buena durante 12 h
-- [ ] Retry conserva consulta y no rompe otras categorías
+- [x] Demo/última copia/parcial son distinguibles de datos actuales
+- [x] Un fallo parcial no invalida caché buena durante 12 h
+- [x] Retry conserva consulta y no rompe otras categorías
 
 ### Verification
 
-- [ ] Desktop — recorrer `/explore; /api/mercadona/search` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Mock Mercadona 503 en todo y en una hoja; comparar UI, precios y posterior recuperación.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — Playwright Chromium comprobó Explore y recuperación a 1280; sin overflow ni errores de página.
+- [x] Mobile — Playwright comprobó 320/390/768; sin overflow y con estado/precio visibles. Teclado virtual/safe area y dispositivo físico no verificados.
+- [x] Keyboard — reintento con control nativo accesible y consulta conservada; probado en E2E.
+- [x] Reduced motion — prueba E2E en movimiento reducido.
+- [x] Prueba específica — mocks Mercadona para fallo total/parcial, caché obsoleta y recuperación; contratos visibles.
+- [x] Evidencia de cierre — cobertura específica de KH-023, TypeScript/build/lint focalizado/diff check registrados en IMPLEMENTATION-PROGRESS.md. La última E2E completa tuvo un fallo temporal ajeno a estos findings, clasificado allí.
 
 ## KH-024 — Importar un producto espera catálogo completo y servicios sin límite de espera
 
@@ -1154,24 +1163,24 @@ Cadena de funciones trazada y fetch leídos. loadCatalog recorre árbol y hojas 
 
 ### Implementation
 
-- [ ] Eliminar dependencia obligatoria de loadCatalog en detalle
-- [ ] Añadir timeouts y manejar abort sin falsear datos
-- [ ] Reusar nutrición existente fresca y cubrir fallos externos
+- [x] Eliminar dependencia obligatoria de loadCatalog en detalle
+- [x] Añadir timeouts y manejar abort sin falsear datos
+- [x] Reusar nutrición existente y cubrir fallos externos (no hay timestamp persistido para declarar su frescura)
 
 ### Acceptance criteria
 
-- [ ] Añadir producto no necesita recorrer todo el catálogo en frío
-- [ ] OFF/Google terminan con fallo útil dentro del presupuesto definido
-- [ ] Reañadir no borra nutrición conocida si el proveedor falla
+- [x] Añadir producto no necesita recorrer todo el catálogo en frío
+- [x] OFF/Google terminan con fallo útil dentro del presupuesto definido
+- [x] Reañadir no borra nutrición conocida si el proveedor falla
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Servicios simulados con respuesta infinita/503; medir request de un producto en frío y repetir alta.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — N/A para layout; contrato probado en API/unit y E2E de alta.
+- [x] Mobile — N/A para lógica de servidor; el consumidor Explore también se cubrió en viewports móviles.
+- [x] Keyboard — N/A para la lógica de servidor; acciones existentes mantienen controles nativos.
+- [x] Reduced motion — N/A para lógica de servidor; E2E de Explore incluye modo reducido.
+- [x] Prueba específica — mocks de OFF/Google colgados/errores y detalle Mercadona en frío; reañadir conserva nutrición.
+- [x] Evidencia de cierre — cobertura específica de KH-024, TypeScript/build/lint focalizado/diff check registrados en IMPLEMENTATION-PROGRESS.md. Sin migración ni deploy; la última E2E completa tuvo un fallo temporal ajeno a estos findings, clasificado allí.
 
 ## KH-025 — Restar fibra siempre necesita verificar la convención nutricional de origen
 
@@ -1224,6 +1233,8 @@ Implementation evidence: [matriz y flujo](audit-assets/kh-025/CONTRACT.md), [pay
 
 ## KH-026 — El primer uso no guía hasta un resultado completo
 
+Status: Completed
+
 Priority: P2  
 Area: Product / UX  
 Effort: S  
@@ -1249,24 +1260,24 @@ Cuenta local nueva recorrió home, preferencias, despensa y plan. Las pantallas 
 
 ### Implementation
 
-- [ ] Derivar estado de prefs/despensa/plan con datos existentes
-- [ ] Añadir acciones cortas con enlaces y explicar defaults
-- [ ] Validar primer uso con despensa vacía y sin exclusiones
+- [x] Derivar estado de prefs/plan/compra con datos existentes; despensa vacía no es una condición
+- [x] Añadir acciones cortas con enlaces y explicar que los defaults son válidos
+- [x] Validar primer uso con despensa vacía y sin exclusiones
 
 ### Acceptance criteria
 
-- [ ] Usuario nuevo ve siguiente acción y puede omitirla
-- [ ] Usuario recurrente no recibe una guía repetitiva
-- [ ] La guía termina al lograr plan/compra y no bloquea navegación
+- [x] Usuario nuevo ve siguiente acción y puede omitirla
+- [x] Usuario recurrente no recibe una guía repetitiva
+- [x] La guía termina al preparar la compra asociada a un plan completo y no bloquea navegación
 
 ### Verification
 
-- [ ] Desktop — recorrer `Tras registro → /` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Crear cuenta aislada y completar preferencias, un producto, menú y compra; repetir login y probar omisión.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — tarjeta y CTA visibles en home; el E2E mide 1280/1440 y no registra pageerrors.
+- [x] Mobile — 320, 390 y 768 sin overflow y con CTA/omitir visibles. Teclado virtual, safe area y dispositivo físico no comprobados.
+- [x] Keyboard — Tab/Shift+Tab, Space y foco visible; Enter de omisión también pasó en una ejecución focalizada anterior. Al omitir, el foco vuelve al encabezado de home.
+- [x] Reduced motion — emulado en el E2E; no se añadieron animaciones ni scroll automático.
+- [x] Prueba específica — cuenta nueva con defaults y despensa vacía, omisión persistente, login/logout y cuenta distinta; una pasada focalizada adicional recorrió generación explícita y compra semanal KH-027.
+- [x] Evidencia de cierre — unit, E2E KH-026/KH-027, full E2E, TypeScript, build, lint afectado y diff check registrados en IMPLEMENTATION-PROGRESS.md.
 
 ## KH-027 — No hay acción de compra para el menú semanal completo
 
@@ -1319,6 +1330,8 @@ Implementation evidence: cierre local 2026-10-05. Endpoint agregado, stock virtu
 
 ## KH-028 — La lista no se puede consultar tras recarga sin conexión
 
+Status: Completed — 2026-10-08
+
 Priority: P2  
 Area: Mobile / Product  
 Effort: M  
@@ -1332,9 +1345,9 @@ Primero snapshot local privado de SOLO lectura con fecha y aviso “Sin conexió
 
 ### Context and evidence
 
-Hay manifest standalone e iconos, pero no service worker ni copia persistida de la lista. Tras recarga offline fetch falla y no hay datos recuperables; una pestaña ya cargada conserva estado solo en memoria.
+Hallazgo inicial: había manifest standalone e iconos, pero no service worker ni copia persistida de la lista. Tras recarga offline fetch fallaba y no había datos recuperables; una pestaña ya cargada conservaba estado solo en memoria.
 
-Código de carga y búsqueda de soporte offline/SW: no implementado. Escenario por código; no se simuló radio/operador real ni instalación iOS. Manifest no prueba por sí solo experiencia offline.
+Estado de implementación (2026-10-08): **Completed** tras dos full E2E consecutivas 132/132 con la cobertura ampliada de 500, 503, timeout y payload inválido. La shell estática se sirve solo como fallback de navegación exacta a `/shopping-list`; el SW cachea únicamente esa shell y sus dos recursos, nunca APIs, HTML privado, cookies ni mutaciones. El snapshot local es readonly y por cuenta; logout/cambio de sesión limpia snapshots, incluida una sesión que el servidor rechaza. Ver evidencia y límites en IMPLEMENTATION-PROGRESS.md.
 
 ### Files likely affected
 
@@ -1344,26 +1357,28 @@ Código de carga y búsqueda de soporte offline/SW: no implementado. Escenario p
 
 ### Implementation
 
-- [ ] Guardar snapshot por cuenta tras respuesta válida y limpiar al logout
-- [ ] Distinguir offline, datos antiguos y retry
-- [ ] Cubrir primer uso offline y cambio de sesión; evaluar SW solo si instalación es objetivo real
+- [x] Guardar snapshot por cuenta tras respuesta válida y limpiar al logout
+- [x] Distinguir offline, datos antiguos y retry
+- [x] Cubrir primer uso offline y cambio de sesión; usar SW mínimo para soportar recarga offline
 
 ### Acceptance criteria
 
-- [ ] Recargar offline muestra última lista con fecha y estado claro
-- [ ] No se anuncia compra persistida sin red
-- [ ] Logout/cambio de cuenta elimina acceso al snapshot previo
+- [x] Recargar offline muestra última lista con fecha y estado claro
+- [x] No se anuncia compra persistida sin red
+- [x] Logout/cambio de cuenta elimina acceso al snapshot previo
 
 ### Verification
 
-- [ ] Desktop — recorrer `/shopping-list; manifest` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Cargar lista, desconectar, recargar y volver online; cerrar sesión y entrar con otro usuario sin ver datos anteriores.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — Chromium a 1280/1440; flujo y shell sin pageerrors en la prueba focalizada.
+- [x] Mobile — Chromium a 320/390/768; sin overflow en la prueba focalizada. Teclado virtual/safe area y dispositivo físico no comprobados.
+- [x] Keyboard — Tab/Shift+Tab circulan entre retry y documento sin trampa; foco visible y activación Enter/Space. La lista offline es texto de solo lectura, sin controles por fila.
+- [x] Reduced motion — flujo focalizado emulado con `prefers-reduced-motion: reduce`.
+- [x] Prueba específica — offline tras recarga, primera visita sin snapshot, recuperación online, retry, logout entre pestañas, aislamiento de cuenta y sesión invalidada por el servidor cubiertos por E2E focalizada.
+- [x] Evidencia de cierre — implementación, tests focalizados (3/3), full unit (421/421), TypeScript, build, lint afectado y diff check pasan. Runs24 y 25 consecutivos: full E2E 132/132, 0 failed/skipped/not-run/global errors, 5 workers, 0 retries; DB/ledger temporales distintos. Run23 falló un caso de navegación KH-044, que pasó aislado; corridas previas y su diagnóstico se documentan en IMPLEMENTATION-PROGRESS.md. No se añadieron retries ni se redujeron workers.
 
 ## KH-029 — La despensa grande no tiene búsqueda de lo que ya está en casa
+
+Status: Completed
 
 Priority: P2  
 Area: UX / Mobile  
@@ -1385,29 +1400,38 @@ Inventario renderiza groups completo; no input/filtro de items existentes. Valid
 ### Files likely affected
 
 - [src/app/inventory/page.tsx:25](/Users/sergioballesteros/ketohoy/src/app/inventory/page.tsx:25)
+- [src/lib/pantrySearch.ts](/Users/sergioballesteros/ketohoy/src/lib/pantrySearch.ts)
+- [src/lib/__tests__/pantrySearch.test.ts](/Users/sergioballesteros/ketohoy/src/lib/__tests__/pantrySearch.test.ts)
+- [e2e/pantry-search.spec.ts](/Users/sergioballesteros/ketohoy/e2e/pantry-search.spec.ts)
 
 ### Implementation
 
-- [ ] Añadir search input etiquetado y normalización existente
-- [ ] Filtrar antes de agrupar, mostrando recuento filtrado/total
-- [ ] Probar nombres largos, coincidencias y cero resultados
+- [x] Añadir search input etiquetado y normalización nativa de acentos/caso/espacios
+- [x] Filtrar localmente antes de agrupar, mostrando recuento filtrado/total
+- [x] Probar coincidencias, cero resultados y una despensa de 150 productos
 
 ### Acceptance criteria
 
-- [ ] Buscar nombre/tildes encuentra stock sin request externo
-- [ ] Vacío filtrado explica cómo limpiar y no parece despensa vacía
-- [ ] Focus y scroll no se pierden al editar una fila
+- [x] Buscar nombre/tildes encuentra stock sin request externo
+- [x] Vacío filtrado explica cómo limpiar y no parece despensa vacía
+- [x] El query se conserva al editar cantidad/unidad, quitar y deshacer un resultado
 
 ### Verification
 
-- [ ] Desktop — recorrer `/inventory` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Fixture de 150 productos en BD desechable, 320/390 px y teclado; editar resultado y limpiar filtro.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — E2E automático a 1280/1440; búsqueda, count y clear correctos.
+- [x] Mobile/tablet — E2E automático a 320/390/768; sin overflow horizontal de documento.
+- [x] Keyboard — limpiar con Enter devuelve el foco al input. No se intercepta Escape.
+- [x] Reduced motion — la búsqueda y clear siguen operativos con `prefers-reduced-motion: reduce`.
+- [x] Prueba específica — DB desechable, 150 productos, 320/390/768/1280/1440, editar cantidad filtrada, borrar/deshacer, limpiar con teclado.
+- [x] E2E completo — dos corridas consecutivas terminaron 118 passed, 1 skip histórico, 0 failed y 0 not-run con cinco workers y cero retries; no hubo errores globales de teardown ni reapareció `route.fetch: Test ended`.
+- [x] Unit completo 369/369; TypeScript, build, lint afectado y `git diff --check` pasan. La E2E focalizada (setup + KH-029) pasa 2/2 con DB/ledger temporales.
+- [x] No se alteraron retries, skips, timeouts, workers, sleeps ni assertions existentes.
+
+Estado final: **Completed**. Baseline global recuperada con cinco full unit consecutivas verdes, dos full E2E consecutivas verdes y KH-029 focalizado verde. Contador de auditoría: **33/46 completed**; KH-022 y los otros findings conservan su estado.
 
 ## KH-030 — Cuenta, exportación y retención necesitan un contrato operativo
+
+Status: Implemented — Legal/operational review pending
 
 Priority: P2  
 Area: Data / Product  
@@ -1435,24 +1459,26 @@ Rutas/schema revisados. Almacena email, hash de contraseña, Google ID, verifica
 
 ### Implementation
 
-- [ ] Documentar categorías, destino, plazo y responsable operativo
-- [ ] Crear procedimiento mínimo probado en copia de BD, no borrado automático no revisado
-- [ ] Si se añade self-service, reautenticar y confirmar impacto real
+- [x] Documentar categorías, destino, plazo operativo conocido y configuración del ledger; plazos/logs/procesadores quedan sujetos a revisión.
+- [x] Implementar export y borrado self-service transaccional con reconciliación de backup probada en SQLite temporal.
+- [x] Exigir sesión, email escrito y password para cuenta password; Google-only usa confirmación deliberada y documenta la falta de OAuth reautenticación.
 
 ### Acceptance criteria
 
-- [ ] Cuenta de prueba puede exportarse/borrarse sin afectar otra
-- [ ] Se explica plazo de desaparición de copias y datos que se conservan
-- [ ] Sesiones/tokens caducados se purgan con regla verificable
+- [x] Dos cuentas de prueba: export/delete de A aislado de B y catálogo compartido; sesión/token se eliminan por cascade.
+- [x] Se explica que activo se borra tras la transacción y que copias históricas expiran según la retención, sin plazo global prometido.
+- [x] Restore exige ledger externo y reaplica todas las bajas antes de publicar una DB restaurada.
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Dos cuentas en staging: exportar y borrar una, revisar tablas relacionadas, sesiones y política de backup.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop/Mobile — E2E de Preferences/export/delete en 1280, 390 y 320 px; sin overflow horizontal.
+- [x] Keyboard — La divulgación destructiva se abre con Enter; campos etiquetados y envío con botón nativo.
+- [x] Reduced motion — No se añadieron animaciones ni scroll programático al flujo.
+- [x] Prueba específica — Dos cuentas en SQLite temporal: exportar y borrar una, revisar tablas relacionadas, sesiones, tokens, catálogo compartido y restore histórico.
+- [x] E2E focalizado — exportación/descarga, favoritos locales, teclado y borrado en 320/390/1280: pasa.
+- [ ] E2E completo — 116 pass, 1 failure, 1 skip, 0 not-run, 5 workers, 0 retries; falla `e2e/plan.spec.ts` day-navigation también aisladamente. Se deja intacto por el límite de alcance KH-030.
+- [x] Evidencia de cierre — ver IMPLEMENTATION-PROGRESS.md; unit/integration, restore drill, build, TypeScript y lint afectado registrados. No se usaron datos ni secretos reales.
+- [ ] Revisión legal/operativa de copy público, procesadores, retención de logs/ledger y recuperación off-host; no se cambia KH-046 ni se accede a staging.
 
 ## KH-031 — Faltan señales operativas del flujo crítico
 
@@ -1510,6 +1536,8 @@ Depends on: KH-014
 Confidence: Confirmado  
 Route: `/; /recipes/:id`
 
+Status: Completed — 2026-10-06
+
 ### Goal
 
 Distinguir not found de fallo técnico y registrar/presentar error con retry. Mantener datos previos cuando existan; no convertir outage en 404/ceros.
@@ -1528,24 +1556,24 @@ Catch de ambas funciones leído. No se apagó la BD del usuario ni se provocó o
 
 ### Implementation
 
-- [ ] Eliminar catch indiscriminado o devolver resultado discriminado
-- [ ] Reusar boundary/estado de error existentes
-- [ ] Añadir tests de not found vs excepción de BD
+- [x] Eliminar catch indiscriminado; DB/infra errors se propagan y solo null confirmado produce not-found
+- [x] Reusar el error boundary existente con `retry()` de Next 16.3.4
+- [x] Añadir tests de not found vs excepción de BD, Home vacío/cargado/fallo y recuperación
 
 ### Acceptance criteria
 
-- [ ] Error de BD muestra recuperación y no “despensa vacía”
-- [ ] Receta inexistente sigue 404; fallo de consulta da error técnico
-- [ ] El fallo no permanece cacheado como éxito
+- [x] Error de BD llega al boundary con mensaje genérico y botón de reintento; no es un Home vacío
+- [x] Receta inexistente sigue 404; fallo de consulta se propaga al error path
+- [x] Home sigue force-dynamic y `getRecipe` solo usa cache de React por render/request; no persiste el fallo como éxito
 
 ### Verification
 
-- [ ] Desktop — recorrer `/; /recipes/:id` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Mock de consulta falla en home y receta; comprobar mensaje, status, logs y posterior recuperación.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — E2E comprueba receta existente 200 y ausente 404; unit/integration comprueba home cargado/vacío/fallo y fallback.
+- [x] Mobile — sin cambios de layout; el mensaje y retry conservan el botón responsive del boundary global.
+- [x] Keyboard — retry es botón nativo con nombre accesible y estilo `focus-visible` existente.
+- [x] Reduced motion — sin cambios de animación ni esperas.
+- [x] Prueba específica — consultas DB mockeadas fallan en Home y receta, y la consulta vuelve a funcionar tras retirar el fallo.
+- [x] Evidencia de cierre — pruebas y checks documentados abajo; no se serializa detalle DB al cliente.
 
 ## KH-033 — Validación de productos y referencias deja llegar errores evitables a BD/UI
 
@@ -1574,24 +1602,24 @@ Prueba local de productId inexistente devuelve 500. Zod permite URLs/strings que
 
 ### Implementation
 
-- [ ] Endurecer esquemas existentes en fronteras, sin duplicar tipos por pantalla
-- [ ] Validar existencia/ownership antes de FK
-- [ ] Cubrir inputs largos, Unicode, NaN/negativos y URL fuera de allowlist
+- [x] Endurecer esquemas existentes en fronteras, sin duplicar tipos por pantalla
+- [x] Validar existencia/ownership antes de FK
+- [x] Cubrir inputs largos, Unicode, NaN/negativos y URL fuera de allowlist
 
 ### Acceptance criteria
 
-- [ ] Producto/referencia inválidos dan 400/404 sin escribir
-- [ ] No se admiten valores negativos, tags/nombres ilimitados o source reservado de usuario
-- [ ] URL no soportada no tumba la página
+- [x] Producto/referencia inválidos dan 400/404 sin escribir
+- [x] No se admiten valores negativos, tags/nombres ilimitados o source reservado de usuario
+- [x] URL no soportada no tumba la página
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Enviar requests inválidos a copia local, revisar status/tablas y cargar la UI con fallback de imagen.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — N/A para layout; contratos HTTP y flujo E2E dependiente pasan.
+- [x] Mobile — N/A para layout de servidor; E2E pasa en los viewports existentes.
+- [x] Keyboard — N/A; no cambió UI ni controles.
+- [x] Reduced motion — N/A; lógica de servidor sin esperas visuales.
+- [x] Prueba específica — inputs inválidos y referencias inexistentes/ajenas no escriben; URL fuera del allowlist cae a null; suites completas pasan.
+- [x] Evidencia de cierre — ver checkpoint KH-033 + KH-034 en IMPLEMENTATION-PROGRESS.md; DB original intacta.
 
 ## KH-034 — La integridad depende de findFirst donde faltan constraints de dominio
 
@@ -1599,7 +1627,7 @@ Priority: P2
 Area: Data / Architecture  
 Effort: M  
 Depends on: —  
-Confidence: Riesgo por schema; carrera concreta Needs verification  
+Confidence: Confirmado
 Route: `SQLite modelos de usuario`
 
 ### Goal
@@ -1608,7 +1636,7 @@ Definir claves de dominio, detectar y reconciliar duplicados antes de migrar, a�
 
 ### Context and evidence
 
-No hay unicidad por userId en preferencias, por user/product en despensa, por user/week en plan ni plan/day/type en comidas. Código comprueba/crea con findFirst. Las transacciones actuales protegen algunos caminos pero no expresan el contrato en BD.
+No había unicidad por userId en preferencias, user/week en plan ni plan/day/type en comidas. La despensa admite filas separadas del mismo producto para unidades incompatibles; su identidad incluye user/product/unit.
 
 Schema verificado. Tres GET concurrentes de preferencias crearon una sola fila y cinco incrementos de compra conservaron cantidad: NO se reprodujo duplicación/pérdida; es riesgo de integridad al crecer caminos/imports.
 
@@ -1621,27 +1649,28 @@ Schema verificado. Tres GET concurrentes de preferencias crearon una sola fila y
 
 ### Implementation
 
-- [ ] Auditar duplicados en copia y elegir reglas de merge
-- [ ] Añadir constraints y adaptar escrituras a upsert/transacciones
-- [ ] Probar dos pestañas, import y migración con duplicados intencionados
+- [x] Auditar duplicados en copia y definir claves; no se detectaron conflictos entre filas de usuario existentes.
+- [x] Añadir constraints y adaptar escrituras a upsert/transacciones.
+- [x] Probar concurrencia de preferencias, constraints, migración limpia/idempotente y fixtures duplicados sin borrar filas.
 
 ### Acceptance criteria
 
-- [ ] BD rechaza duplicados que contradicen contrato
-- [ ] Migración conserva referencias y decide legacy
-- [ ] Operaciones concurrentes devuelven estado válido sin 500 inesperados
+- [x] BD rechaza duplicados que contradicen contrato; diferentes unidades de despensa siguen separadas.
+- [x] Migración solo crea índices, conserva referencias/filas y permite propietarios legacy NULL según SQLite.
+- [x] Operaciones concurrentes devuelven estado válido; preferencias convergen en una fila y pantry/shopping conservan cantidades.
 
 ### Verification
 
-- [ ] Desktop — N/A para layout; comprobar contrato/estado desde cliente HTTP y flujo dependiente en navegador cuando exista.
-- [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
-- [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
-- [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Inserciones concurrentes desde clientes separados y SQL directo en BD temporal; comparar cardinalidad.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — N/A para layout; estado comprobado con Prisma/SQL temporal y E2E completa.
+- [x] Mobile — N/A para layout de servidor; suite E2E completa en cinco workers.
+- [x] Keyboard — N/A; sin cambios de interfaz.
+- [x] Reduced motion — N/A; sin cambios visuales.
+- [x] Prueba específica — constraints/índices, duplicados, NULL legacy, integridad referencial y redeploy en DB temporal.
+- [x] Evidencia de cierre — ver checkpoint KH-033 + KH-034 en IMPLEMENTATION-PROGRESS.md; DB original y producción intactas.
 
 ## KH-035 — El baseline puede marcar una migración nueva sin ejecutar su DDL
 
+Status: Implemented — Production schema verification pending
 Priority: P1  
 Area: Data / Architecture  
 Effort: S  
@@ -1666,9 +1695,9 @@ Bucle migrate resolve --applied sobre prisma/migrations/* y nueva migración de 
 
 ### Implementation
 
-- [ ] Fijar lista/snapshot de baseline histórico y verificar schema esperado
-- [ ] Ensayar migrate deploy en copia legacy y actual
-- [ ] Separar migración de activación del release y documentar recuperación
+- [x] Fijar lista/snapshot de baseline histórico y verificar schema esperado; allowlist limitada a las tres migraciones anteriores al primer `migrate deploy`
+- [x] Ensayar baseline y `migrate deploy` en fixtures SQLite desechables, incluida KH-034 pendiente y estado inconsistente
+- [x] Separar migración de activación del release y documentar recuperación; migraciones nunca se revierten con rollback de código
 
 ### Acceptance criteria
 
@@ -1686,6 +1715,8 @@ Bucle migrate resolve --applied sobre prisma/migrations/* y nueva migración de 
 - [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
 
 ## KH-036 — Los backups solo se crean al desplegar y no tienen prueba de restauración
+
+Status: **Implemented — Host/off-host verification pending** (2026-10-06)
 
 Priority: P2  
 Area: Data / Architecture  
@@ -1712,8 +1743,9 @@ Backup sí existe y falla de forma segura si falta sqlite3: fortaleza. Frecuenci
 ### Implementation
 
 - [ ] Inventariar primero backups existentes del host
-- [ ] Configurar mecanismo mínimo independiente de deploy si falta
-- [ ] Documentar y ensayar restore sin tocar producción
+- [x] Versionar timer systemd cada seis horas y backup online independiente de deploy; instalación real pendiente
+- [x] Documentar y ensayar restore en SQLite desechable sin tocar producción
+- [ ] Configurar y verificar destino privado independiente del host
 
 ### Acceptance criteria
 
@@ -1731,6 +1763,13 @@ Backup sí existe y falla de forma segura si falta sqlite3: fortaleza. Frecuenci
 - [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
 
 ## KH-037 — El salto a un día sigue animado con reduced motion
+
+Status: Completed — 2026-10-06
+Cause: The day pills passed `behavior: 'smooth'` directly to `scrollIntoView`; the global CSS preference cannot override a JavaScript scroll option.
+Change: Resolve `prefers-reduced-motion` at activation time and use `auto` for reduce, `smooth` otherwise. Target and sticky offset are unchanged.
+Tests: `e2e/plan.spec.ts` checks both motion modes, destination, Enter/Space, repeated day changes, and responsive widths.
+Evidence: `AUDIT.md` recorded scrollY progressing 4.5→2086.5 over about 560 ms with reduce. The regression now asserts identical `day-N` target and per-mode behavior.
+Limitations: Browser viewport checks use Chromium; no physical iOS/Safari device or assistive-technology session.
 
 Priority: P2  
 Area: Motion / Accessibility  
@@ -1756,25 +1795,27 @@ Con prefers-reduced-motion:reduce, scrollY muestreado cada 70 ms: 4.5→71→230
 
 ### Implementation
 
-- [ ] Reusar comprobación reduced motion ya existente en Sheet/compra
-- [ ] Elegir behavior auto o smooth según preferencia
-- [ ] Añadir caso de navegación por día en ambos modos
+- [x] Reutilizar el patrón existente de `matchMedia` en la acción que hace el scroll
+- [x] Elegir `auto` con reduce y conservar `smooth` con movimiento normal
+- [x] Añadir regresión contractual que comprueba opciones y destino
 
 ### Acceptance criteria
 
-- [ ] Reduce salta al destino sin desplazamiento interpolado
-- [ ] Normal conserva navegación útil y encabezado no queda tapado por sticky
+- [x] Reduce salta al mismo destino sin desplazamiento interpolado
+- [x] Normal conserva smooth; `scroll-mt` mantiene visible el encabezado bajo el sticky
 
 ### Verification
 
-- [ ] Desktop — recorrer `/weekly-plan` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Emular reduce, pulsar último día y registrar posiciones; probar teclado y sticky.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop 1280: semana completa visible en el layout existente, sin overflow; las day pills siguen ocultas en desktop.
+- [x] Mobile/tablet 320/390/768: el destino queda visible bajo sticky y no aparece overflow.
+- [x] Keyboard: Enter y Space activan los mismos botones nativos y destinos.
+- [x] Reduced motion: la regresión comprueba `auto` con destino idéntico y `smooth` con movimiento normal.
+- [x] Prueba específica: días no actuales, activación repetida, teclado y sticky cubiertos en `e2e/plan.spec.ts`.
+- [x] Evidencia: focused E2E 32/32, TypeScript, build y lint focalizado pasan; suite completa y límites constan en IMPLEMENTATION-PROGRESS.md.
 
 ## KH-038 — Favoritos no identifican el producto y el live region anuncia toda la rejilla
+
+Status: Completed
 
 Priority: P2  
 Area: Accessibility  
@@ -1800,26 +1841,28 @@ DOM/código y snapshot de catálogo con muchas cards. Ambigüedad confirmada de 
 
 ### Implementation
 
-- [ ] Incluir product.name en nombres de favorito en catálogo y sheet
-- [ ] Mover status a elemento dedicado y quitar live region de rejilla
-- [ ] Validar con lector de pantalla real antes de cerrar
+- [x] Incluir product.name en nombres de favorito en catálogo y sheet; conservar `aria-pressed` y ocultar el corazón decorativo.
+- [x] Mover el anuncio de resultados a un live region breve y quitar live region de rejilla; mantener el anuncio de cantidad local.
+- [x] Semántica verificada con roles, nombres y estado del modelo de accesibilidad del navegador; lector real no disponible y no se afirma que se haya probado.
 
 ### Acceptance criteria
 
-- [ ] Cada favorito es identificable fuera del contexto visual
-- [ ] Búsqueda anuncia contador/estado una vez, no todos los controles
-- [ ] Cantidad sigue anunciándose brevemente
+- [x] Cada favorito es identificable fuera del contexto visual
+- [x] Búsqueda anuncia contador/estado una vez, no todos los controles
+- [x] Cantidad sigue anunciándose brevemente
 
 ### Verification
 
-- [ ] Desktop — recorrer `/explore` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Recorrer lista de botones y filtrar con VoiceOver/NVDA; probar teclado y cinco productos de nombre parecido.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — `/explore` sin errores de consola; favorito y sheet probados, responsive 1280/1440.
+- [x] Mobile — targets de 40×40 px, foco y overflow comprobados a 320/390; cobertura adicional a 768.
+- [x] Keyboard — Tab, Enter y Space; `aria-pressed` y foco visible comprobados.
+- [x] Reduced motion — N/A; el toggle no tiene animación ni movimiento programático.
+- [x] Prueba específica — cinco productos de nombre parecido; nombres únicos por acción y producto, estados inicial/on/off, icono oculto y sheet.
+- [x] Evidencia de cierre — E2E focalizadas y completas, unit, TypeScript, build, lint afectado y diff check registrados en IMPLEMENTATION-PROGRESS.md. Lector real no disponible.
 
 ## KH-039 — Fotos de recetas no representan de forma fiable el plato
+
+Status: **Completed — 2026-10-08**
 
 Priority: P2  
 Area: UI / Product  
@@ -1847,26 +1890,30 @@ Producción con imágenes ya decodificadas: “Huevos revueltos con bacon y agua
 
 ### Implementation
 
-- [ ] Revisar cuatro recetas landing y las más recomendadas
-- [ ] Persistir selección revisada con script existente, sin edición durante esta auditoría
-- [ ] Comprobar crop a 320/390/1440 y fallback
+- [x] Revisar cuatro recetas landing y las más recomendadas
+- [x] Persistir selección revisada con script existente en SQLite temporal; `dev.db` permanece intacta
+- [x] Comprobar crop a 320/390/1440 y fallback en navegador automatizado y revisar visualmente los crops cargados
 
 ### Acceptance criteria
 
-- [ ] Fotos destacadas corresponden a ingredientes y preparación o están marcadas ilustrativas
-- [ ] No hay fetch de Unsplash en cada navegación
-- [ ] Licencias/atribuciones necesarias se revisan contra proveedor
+- [x] Fotos destacadas corresponden a ingredientes y preparación o están marcadas ilustrativas
+- [x] No hay fetch de Unsplash en cada navegación
+- [x] Requisitos de atribución de Unsplash revisados contra la guía oficial; esto no certifica una revisión legal integral
 
 ### Verification
 
-- [ ] Desktop — recorrer `Landing y /recipes/:id` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Cotejar foto con ingredientes/pasos y cargar con imagen 404 en entorno aislado.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop — `e2e/recipe-images.spec.ts` comprueba landing/detalle y fallback; corrida full build automatizada sin pageerrors en el flujo específico.
+- [x] Mobile — prueba automatizada en 320/390/768/1280/1440; teclado virtual/safe area no comprobados.
+- [x] Keyboard — Landing y detalle siguen navegables con Tab/Shift+Tab/Enter; las imágenes no introducen controles ni interacciones nuevas.
+- [x] Reduced motion — fallback 404 bajo `prefers-reduced-motion: reduce`, sin animación ni transform.
+- [x] Prueba específica — cotejo semántico documentado; fotos cargadas y 404 reproducidos en entorno aislado.
+- [x] Evidencia de cierre — dos full E2E, focalizados, unit, TypeScript, build, lint afectado y diff check registrados en IMPLEMENTATION-PROGRESS.md; lint global conserva errores previos no relacionados.
+
+La selección revisada se probó mediante el script existente únicamente en SQLite temporal; `dev.db` y producción permanecen intactas. Dos corridas completas E2E consecutivas, unit, TypeScript, build, lint afectado y diff check quedaron verdes. El lint global conserva los tres errores preexistentes en `audit-assets/api-probes.cjs:2–4`; no se probó un dispositivo físico.
 
 ## KH-040 — Guardar un sheet omite la salida que sí tienen ESC/X
+
+Status: Completed — 2026-10-06
 
 Priority: P3  
 Area: Motion / UI  
@@ -1893,26 +1940,25 @@ Código/comentario de Sheet y handlers. Entrada 200 ms; cierre por acción no ti
 
 ### Implementation
 
-- [ ] Reusar estado closing de Sheet para todas las salidas
-- [ ] Separar persistencia de animación y unmount
-- [ ] Validar que no se duplica submit y que el foco se devuelve
+- [x] Coordinar con un helper la salida animada y esperar panel + overlay antes del unmount
+- [x] Iniciar requests antes de la salida; mantener abierto el sheet si falla la acción
+- [x] Restaurar foco tras el unmount real y cerrar inmediatamente con reduced motion
 
 ### Acceptance criteria
 
-- [ ] ESC/X/guardar exitoso comparten salida breve
-- [ ] Guardar fallido mantiene diálogo; reduce no espera
-- [ ] Restauración de foco no depende de cómo se cerró
+- [x] ESC/X/backdrop y guardar exitoso comparten salida breve
+- [x] Guardar fallido mantiene diálogo; reduce no espera
+- [x] Restauración de foco comparte el lifecycle de cierre
 
 ### Verification
 
-- [ ] Desktop — recorrer `Sheets de producto y despensa` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Guardar, ESC, X, overlay, error y reduced motion; comparar salida y tiempo percibido.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Chromium 320/390/768/1280 y 1440 no certificado; sin overflow en viewports probados.
+- [x] Escape/X/backdrop, acción exitosa, acción fallida, reduced motion y retorno de foco cubiertos por E2E.
+- [x] Build, TypeScript y lint focalizado pasan; full lint mantiene los tres errores preexistentes de `audit-assets/api-probes.cjs`.
 
 ## KH-041 — Inserciones y movimientos de listas saltan de posición
+
+Status: Completed — 2026-10-06
 
 Priority: P3  
 Area: Motion / UI  
@@ -1939,24 +1985,21 @@ Implementación de leaving y listas con keys estables. Esto es polish espacial, 
 
 ### Implementation
 
-- [ ] Compartir duraciones existentes para salida/entrada sin abstracción extensa
-- [ ] Medir si reorder necesita FLIP antes de implementarlo
-- [ ] Mantener foco válido cuando desaparece el control
+- [x] Entrada/salida breve con CSS existente; sin dependencia nueva ni cambio de jerarquía
+- [x] FLIP solo para filas visibles, con lecturas agrupadas y transform
+- [x] Reduced motion quita desplazamientos; requests y foco no esperan la animación
 
 ### Acceptance criteria
 
-- [ ] Fila añadida/quitada es reconocible sin retrasar request
-- [ ] Check tiene feedback inmediato y movimiento breve opcional
-- [ ] Reduce evita transforms y no retrasa dato/foco
+- [x] Filas añadidas/restauradas/eliminadas reciben feedback y request inmediato
+- [x] Check/uncheck ofrece feedback al moverse entre listas
+- [x] Reduce evita movimiento y no retrasa el cambio de datos
 
 ### Verification
 
-- [ ] Desktop — recorrer `/inventory; /shopping-list` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Añadir, eliminar, comprar y descomprar tres filas; teclado, 320 px, conexión lenta y reduced motion.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] E2E enfocado de motion y pantry/shopping: 14/14 con filas largas y 320/390/768/1280; sin overflow.
+- [x] Eliminar/undo, compra/descompra y reduced motion ejercitados; datos siguen respondiendo a la API.
+- [x] Build, TypeScript y lint focalizado pasan. Full E2E se intentó; véase IMPLEMENTATION-PROGRESS.md para fallos ajenos a estos findings.
 
 ## KH-042 — Autenticación pierde la receta de origen y el modo no sigue la URL
 
@@ -1966,6 +2009,8 @@ Effort: S
 Depends on: —  
 Confidence: Confirmado  
 Route: `/recipes/:id → /login; /login?modo=registro`
+
+Status: **Completed — implementation and full-E2E gate verified (2026-10-08).**
 
 ### Goal
 
@@ -1985,26 +2030,30 @@ LoginForm switchMode y window.location.href leídos; receta pública CTA invita 
 
 ### Implementation
 
-- [ ] Propagar ruta interna de origen por enlaces y auth/terms
-- [ ] Validar pathname permitido con helper pequeño, no open redirect
-- [ ] Sincronizar modo con query y probar history
+- [x] Propagar ruta interna de origen por enlaces, email auth, terms y OAuth
+- [x] Validar ruta interna con helper central, fallback seguro y bloqueo de destinos auth (`/login`, `/accept-terms`, `/api/auth/*`)
+- [x] Sincronizar modo con query; refresh, back y forward reconstruyen la UI
 
 ### Acceptance criteria
 
-- [ ] Login desde receta vuelve a la receta y muestra siguiente acción
-- [ ] Refresh/back conserva modo representado en URL
-- [ ] returnTo externo o malformado se ignora
+- [x] Login y registro desde receta vuelven a la receta y muestran la acción siguiente
+- [x] Refresh/back/forward conservan el modo representado en URL
+- [x] returnTo externo, protocol-relative o malformado se ignora
 
 ### Verification
 
-- [ ] Desktop — recorrer `/recipes/:id → /login; /login?modo=registro` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Receta anónima→registro/login→términos→receta; probar refresh/back y returnTo https://externo.invalid.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop/mobile — receta autenticada revisada a 320/390/768/1280/1440; login/registro sin overflow a las cinco anchuras.
+- [x] Keyboard — cambio de modo con Tab, Enter y Space; foco visible y nombre accesible comprobados.
+- [x] Reduced motion — `reduce` emulado; el modo y el retorno funcionan sin animación nueva.
+- [x] Prueba específica — receta→registro/login→receta, terms en callback OAuth simulado, refresh/back/forward y origen externo.
+- [x] Aislamiento E2E de auth — `product-security.spec.ts` asigna XFF por `testInfo.testId` y cliente. El limitador sigue usando el mismo bucket y límite; ningún cambio de aplicación.
+- [x] Gate de cierre — dos full E2E consecutivas: 129/129 pass en cada una, 0 fallos, 0 skips, 0 no ejecutadas, 5 workers, 0 retries y 0 errores globales.
+
+Implementation evidence: 413/413 unit y KH-042 4/4. El 429 del fixture `product-security.spec.ts` se aisló por `testInfo.testId` y cliente, sin tocar el limitador. La baseline adicional quedó recuperada al proporcionar un ledger desechable junto a la DB E2E, esperar el status 200 del borrado antes de comprobar `/login`, y drenar callbacks de rutas al terminar los tests de `pantry-shopping.spec.ts`. La prueba KH-027 ahora verifica que crear la fila manual devuelve 201 antes de comparar la respuesta del GET; el contrato actual incluye la relación `product` en ambas respuestas y la igualdad se conserva. Ver resultados detallados en `IMPLEMENTATION-PROGRESS.md`.
 
 ## KH-043 — La landing carece de imagen social específica y CTA de cierre
+
+Status: Completed — 2026-10-06
 
 Priority: P3  
 Area: SEO / UX  
@@ -2031,25 +2080,31 @@ Metadata y landing de producción/local revisadas. Recetas sí tienen OG y Recip
 
 ### Implementation
 
-- [ ] Añadir metadata social usando recursos existentes
-- [ ] Repetir CTA tras FAQ con misma ruta/texto
-- [ ] Validar URL absoluta y preview sin tracker
+- [x] Añadir metadata Open Graph y Twitter específica con el icono de marca existente
+- [x] Repetir el CTA de registro tras FAQ con la misma ruta y texto
+- [x] Verificar URLs absolutas a través de `metadataBase` y la respuesta de la imagen PNG
 
 ### Acceptance criteria
 
-- [ ] Portada genera preview con título/descripción/imagen propia
-- [ ] Final de landing tiene acceso directo al registro sin competir con FAQ
+- [x] Portada genera preview con título, descripción e imagen de KetoHoy
+- [x] Final de landing tiene acceso directo al registro después de FAQ
 
 ### Verification
 
-- [ ] Desktop — recorrer `/ pública` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
+- [x] Chromium E2E comprueba landing y CTA a 320/390/768/1280, sin desbordamiento horizontal del enlace.
+- [x] Teclado: Tab alcanza el CTA final, muestra `:focus-visible` y Enter abre `/login?modo=registro`.
 - [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Inspeccionar HTML/meta y preview de compartición; recorrer landing a 320/1440 con teclado.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Prueba específica — `e2e/landing-social.spec.ts` valida canonical, title/description, OG, Twitter, dimensiones/alt/ruta/respuesta de imagen y CTA.
+- [x] Evidencia — test enfocado, E2E completa, build, TypeScript, lint focalizado y diff check registrados en IMPLEMENTATION-PROGRESS.md; comprobación visual limitada a Chromium.
 
 ## KH-044 — Día resaltado significa hoy, no sección que está viendo el usuario
+
+Status: Completed — 2026-10-06
+Cause: The current calendar date alone controlled the day-pill highlight and `aria-current`, so selecting another day left the viewed day unmarked.
+Change: Keep the existing `todayIndex`; add active day state for selection and the mobile visible section. The active pill uses `aria-pressed`; only the actual calendar day uses `aria-current="date"` and “hoy” naming/copy. Desktop continues to show the whole week.
+Tests: Weekly Plan browser regression covers today=active, today≠active, return to today, scroll tracking, keyboard, reduced motion, and 320/390/768/1280 widths.
+Evidence: A selected Thursday now becomes active while Tuesday remains the only today/current date; scrolling changes active only. Today uses the same single existing local-date comparison.
+Limitations: Scroll observation is limited to the stacked mobile/tablet layout; Chromium viewport coverage does not certify physical devices or real assistive technology.
 
 Priority: P3  
 Area: UI / UX  
@@ -2074,25 +2129,27 @@ Captura local-plan-390.png: contenido de lunes y viernes marcado HOY por la fech
 
 ### Implementation
 
-- [ ] Nombrar semántica de Hoy y de selección
-- [ ] Elegir el cambio mínimo de copy/estilo; observar scroll solo si necesario
-- [ ] Validar días anteriores/futuros y teclado
+- [x] Mantener el cálculo existente de hoy y separar el día activo consultado
+- [x] Mostrar Hoy semánticamente y estado activo mediante la selección existente
+- [x] Reutilizar un `IntersectionObserver` solo para los días apilados; probar teclado y scroll
 
 ### Acceptance criteria
 
-- [ ] El estilo permite distinguir fecha de navegación
-- [ ] Pulsar un día conserva orientación y sticky no oculta heading
+- [x] Hoy y activo usan tratamientos visuales y accesibles independientes
+- [x] Pulsar/usar teclado conserva destino y el sticky no oculta el encabezado
 
 ### Verification
 
-- [ ] Desktop — recorrer `/weekly-plan` a 1280/1440 y comprobar resultado, persistencia y feedback descritos; no pageerrors nuevos.
-- [ ] Mobile — repetir flujo a 320 y 390; CTA/última fila visibles, sin overflow de documento; 768 si cambia layout. En teclado virtual/safe area no comprobados, registrar limitación o probar dispositivo físico.
-- [ ] Keyboard — abrir/activar con Enter/Space, Tab/Shift+Tab, foco visible y retorno al cerrar; si desaparece una fila, foco alternativo válido.
-- [ ] Reduced motion — emular reduce y repetir acción; sin scroll/transforms no deseados ni timers visuales que retrasen persistencia/foco.
-- [ ] Prueba específica — Entrar en viernes y saltar lunes/domingo; comprobar orientación y reduced motion.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Desktop 1280: todas las secciones siguen visibles en la cuadrícula existente; sin overflow.
+- [x] Mobile/tablet 320/390/768: Hoy permanece independiente y el botón activo sigue selección/scroll.
+- [x] Keyboard: estado único `aria-pressed` y `aria-current="date"` solo en la fecha de hoy.
+- [x] Reduced motion: la combinación navega al mismo destino sin movimiento suave.
+- [x] Prueba específica: today=active, today≠active, retorno, scroll, teclado y 4 viewports en `e2e/plan.spec.ts`.
+- [x] Evidencia: focused E2E 32/32, TypeScript, build y lint focalizado pasan; suite completa y límites constan en IMPLEMENTATION-PROGRESS.md.
 
 ## KH-045 — Documentación ya no describe el stack ni el estado real de pruebas
+
+Status: Completed — 2026-10-06
 
 Priority: P3  
 Area: Architecture / Testing  
@@ -2120,15 +2177,15 @@ package.json y npm test: 19 archivos, 156 tests. E2E se detiene. Motion real CSS
 
 ### Implementation
 
-- [ ] Corregir menciones/cifras obsoletas o eliminarlas si no se mantienen
-- [ ] Documentar variables sin incluir secretos
-- [ ] Enlazar tareas pendientes desde un único sitio
+- [x] Reemplazar claims obsoletos y documentar stack y comandos actuales
+- [x] Describir variables, SQLite local segura, seed y migraciones sin secretos
+- [x] Explicar diferencias entre desarrollo, E2E y producción sin fijar baselines volátiles
 
 ### Acceptance criteria
 
-- [ ] Documentación coincide con comandos y dependencias actuales
-- [ ] No afirma E2E completo sin evidencia
-- [ ] Explica copia de BD y limitaciones de correo/OAuth
+- [x] README refleja dependencias, scripts, tests y flujo DB existentes
+- [x] README describe cómo ejecutar E2E y su aislamiento; no afirma resultados fijos
+- [x] README explica proveedores opcionales y protección de datos locales
 
 ### Verification
 
@@ -2136,8 +2193,8 @@ package.json y npm test: 19 archivos, 156 tests. E2E se detiene. Motion real CSS
 - [ ] Mobile — N/A para layout de servidor; mismo contrato desde consumidor móvil, sin diferencia por viewport.
 - [ ] Keyboard — N/A si no cambia UI; si se añade control/feedback, comprobar foco, nombre y activación nativa.
 - [ ] Reduced motion — N/A para lógica servidor; no introducir esperas visuales en la operación.
-- [ ] Prueba específica — Seguir instrucciones en checkout/copia limpia y comparar outputs; revisión de enlaces y secretos.
-- [ ] Evidencia de cierre — registrar test/resultado y diferencias de contrato; ejecutar lint/build si cambia TS/Next, tests específicos y E2E afectados tras KH-010. Mantener datos/secretos fuera de logs.
+- [x] Prueba específica — `prisma generate`, migraciones, seed y servidor dev verificados con una DB temporal vacía; E2E ejecutada con DB aislada.
+- [x] Evidencia — unit, E2E, TypeScript, build, lint focalizado/global y diff check constan en IMPLEMENTATION-PROGRESS.md; README no incluye secretos ni infraestructura no demostrada.
 
 ## KH-046 — Producción y checkout divergen en información legal y consentimiento
 

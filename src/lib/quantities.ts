@@ -7,8 +7,8 @@ export const quantityPair = z.object({
   unit: z.string().trim().min(1).nullable(),
 }).refine(p => (p.quantity === null) === (p.unit === null), 'Quantity and unit must both be specified')
 export const packageFields = {
-  packageQuantity: positiveQuantity.nullable().optional(),
-  packageUnit: z.string().trim().min(1).nullable().optional(),
+  packageQuantity: positiveQuantity.max(100000).nullable().optional(),
+  packageUnit: z.string().trim().min(1).max(32).nullable().optional(),
 }
 export const validPackagePair = (p: { packageQuantity?: number | null; packageUnit?: string | null }) =>
   (p.packageQuantity == null) === (p.packageUnit == null)

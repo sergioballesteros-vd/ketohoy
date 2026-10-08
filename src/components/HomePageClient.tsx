@@ -1,18 +1,22 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-import { ChefHat, ChevronRight, Settings } from 'lucide-react'
+import { ChevronRight, Settings } from 'lucide-react'
 import { LogoMark } from '@/components/icons'
+import { RecipeImage, RecipeImageAttribution } from '@/components/RecipeImage'
 import { productosCount, pluralize } from '@/lib/pluralize'
 import { recipeAvailabilityLabel } from '@/lib/recipeAvailability'
 import type { HomeRecipe } from '@/app/page'
+import FirstUseGuide from '@/components/FirstUseGuide'
+import { useRef } from 'react'
 
 type HomePageClientProps = {
+  userId: string
   stats: {
     pantryCount: number
     recipesAvailable: number
     shoppingCount: number
+    onboarding: { show: boolean; step: 2 | 3 }
     featured: HomeRecipe | null
     more: HomeRecipe[]
   }
@@ -29,21 +33,12 @@ function coverage(r: HomeRecipe) {
 }
 
 function RecipePhoto({ recipe, sizes, className }: { recipe: HomeRecipe; sizes: string; className?: string }) {
-  return (
-    <div className={`relative overflow-hidden bg-forest-800 ${className ?? ''}`}>
-      {recipe.imageUrl ? (
-        <Image src={recipe.imageUrl} alt="" fill sizes={sizes} className="object-cover" />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-forest-500">
-          <ChefHat size={36} strokeWidth={1.5} />
-        </div>
-      )}
-    </div>
-  )
+  return <RecipeImage title={recipe.title} sizes={sizes} className={className ?? ''} />
 }
 
-export default function HomePageClient({ stats }: HomePageClientProps) {
+export default function HomePageClient({ userId, stats }: HomePageClientProps) {
   const { featured, more } = stats
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
   return (
     <main className="min-h-screen px-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-6">
@@ -62,8 +57,12 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
       </header>
 
       <section className="mt-6">
-        <h1 className="text-2xl font-semibold text-forest-50">Hoy</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="rounded text-2xl font-semibold text-forest-50 focus:outline-2 focus:outline-offset-4 focus:outline-[#a3e635]">Hoy</h1>
       </section>
+
+      {stats.onboarding.show && (
+        <FirstUseGuide userId={userId} step={stats.onboarding.step} onDismiss={() => headingRef.current?.focus({ preventScroll: true })} />
+      )}
 
       {/* 1. Food first: today's pick */}
       {featured ? (
@@ -78,6 +77,7 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
               {featured.title}
             </h2>
           </Link>
+          <RecipeImageAttribution title={featured.title} />
           <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-forest-300">
             <span className="inline-flex items-center gap-1">
               {featured.prepTimeMinutes} min
@@ -121,13 +121,14 @@ export default function HomePageClient({ stats }: HomePageClientProps) {
         {more.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4">
             {more.map(r => (
-              <Link key={r.id} href={`/recipes/${r.id}`} className="min-w-0 rounded-lg">
-                <RecipePhoto recipe={r} sizes="(min-width: 640px) 180px, 45vw" className="aspect-[4/3] rounded-lg" />
-                <p className="mt-2 line-clamp-2 text-sm leading-snug font-semibold text-forest-50">{r.title}</p>
-                <p className="mt-0.5 text-xs text-forest-300">
-                  {r.prepTimeMinutes} min · {coverage(r)}
-                </p>
-              </Link>
+              <div key={r.id} className="min-w-0 rounded-lg">
+                <Link href={`/recipes/${r.id}`} className="block">
+                  <RecipePhoto recipe={r} sizes="(min-width: 640px) 180px, 45vw" className="aspect-[4/3] rounded-lg" />
+                  <p className="mt-2 line-clamp-2 text-sm leading-snug font-semibold text-forest-50">{r.title}</p>
+                  <p className="mt-0.5 text-xs text-forest-300">{r.prepTimeMinutes} min · {coverage(r)}</p>
+                </Link>
+                <RecipeImageAttribution title={r.title} />
+              </div>
             ))}
           </div>
         )}

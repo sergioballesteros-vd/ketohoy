@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchNutritionByEan } from '../openFoodFacts'
+import { fetchNutritionByEan, OpenFoodFactsError } from '../openFoodFacts'
 import { classifyProduct } from '../productClassification'
 
 async function nutrition(nutriments: Record<string, unknown>, extra = {}) {
@@ -48,6 +48,14 @@ describe('OFF available carbohydrate contract (KH-025)', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 0 })))
     expect(await fetchNutritionByEan('fixture')).toBeNull()
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
-    expect(await fetchNutritionByEan('fixture')).toBeNull()
+    await expect(fetchNutritionByEan('fixture')).rejects.toMatchObject({ name: 'OpenFoodFactsError', kind: 'provider_error' })
+  })
+  it('uses an explicit timeout signal and reports timeout separately from missing data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_url, init: RequestInit) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal)
+      throw Object.assign(new Error('expired'), { name: 'TimeoutError' })
+    }))
+    await expect(fetchNutritionByEan('fixture')).rejects.toBeInstanceOf(OpenFoodFactsError)
+    await expect(fetchNutritionByEan('fixture')).rejects.toMatchObject({ kind: 'timeout' })
   })
 })

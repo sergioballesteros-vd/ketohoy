@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { ChefHat, Loader2, Shuffle } from 'lucide-react'
 import Sheet from '@/components/Sheet'
@@ -106,11 +105,7 @@ export default function SwapMealSheet({ mealType, mealLabel, dayLabel, currentRe
                   className={`flex w-full items-center gap-3 rounded-lg py-2.5 text-left ${focusRing}`}
                 >
                   <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-forest-800">
-                    {recipe.imageUrl ? (
-                      <Image src={recipe.imageUrl} alt="" fill sizes="48px" className="object-cover" />
-                    ) : (
-                      <ChefHat className="absolute inset-0 m-auto text-forest-300" size={18} strokeWidth={1.5} />
-                    )}
+                    <ChefHat className="absolute inset-0 m-auto text-forest-300" size={18} strokeWidth={1.5} aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-forest-50">{recipe.title}</span>

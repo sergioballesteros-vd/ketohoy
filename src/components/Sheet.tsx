@@ -1,14 +1,44 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { focusRing } from '@/components/ui'
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const sheets: HTMLElement[] = []
+const closeTargets = new WeakMap<() => void, HTMLElement>()
 const usable = (element: HTMLElement) => element.isConnected && element.matches(FOCUSABLE) &&
   !element.closest('[inert], [aria-hidden="true"], [data-open="false"]') && element.getClientRects().length > 0 &&
   getComputedStyle(element).visibility !== 'hidden'
+
+export function closeSheet(onClose: () => void) {
+  const close = () => {
+    const panel = closeTargets.get(close) ?? sheets.at(-1)
+    const overlay = panel?.parentElement
+    if (!panel?.isConnected || sheets.at(-1) !== panel) { onClose(); return }
+    if (!overlay || overlay.hasAttribute('data-closing') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (!overlay || !overlay.hasAttribute('data-closing')) onClose()
+      return
+    }
+    overlay.setAttribute('data-closing', '')
+    const finished = new Set<string>()
+    const finish = (event: AnimationEvent) => {
+      if (event.target === overlay && event.animationName === 'overlay-out') finished.add('overlay')
+      if (event.target === panel && event.animationName === 'sheet-out') finished.add('panel')
+      if (finished.size < 2) return
+      overlay.removeEventListener('animationend', finish)
+      overlay.removeEventListener('animationcancel', finish)
+      panel.removeEventListener('animationend', finish)
+      panel.removeEventListener('animationcancel', finish)
+      onClose()
+    }
+    overlay.addEventListener('animationend', finish)
+    overlay.addEventListener('animationcancel', finish)
+    panel.addEventListener('animationend', finish)
+    panel.addEventListener('animationcancel', finish)
+  }
+  return close
+}
 
 
 type SheetProps = {
@@ -35,18 +65,10 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
   const onCloseRef = useRef(onClose)
   useEffect(() => {
     onCloseRef.current = onClose
+    if (dialogRef.current) closeTargets.set(onClose, dialogRef.current)
   })
 
-  // Esc / overlay / X play the exit animation, then call onClose. Reduced motion closes at once.
-  // Buttons the caller renders (footer, children) call their own handlers and close immediately.
-  const [closing, setClosing] = useState(false)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const close = useCallback(() => {
-    if (closeTimer.current) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return onCloseRef.current()
-    setClosing(true)
-    closeTimer.current = setTimeout(() => onCloseRef.current(), 180)
-  }, [])
+  const close = useCallback(() => onCloseRef.current(), [])
 
   useEffect(() => {
     const previous = returnFocus.current?.previous ?? document.activeElement as HTMLElement | null
@@ -97,14 +119,12 @@ export default function Sheet({ labelId, title, actions, footer, onClose, childr
         if (destination) destination.focus({ preventScroll: true })
         else if (activePanel) activePanel.querySelector<HTMLElement>(FOCUSABLE)?.focus()
       })
-      if (closeTimer.current) clearTimeout(closeTimer.current)
     }
   }, [close])
 
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-forest-950/80 sm:items-center"
-      data-closing={closing ? '' : undefined}
       onClick={close}
       role="dialog"
       aria-modal="true"

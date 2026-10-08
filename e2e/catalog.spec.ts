@@ -8,10 +8,71 @@ test.beforeEach(async ({ page }, info) => {
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `127.12.0.${info.parallelIndex + 80}` })
 })
 
+test('favorites identify each product, expose pressed state and keep results outside the grid live region', async ({ page }) => {
+  const similarNames = ['Pollo de corral', 'Pollo campero', 'Pollo de corral extra', 'Pollo campero ecológico', 'Pollo de corral fileteado']
+  const products = similarNames.map(product)
+  await page.route('**/api/mercadona/**', route => route.fulfill({ status: 200, json: route.request().url().includes('/product/') ? products[0] : { products } }))
+  await page.goto('/explore')
+
+  const addFirst = page.getByRole('button', { name: 'Marcar Pollo de corral como favorito', exact: true })
+  await expect(addFirst).toHaveCount(1)
+  for (const name of similarNames) {
+    const favorite = page.getByRole('button', { name: `Marcar ${name} como favorito`, exact: true })
+    await expect(favorite).toHaveCount(1)
+    await expect(favorite).toHaveAttribute('aria-pressed', 'false')
+  }
+  const addSecond = page.getByRole('button', { name: 'Marcar Pollo campero como favorito', exact: true })
+  await expect(page.locator('main section')).not.toHaveAttribute('aria-live', /.+/)
+  await expect(page.locator('main p[aria-live="polite"]')).toHaveCount(1)
+
+  await page.getByRole('searchbox').focus()
+  for (let i = 0; i < 20 && !(await addFirst.evaluate(el => document.activeElement === el)); i++) {
+    await page.keyboard.press('Tab')
+  }
+  await expect(addFirst).toBeFocused()
+  await page.keyboard.press('Enter')
+  const removeFirst = page.getByRole('button', { name: 'Quitar Pollo de corral de favoritos', exact: true })
+  await expect(removeFirst).toHaveAttribute('aria-pressed', 'true')
+  await expect(removeFirst.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+
+  await addSecond.focus()
+  await page.keyboard.press('Space')
+  const removeSecond = page.getByRole('button', { name: 'Quitar Pollo campero de favoritos', exact: true })
+  await expect(removeSecond).toHaveAttribute('aria-pressed', 'true')
+  await removeSecond.focus()
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('button', { name: 'Marcar Pollo campero como favorito', exact: true })).toHaveAttribute('aria-pressed', 'false')
+
+  const productName = page.getByRole('listitem').getByRole('button', { name: '1,00 € Pollo de corral Estimación por categoría', exact: true })
+  await productName.focus()
+  await page.keyboard.press('Enter')
+  const dialog = page.getByRole('dialog')
+  const sheetFavorite = dialog.getByRole('button', { name: 'Quitar Pollo de corral de favoritos', exact: true })
+  await expect(sheetFavorite).toHaveAttribute('aria-pressed', 'true')
+  await expect(sheetFavorite.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+})
+
+for (const width of [320, 390, 768, 1280, 1440]) {
+  test(`favorite control remains reachable at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.route('**/api/mercadona/**', route => route.fulfill({ status: 200, json: { products: [product('Pollo accesible')] } }))
+    await page.goto('/explore')
+    const favorite = page.getByRole('button', { name: 'Marcar Pollo accesible como favorito', exact: true })
+    await favorite.focus()
+    await expect(favorite).toBeFocused()
+    expect(await favorite.evaluate(el => { const rect = el.getBoundingClientRect(); return rect.width >= 40 && rect.height >= 40 && getComputedStyle(el).outlineStyle !== 'none' })).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
 test('visible category chips match API contract', async ({ page }) => {
+  await page.route('**/api/mercadona/**', async route => {
+    if (route.request().method() !== 'GET') return route.continue()
+    await route.fulfill({ status: 200, json: { products: [] } })
+  })
   await page.goto('/explore')
   for (const { key, label } of MERCADONA_CATEGORIES) {
-    const response = page.waitForResponse(r => r.url().endsWith(`/api/mercadona/category/${key}`))
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === `/api/mercadona/category/${key}` && r.request().method() === 'GET')
     await page.getByRole('button', { name: label, exact: true }).click()
     const res = await response
     expect(res.status()).toBe(200)

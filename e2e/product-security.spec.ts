@@ -14,7 +14,7 @@ function testDatabase() {
   return new Database(filename)
 }
 
-test('product writes require a real unexpired session through the proxy', async ({ request }) => {
+test('product writes require a real unexpired session through the proxy', async ({ request }, info) => {
   const sql = testDatabase()
   const name = `Session probe ${randomUUID()}`
   const data = { name, category: 'other', source: 'manual' }
@@ -30,14 +30,15 @@ test('product writes require a real unexpired session through the proxy', async 
     expect((await request.post('/api/products', { data, headers: { Cookie: 'session=invalid' } })).status()).toBe(401)
     expect(count()).toBe(0)
 
-    expect((await request.post('/api/auth/register', { data: registrationData('session') })).status()).toBe(201)
+    const authHeaders = { 'X-Forwarded-For': `product-security-${info.testId}` }
+    expect((await request.post('/api/auth/register', { data: registrationData('session'), headers: authHeaders })).status()).toBe(201)
     const token = (await request.storageState()).cookies.find(cookie => cookie.name === 'session')!.value
     const id = createHash('sha256').update(token).digest('hex')
     sql.prepare('UPDATE Session SET expiresAt = ? WHERE id = ?').run(Date.now() - 60_000, id)
     expect((await request.post('/api/products', { data })).status()).toBe(401)
     expect(count()).toBe(0)
 
-    expect((await request.post('/api/auth/register', { data: registrationData('valid') })).status()).toBe(201)
+    expect((await request.post('/api/auth/register', { data: registrationData('valid'), headers: authHeaders })).status()).toBe(201)
     expect((await request.post('/api/products', { data })).status()).toBe(201)
     expect(count()).toBe(1)
   } finally {
@@ -45,14 +46,17 @@ test('product writes require a real unexpired session through the proxy', async 
   }
 })
 
-test('manual catalog and free-text purchases are private; shared catalog stays usable', async ({ playwright }) => {
+test('manual catalog and free-text purchases are private; shared catalog stays usable', async ({ playwright }, info) => {
   const a = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:3100' })
   const b = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:3100' })
   const sql = testDatabase()
   const name = `Private ${randomUUID()}`
   try {
-    for (const client of [a, b]) {
-      expect((await client.post('/api/auth/register', { data: registrationData('owner') })).status()).toBe(201)
+    for (const [client, identity] of [[a, 'a'], [b, 'b']] as const) {
+      expect((await client.post('/api/auth/register', {
+        data: registrationData('owner'),
+        headers: { 'X-Forwarded-For': `product-security-${info.testId}-${identity}` },
+      })).status()).toBe(201)
     }
     const made = await a.post('/api/products', { data: { name, category: 'other', source: 'manual', ownerId: 'spoofed' } })
     expect(made.status()).toBe(201)

@@ -39,6 +39,7 @@ for (const width of [320,390,768,1280]) test(`KH-015 shared availability at ${wi
     await fits(); await page.screenshot({path:`/tmp/kh015-detail-${width}.png`,fullPage:true,animations:'disabled'})
     const add = page.getByRole('button',{name:'Añadir lo que falta a la lista'})
     await add.focus(); await add.press('Enter')
+    await expect(page.getByRole('status')).toContainText('Ingredientes añadidos a tu lista.')
     const rows=await (await page.request.get('/api/shopping-list')).json()
     expect(rows.map((r:{name:string})=>r.name).sort()).toEqual(names.slice(1).sort())
     expect(rows.find((r:{name:string})=>r.name===names[1])).toMatchObject({requiredQuantity:123456789.5,requiredUnit:'g'})

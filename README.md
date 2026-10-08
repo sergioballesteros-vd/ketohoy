@@ -1,100 +1,82 @@
-<p align="center">
-  <img src="public/brand/ketohoy-icon-192.png" width="120" style="border-radius: 20px" alt="KetoHoy Logo">
-</p>
+# KetoHoy
 
-<h1 align="center">KetoHoy</h1>
+KetoHoy es una aplicación web para planificar comidas keto según las preferencias y la despensa, explorar recetas y preparar una lista de compra con productos de Mercadona.
 
-<h3 align="center">Tu planificador de comidas keto y gestión de despensa inteligente.</h3>
+## Stack
 
-<p align="center">
-  <a href="#overview">Overview</a> •
-  <a href="#project-structure">Project Structure</a> •
-  <a href="#quick-start">Quick Start</a>
-</p>
+- Next.js 16 (App Router), React 19 y TypeScript.
+- SQLite con Prisma 7 y `better-sqlite3`.
+- Tailwind CSS 4.
+- Vitest para tests unitarios/de integración y Playwright para E2E.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16.2-black.svg" alt="Next.js">
-  <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8.svg" alt="Tailwind">
-  <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status">
-</p>
+## Requisitos
 
----
+- Node.js 20.9 o posterior y npm.
+- No hace falta instalar SQLite por separado: la aplicación usa `better-sqlite3`.
 
-## ⚡ Overview
-**KetoHoy** es una aplicación diseñada para facilitar el seguimiento de la dieta cetogénica (Keto) utilizando productos accesibles (enfocados en Mercadona). Integra gestión de despensa en tiempo real, generador de listas de la compra dinámico y recomendaciones de comidas basadas en los ingredientes que tienes en casa.
+## Desarrollo local
 
-**Core Features:**
-- **Control de Despensa:** Inventariado rápido de tus productos.
-- **Ideas de Comida:** Generación de recetas inteligentes sugeridas basadas en la cobertura de ingredientes de tu despensa, calculando instantáneamente qué falta.
-- **UX Premium:** Interfaz con animaciones fluidas (Framer Motion) adaptada para móviles con navegación Glassmorfismo.
-
-## 🛠️ Project Structure
-La estructura del proyecto está modularizada para escalabilidad y mantenimiento rápido:
-
-- **`src/app/`**: Router principal de Next.js (App Router).
-  - `/api`: Endpoints del backend (despensa, lista de compra, recetas).
-  - `/inventory`: Gestión visual de tu despensa.
-  - `/meals`: Sugerencias y visualización detallada de recetas.
-  - `/shopping-list`: Interfaz de carrito.
-  - `/weekly-plan`: Generador de menú semanal.
-- **`src/components/`**: Componentes reutilizables de UI (Navigación, Tarjetas animadas).
-- **`src/lib/`**: Lógica compartida.
-- **`prisma/`**: Esquema de la base de datos (SQLite / Prisma) y scripts de semillas (`seed.ts`).
-
-## 🚀 Quick Start
-Copia `.env.example` a `.env.local` y rellena las variables (ver el archivo
-para el detalle de cada una) antes de inicializar la aplicación.
+Usa una base de datos desechable para no modificar por accidente un `dev.db` que ya contenga datos. Desde la raíz del repo:
 
 ```bash
-# 1. Instalar dependencias
-npm install
+npm ci
+cp .env.example .env
+```
 
-# 2. Inicializar la base de datos
-npx prisma migrate dev
+En `.env`, configura `DATABASE_URL` con una ruta absoluta nueva, por ejemplo `file:/tmp/ketohoy-dev.db`. Prisma y Next.js cargan `.env`. No apuntes a la base de otra instalación.
+
+Usa el mismo valor de `DATABASE_URL` en la terminal y en `.env`. Crea primero el archivo SQLite vacío (Prisma necesita que exista), prepara el esquema y los datos iniciales en esa misma base, y arranca:
+
+```bash
+export DATABASE_URL="file:/tmp/ketohoy-dev.db"
+node -e "require('node:fs').closeSync(require('node:fs').openSync(process.env.DATABASE_URL.slice(5), 'a'))"
+npx prisma generate
+npx prisma migrate deploy
 npx prisma db seed
-
-# 3. Arrancar servidor de desarrollo
 npm run dev
 ```
 
-### Catálogo Mercadona
+La seed requiere `DATABASE_URL`; inserta datos iniciales sin borrar los existentes. `SEED_RESET=true` borra datos antes de sembrar: no lo uses con una base que quieras conservar. Las migraciones aplican los cambios de esquema pendientes en la base indicada por `DATABASE_URL`.
 
-`src/lib/mercadona.ts` lee el catálogo público de `tienda.mercadona.es` (sin
-claves ni CLI): indexa en memoria las categorías relevantes para keto al primer
-uso (~50 peticiones, refresco cada 12 h) y busca en local. Si Mercadona no
-responde, cae a un catálogo demo de 8 productos y lo avisa en consola.
+## Variables de entorno
 
-## 🗄️ Backup y restore de producción
+`.env.example` es la lista de referencia. No guardes secretos en el repo.
 
-Cada deploy (`.github/workflows/deploy.yml`) hace un backup de `dev.db` con
-`sqlite3 .backup` antes de aplicar migraciones, guardando los últimos 10 en
-`backups/` en el servidor. Requiere `sqlite3` instalado en el host
-(`apt install sqlite3` en Ubuntu) — si falta, el deploy se aborta antes de
-tocar la base de datos, no sigue sin backup.
+| Variable | Uso |
+| --- | --- |
+| `DATABASE_URL` | Ruta de archivo SQLite (`file:./dev.db` si no se cambia el ejemplo). Debe apuntar a la base local elegida. La seed falla si falta. |
+| `RESEND_API_KEY` | Opcional en desarrollo; necesario para enviar correos reales de verificación y recuperación con Resend. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Opcionales; configura ambas junto con el URI de callback autorizado para habilitar Google OAuth. |
 
-Para restaurar un backup:
+`APP_URL` permite establecer el origen público usado por URL/callbacks (por defecto `http://localhost:3000`); configúralo con el origen público al desplegar. `COOKIE_SECURE=true` debe reservarse para HTTPS; déjalo desactivado en desarrollo HTTP local. Las imágenes de recetas solo se muestran desde la lista revisada de `src/lib/recipeImages.ts`; navegar no busca fotos. `npm run images:backfill` es dry-run y solo persiste esa lista explícita si se ejecuta con `--apply`.
 
-```bash
-pm2 stop <PM2_APP_NAME>
-cp backups/dev-<timestamp>.db dev.db
-pm2 restart <PM2_APP_NAME>
-```
-
-
-
-
-## Imágenes de recetas (proceso manual)
-
-Las fotos de receta se guardan en la base de datos y **no** se tocan en los deploys ni al navegar.
-Para completar las que faltan hay que lanzarlo a propósito (usa el primer resultado de Unsplash, así que conviene revisarlas después):
+## Tests y comprobaciones
 
 ```bash
-cd <DEPLOY_PATH>                       # en el VPS: la carpeta de la app
-npm run images:backfill -- --dry-run   # lista las recetas sin foto; no llama a Unsplash ni escribe en la BD
-npm run images:backfill                # busca y guarda (RECIPE_IMAGE_BACKFILL_LIMIT=40 por defecto)
+npm test -- --maxWorkers=4
+npx tsc --noEmit
+npm run lint
+npm run build
 ```
 
-- Lee `UNSPLASH_ACCESS_KEY` del entorno, de `.env.local` o de `.env`. Si falta, el script falla con un mensaje claro y no cambia nada.
-- Unsplash (plan demo) permite 50 peticiones por hora.
-- Para corregir una foto: `sqlite3 dev.db "update Recipe set imageUrl=NULL where title='…'"` y volver a lanzar el script.
-- `RECIPE_IMAGE_AUTOFETCH=true` reactiva la descarga automática al ver recetas (desactivada por defecto).
+Playwright arranca su propio servidor en `127.0.0.1:3100`, ejecuta migraciones y seed, y necesita una base SQLite desechable. Asigna una ruta temporal nueva en cada corrida:
+
+```bash
+DATABASE_URL="file:/tmp/ketohoy-e2e.db" npm run test:e2e
+```
+
+La configuración E2E rechaza `dev.db` fuera de CI. No reutilices una base que tenga datos que quieras conservar: las pruebas escriben en ella. El servidor E2E usa `APP_URL=http://127.0.0.1:3100`, `COOKIE_SECURE=false` y desactiva el auto-fetch de imágenes.
+
+## Datos locales
+
+Desarrollo, E2E y producción deben usar bases separadas. Antes de ejecutar una migración o una seed, comprueba qué archivo resuelve `DATABASE_URL`. No ejecutes `SEED_RESET=true` en una base persistente. No copies una DB de producción al entorno local sin autorización y una copia protegida.
+
+El backup periódico y el procedimiento de restore están documentados en [docs/BACKUP-RESTORE.md](docs/BACKUP-RESTORE.md). El timer requiere instalación explícita en el host; un backup local no protege frente a la pérdida del host. Exportar/borrar cuenta y reconciliar borrados al restaurar está descrito en [docs/ACCOUNT-DATA-LIFECYCLE.md](docs/ACCOUNT-DATA-LIFECYCLE.md).
+
+## Estructura
+
+- `src/app/`: páginas y rutas API de Next.js.
+- `src/components/`: interfaz compartida y landing.
+- `src/lib/`: lógica de aplicación, autenticación y acceso a datos.
+- `prisma/`: schema, migraciones y seed.
+- `e2e/`: pruebas Playwright.

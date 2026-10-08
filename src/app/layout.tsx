@@ -5,6 +5,7 @@ import Navigation from '@/components/Navigation'
 import PageShell from '@/components/PageShell'
 import { cookies } from 'next/headers'
 import { appUrl } from '@/lib/appUrl'
+import OfflineSupport from '@/components/OfflineSupport'
 
 // Self-hosted at build time (no request to Google from the browser). Same weights as the old
 // Google Fonts URL: Syne 600-800, DM Sans is one variable file (wght + opsz axes), Syne only 600-800.
@@ -29,6 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="es" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="min-h-screen">
+        <OfflineSupport />
         <PageShell signedIn={signedIn}>{children}</PageShell>
         {signedIn && <Navigation />}
       </body>

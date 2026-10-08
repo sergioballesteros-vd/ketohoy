@@ -25,6 +25,24 @@ describe('/api/shopping-list', () => {
     expect(res.status).toBe(400)
   })
 
+  it('POST validates JSON, strings, numeric input, and product ownership before writing', async () => {
+    expect((await POST(new Request('http://test/api/shopping-list', { method: 'POST', body: '{bad' }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: '   ' }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: 'x'.repeat(121) }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: 'Negative', quantity: -1 }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: 'Infinity', quantity: 'Infinity' }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: 'Huge', quantity: 10001 }))).status).toBe(400)
+    expect((await POST(post('http://test/api/shopping-list', { name: 'Missing product', productId: 'missing-product' }))).status).toBe(404)
+
+    const { db } = await import('@/lib/db')
+    const other = await db.user.create({ data: { email: 'other-shopping-owner@example.com', passwordHash: 'x' } })
+    const product = await db.product.create({ data: { name: 'Private item', category: 'other', ownerId: other.id } })
+    expect((await POST(post('http://test/api/shopping-list', { name: product.name, productId: product.id }))).status).toBe(404)
+
+    const zero = await POST(post('http://test/api/shopping-list', { name: 'Zero required', requiredQuantity: 0, requiredUnit: 'g' }))
+    expect(zero.status).toBe(400)
+  })
+
   it('POST creates an item, merging quantity on a repeat add', async () => {
     const created = await POST(post('http://test/api/shopping-list', { name: 'Test Item', quantity: 2 }))
     expect(created.status).toBe(201)

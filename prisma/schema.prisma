@@ -19,7 +19,7 @@ model UserPreferences {
   userId            String? // null = legacy pre-multiuser row, claimed by the first registered user
   user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId])
 }
 
 model Product {
@@ -71,7 +71,7 @@ model PantryItem {
   userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId, productId, unit])
 }
 
 model Recipe {
@@ -142,7 +142,7 @@ model WeeklyPlan {
   userId    String? // null = legacy pre-multiuser row, claimed by the first registered user
   user      User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId, weekStart])
 }
 
 model WeeklyMeal {
@@ -154,6 +154,8 @@ model WeeklyMeal {
   dayOfWeek Int // 0=Monday, 6=Sunday
   mealType  String // breakfast, lunch, dinner
   createdAt DateTime   @default(now())
+
+  @@unique([planId, dayOfWeek, mealType])
 }
 
 model User {

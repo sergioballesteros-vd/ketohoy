@@ -3,8 +3,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { authButton } from '@/components/AuthShell'
+import { normalizeInternalReturnTo } from '@/lib/returnTo'
 
-export default function AcceptTermsForm() {
+export default function AcceptTermsForm({ returnTo }: { returnTo: string }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -22,7 +23,7 @@ export default function AcceptTermsForm() {
         setError((await response.json().catch(() => null))?.error ?? 'No se pudo guardar la aceptación.')
         return
       }
-      window.location.assign('/')
+      window.location.assign(normalizeInternalReturnTo(returnTo))
     } catch {
       setError('No se pudo conectar. Inténtalo de nuevo.')
     } finally {

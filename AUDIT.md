@@ -873,6 +873,8 @@ Código: [src/app/weekly-plan/page.tsx](/Users/sergioballesteros/ketohoy/src/app
 
 ### KH-028 — La lista no se puede consultar tras recarga sin conexión
 
+**Implementation status (2026-10-08): Completed.** Evidencia, arquitectura y límites en [IMPLEMENTATION-PROGRESS.md](IMPLEMENTATION-PROGRESS.md).
+
 Prioridad: **P2** · Área: Mobile / Product · Esfuerzo: **M** · Confianza: **Confirmado**
 
 Ruta: `/shopping-list; manifest`
@@ -1066,6 +1068,8 @@ Código: [.github/workflows/deploy.yml:68](/Users/sergioballesteros/ketohoy/.git
 ### KH-036 — Los backups solo se crean al desplegar y no tienen prueba de restauración
 
 Prioridad: **P2** · Área: Data / Architecture · Esfuerzo: **S** · Confianza: **Needs verification en host; cobertura del repo confirmada**
+
+Estado: **Implemented — Host/off-host verification pending** (2026-10-06). El repo ahora versiona backup periódico y restore drill local; el timer, los backups presentes en VPS y un destino fuera del host no se han verificado. Sigue sin contar como completado.
 
 Ruta: `Operación SQLite`
 
@@ -1579,7 +1583,7 @@ Lista de cierre de diagnóstico y de implementación futura. Las casillas de hal
 - [ ] **KH-025 (P2)** — Restar fibra siempre necesita verificar la convención nutricional de origen.
 - [ ] **KH-026 (P2)** — El primer uso no guía hasta un resultado completo.
 - [ ] **KH-027 (P2)** — No hay acción de compra para el menú semanal completo.
-- [ ] **KH-028 (P2)** — La lista no se puede consultar tras recarga sin conexión.
+- [x] **KH-028 (P2)** — La lista no se puede consultar tras recarga sin conexión.
 - [ ] **KH-029 (P2)** — La despensa grande no tiene búsqueda de lo que ya está en casa.
 - [ ] **KH-030 (P2)** — Cuenta, exportación y retención necesitan un contrato operativo.
 - [ ] **KH-031 (P2)** — Faltan señales operativas del flujo crítico.

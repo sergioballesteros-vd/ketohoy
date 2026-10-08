@@ -3,13 +3,14 @@ import { db } from '@/lib/db'
 import { ApiError } from '@/lib/apiError'
 import { claimLegacyData } from '@/lib/auth'
 import { appUrl } from '@/lib/appUrl'
+import { normalizeInternalReturnTo } from '@/lib/returnTo'
 
 export const GOOGLE_COOKIE = 'google_oauth'
 export const googleEnabled = () => !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET
 const redirectUri = () => `${appUrl()}/api/auth/google/callback`
 
 /** Fresh CSRF `state` + PKCE pair, and the Google consent URL that carries them. */
-export function startGoogleLogin() {
+export function startGoogleLogin(returnTo?: string) {
   const state = randomBytes(16).toString('hex')
   const verifier = randomBytes(32).toString('base64url')
   const params = new URLSearchParams({
@@ -22,7 +23,8 @@ export function startGoogleLogin() {
     code_challenge_method: 'S256',
     prompt: 'select_account',
   })
-  return { cookie: `${state}.${verifier}`, url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` }
+  const destination = normalizeInternalReturnTo(returnTo)
+  return { cookie: `${state}.${verifier}.${Buffer.from(destination).toString('base64url')}`, url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` }
 }
 
 export type GoogleProfile = { sub: string; email: string; emailVerified: boolean }
@@ -31,6 +33,7 @@ export type GoogleProfile = { sub: string; email: string; emailVerified: boolean
 export async function exchangeCode(code: string, verifier: string): Promise<GoogleProfile> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
+    signal: AbortSignal.timeout(6_000),
     body: new URLSearchParams({
       code,
       client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -39,6 +42,9 @@ export async function exchangeCode(code: string, verifier: string): Promise<Goog
       grant_type: 'authorization_code',
       code_verifier: verifier,
     }),
+  }).catch(error => {
+    const timeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+    throw new ApiError(timeout ? 'Google no respondió a tiempo' : 'No se pudo contactar con Google', 503)
   })
   if (!res.ok) throw new ApiError('Google rechazó el código', 400)
   const { id_token } = (await res.json()) as { id_token?: string }

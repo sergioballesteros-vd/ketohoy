@@ -1,6 +1,5 @@
-export type ProductCategory =
-  | 'meat' | 'fish' | 'eggs' | 'dairy' | 'vegetables'
-  | 'fruit' | 'nuts' | 'oils' | 'sauces' | 'drinks' | 'other'
+import type { ProductCategory } from '@/lib/categories'
+export type { ProductCategory } from '@/lib/categories'
 
 // Returns 0-5 keto score by category
 export function ketoScoreByCategory(category: ProductCategory): number {

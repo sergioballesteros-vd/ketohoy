@@ -4,7 +4,7 @@ import { setupTestDb, post, del, get } from '@/lib/__tests__/testDb'
 vi.mock('@/lib/auth', async () => (await import('@/lib/__tests__/authMock')).authMock)
 // Only the external catalog boundary is stubbed; handlers and SQLite writes are real.
 vi.mock('@/lib/mercadona', () => ({
-  getMercadonaProduct: async (id: string) => ({ mercadonaId: id, name: `Catalog ${id}`, category: 'dairy', classification: { score: 4, label: 'Estimación por categoría', source: 'category_estimate', evidence: 'category_name' }, ean: null, unitPrice: 1, imageUrl: null, brand: null }),
+  getMercadonaProduct: vi.fn(async (id: string) => ({ mercadonaId: id, name: `Catalog ${id}`, category: 'dairy', classification: { score: 4, label: 'Estimación por categoría', source: 'category_estimate', evidence: 'category_name' }, ean: null, unitPrice: 1, imageUrl: null, brand: null })),
 }))
 
 let cleanup: () => void
@@ -31,6 +31,21 @@ beforeAll(async () => {
 afterAll(() => cleanup())
 
 describe('new needs preserve purchased history', () => {
+  it('reimport keeps persisted valid nutrition and passes it to avoid an unnecessary provider request', async () => {
+    const { getMercadonaProduct } = await import('@/lib/mercadona')
+    const existing = await db.product.create({ data: {
+      name: 'Known nutrition', source: 'mercadona', mercadonaId: 'nutrition-safe', category: 'dairy', ketoScore: 4,
+      nutritionConvention: 'available_excluding_fiber', nutritionSource: 'openfoodfacts', netCarbsPer100g: 4.2,
+      carbsPer100g: 4.2, fiberPer100g: 0.2, fatPer100g: 8, proteinPer100g: 7, caloriesPer100g: 110,
+    } })
+    const result = await mercadona(post('http://t/mercadona', { mercadonaId: 'nutrition-safe' }))
+    expect(result.status).toBe(200)
+    expect(vi.mocked(getMercadonaProduct)).toHaveBeenLastCalledWith('nutrition-safe', expect.objectContaining({ availableCarbsPer100g: 4.2 }))
+    expect(await db.product.findUniqueOrThrow({ where: { id: existing.id } })).toMatchObject({
+      nutritionConvention: 'available_excluding_fiber', nutritionSource: 'openfoodfacts', netCarbsPer100g: 4.2, fiberPer100g: 0.2,
+    })
+  })
+
   it.each(['manual', 'product', 'mercadona', 'recipe'])('%s add -> buy -> re-add -> buy/reverse -> clear bought', async entry => {
     const name = `Re-add ${entry}`
     let productId: string | undefined

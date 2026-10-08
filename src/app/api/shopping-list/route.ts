@@ -5,19 +5,25 @@ import { db } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { ApiError, withErrorHandling } from '@/lib/apiError'
 import { formatShoppingQuantity } from '@/lib/shoppingList'
-import { positiveQuantity, purchaseQuantityInput, quantityPair } from '@/lib/quantities'
+import { positiveQuantity, quantityPair } from '@/lib/quantities'
+
+const boundedQuantity = z.number().finite().positive().max(10000)
+const boundedQuantityInput = z.union([
+  boundedQuantity,
+  z.string().trim().min(1).transform(Number).pipe(boundedQuantity),
+])
 
 const createShoppingItemSchema = z.object({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(120),
   restore: z.boolean().optional(),
-  quantity: purchaseQuantityInput.optional(),
-  purchaseQuantity: positiveQuantity.nullable().optional(),
-  legacyQuantity: z.string().nullable().optional(),
-  requiredQuantity: positiveQuantity.nullable().optional(),
-  requiredUnit: z.string().trim().min(1).nullable().optional(),
-  originalIngredientText: z.string().nullable().optional(),
-  productId: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
+  quantity: boundedQuantityInput.optional(),
+  purchaseQuantity: boundedQuantity.nullable().optional(),
+  legacyQuantity: z.string().max(80).nullable().optional(),
+  requiredQuantity: boundedQuantity.nullable().optional(),
+  requiredUnit: z.string().trim().min(1).max(32).nullable().optional(),
+  originalIngredientText: z.string().max(300).nullable().optional(),
+  productId: z.string().min(1).max(100).nullable().optional(),
+  reason: z.string().max(500).nullable().optional(),
 }).superRefine((p, ctx) => {
   if (!quantityPair.safeParse({ quantity: p.requiredQuantity ?? null, unit: p.requiredUnit ?? null }).success)
     ctx.addIssue({ code: 'custom', message: 'Required quantity and unit must both be specified' })

@@ -12,6 +12,15 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (!rateLimit(request, { limit: 5, windowMs: 60_000, bucket: 'auth-forgot' }).ok) throw new ApiError('Too many requests', 429)
   const { email } = schema.parse(await request.json())
   const user = await db.user.findUnique({ where: { email } })
-  if (user) await sendPasswordResetEmail(user)
+  if (user) {
+    try {
+      await sendPasswordResetEmail(user)
+    } catch (error) {
+      // Keep the response indistinguishable; provider messages can contain private data.
+      const failure = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)
+        ? error.name : 'ProviderOrTokenError'
+      console.error('password reset email failed', failure)
+    }
+  }
   return NextResponse.json({ success: true })
 })

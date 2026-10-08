@@ -30,9 +30,9 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       DATABASE_URL: `file:${database}`,
+      ACCOUNT_DELETION_LEDGER: `${database}.deletions.jsonl`,
       COOKIE_SECURE: 'false',
       APP_URL: 'http://127.0.0.1:3100',
-      RECIPE_IMAGE_AUTOFETCH: 'false',
       RESEND_API_KEY: '',
     },
     timeout: 60_000,

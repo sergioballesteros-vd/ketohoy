@@ -15,8 +15,8 @@ for (const file of [target, untouched]) fs.copyFileSync(path.resolve('dev.db'), 
 migrateTestDb(target)
 afterAll(() => fs.rmSync(directory, { recursive: true, force: true }))
 const hash = (file: string) => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
-const runSeed = (url: string) => execFileSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'prisma/seed.ts'], {
-  env: { ...process.env, DATABASE_URL: url, SEED_RESET: 'false' }, encoding: 'utf8',
+const runSeed = (url: string, reset = false) => execFileSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'prisma/seed.ts'], {
+  env: { ...process.env, DATABASE_URL: url, SEED_RESET: String(reset) }, encoding: 'utf8',
 })
 
 describe('seed safety on disposable databases', () => {
@@ -58,5 +58,12 @@ describe('seed safety on disposable databases', () => {
       sql.exec('DROP TRIGGER fail_seed')
       sql.close()
     }
+  }, 20_000)
+
+  it('seeds fresh recipes without unreviewed image URLs', () => {
+    runSeed(`file:${target}`, true)
+    const sql = new Database(target)
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM Recipe WHERE imageUrl IS NOT NULL').get()).toMatchObject({ n: 0 })
+    sql.close()
   }, 20_000)
 })

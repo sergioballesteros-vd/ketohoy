@@ -168,35 +168,47 @@ const API = 'https://tienda.mercadona.es/api'
 // huevos/leche, café/infusiones, aceite/especias/salsas, conservas, aperitivos, agua.
 const CATALOG_CATEGORY_IDS = [1, 2, 3, 4, 6, 8, 12, 14, 15, 18]
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000
+const CATALOG_OPERATION_TIMEOUT_MS = 30_000
+const CATALOG_REQUEST_TIMEOUT_MS = 8_000
 
-async function fetchJson(path: string): Promise<unknown> {
+async function fetchJson(path: string, budget?: AbortSignal): Promise<unknown> {
   const res = await fetch(`${API}${path}${path.includes('?') ? '&' : '?'}lang=es&wh=mad1`, {
-    signal: AbortSignal.timeout(10_000),
+    signal: budget ? AbortSignal.any([budget, AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`Mercadona API ${res.status} for ${path}`)
   return res.json()
 }
 
 let catalogCache: { at: number; hits: RawHit[] } | null = null
-let catalogInflight: Promise<RawHit[]> | null = null
+let catalogInflight: Promise<{ hits: RawHit[]; completeness: 'complete' | 'partial'; fetchedAt: string }> | null = null
+
+export type MercadonaCatalogResult = {
+  products: MercadonaProduct[]
+  source: 'mercadona' | 'demo' | 'mixed'
+  fetchedAt: string | null
+  completeness: 'complete' | 'partial' | 'demo'
+  freshness: 'fresh' | 'stale' | 'demo'
+}
 
 // ponytail: in-memory catalog index per process (~50 requests once per 12h) instead of
 // a DB table or a search service; move it to the DB if the app ever runs multi-instance.
-async function loadCatalog(): Promise<RawHit[]> {
-  if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL_MS) return catalogCache.hits
-  catalogInflight ??= (async () => {
+async function loadCatalog(): Promise<{ hits: RawHit[]; completeness: 'complete' | 'partial'; fetchedAt: string }> {
+  if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL_MS) return { ...catalogCache, completeness: 'complete', fetchedAt: new Date(catalogCache.at).toISOString() }
+  const pending = catalogInflight ??= (async () => {
+    const budget = AbortSignal.timeout(CATALOG_OPERATION_TIMEOUT_MS)
     // Products hang off subcategories: /categories → top-level → sub ids → /categories/{sub}.
-    const tree = (await fetchJson('/categories/')) as { results: Array<{ id: number; name: string; categories: Array<{ id: number; name: string }> }> }
+    const tree = (await fetchJson('/categories/', budget)) as { results: Array<{ id: number; name: string; categories: Array<{ id: number; name: string }> }> }
     const subs = tree.results
       .filter(top => CATALOG_CATEGORY_IDS.includes(top.id))
       .flatMap(top => top.categories.map(sub => ({ top: top.name, id: sub.id, name: sub.name })))
     const byId = new Map<string, RawHit>()
+    let failed = 0
     for (let i = 0; i < subs.length; i += 8) {
       const batch = await Promise.allSettled(
-        subs.slice(i, i + 8).map(async sub => ({ sub, res: (await fetchJson(`/categories/${sub.id}/`)) as CategoryResponse }))
+        subs.slice(i, i + 8).map(async sub => ({ sub, res: (await fetchJson(`/categories/${sub.id}/`, budget)) as CategoryResponse }))
       )
       for (const r of batch) {
-        if (r.status !== 'fulfilled') continue
+        if (r.status !== 'fulfilled') { failed++; continue }
         const { sub, res } = r.value
         for (const leaf of res.categories ?? []) {
           for (const p of leaf.products ?? []) {
@@ -207,10 +219,12 @@ async function loadCatalog(): Promise<RawHit[]> {
       }
     }
     if (byId.size === 0) throw new Error('Mercadona catalog unavailable')
-    catalogCache = { at: Date.now(), hits: [...byId.values()] }
-    return catalogCache.hits
+    const snapshot = { at: Date.now(), hits: [...byId.values()] }
+    if (failed === 0) catalogCache = snapshot
+    const completeness: 'complete' | 'partial' = failed === 0 ? 'complete' : 'partial'
+    return { ...snapshot, completeness, fetchedAt: new Date(snapshot.at).toISOString() }
   })().finally(() => { catalogInflight = null })
-  return catalogInflight
+  return pending
 }
 
 type CategoryResponse = { name: string; categories?: Array<{ name: string; products?: RawHit[] }> }
@@ -234,14 +248,33 @@ export function searchCatalog(hits: RawHit[], query: string, limit: number): Raw
 }
 
 export async function searchMercadonaProducts(query: string, limit = 12): Promise<MercadonaProduct[]> {
+  return (await searchMercadonaProductsResult(query, limit)).products
+}
+
+export async function searchMercadonaProductsResult(query: string, limit = 12): Promise<MercadonaCatalogResult> {
   try {
-    const products = normalizeMercadonaProducts(searchCatalog(await loadCatalog(), query, limit))
-    if (products.length > 0) return Promise.all(products.map(async product => await getMercadonaProduct(product.mercadonaId) ?? product))
+    const catalog = await loadCatalog()
+    if (catalog.completeness === 'partial' && catalogCache) {
+      const products = normalizeMercadonaProducts(searchCatalog(catalogCache.hits, query, limit))
+      return { products, source: 'mercadona', fetchedAt: new Date(catalogCache.at).toISOString(), completeness: 'complete', freshness: 'stale' }
+    }
+    const products = normalizeMercadonaProducts(searchCatalog(catalog.hits, query, limit))
+    if (products.length > 0) {
+      if (catalog.completeness === 'partial') return { products, source: 'mercadona', fetchedAt: catalog.fetchedAt, completeness: 'partial', freshness: 'fresh' }
+      const detailed = await Promise.all(products.map(async product => {
+        try { return await getMercadonaProduct(product.mercadonaId) ?? product } catch { return product }
+      }))
+      return { products: detailed, source: 'mercadona', fetchedAt: catalog.fetchedAt, completeness: 'complete', freshness: 'fresh' }
+    }
     // Real catalog loaded but nothing matched: don't show demo items for a real search.
-    return []
+    return { products: [], source: 'mercadona', fetchedAt: catalog.fetchedAt, completeness: catalog.completeness, freshness: 'fresh' }
   } catch (err) {
-    console.warn('[mercadona] API unavailable, using demo catalog:', err instanceof Error ? err.message : err)
-    return searchDemoMercadonaProducts(query)
+    console.warn('[mercadona] search failed', err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'provider_error')
+    if (catalogCache) {
+      const products = normalizeMercadonaProducts(searchCatalog(catalogCache.hits, query, limit))
+      return { products, source: 'mercadona', fetchedAt: new Date(catalogCache.at).toISOString(), completeness: 'complete', freshness: 'stale' }
+    }
+    return { products: searchDemoMercadonaProducts(query), source: 'demo', fetchedAt: null, completeness: 'demo', freshness: 'demo' }
   }
 }
 
@@ -250,28 +283,48 @@ export async function searchMercadonaProductsByQueries(queries: string[]): Promi
   return dedupeMercadonaProducts(results.flat())
 }
 
+export async function searchMercadonaProductsByQueriesResult(queries: string[]): Promise<MercadonaCatalogResult> {
+  const results = await Promise.all(queries.map(query => searchMercadonaProductsResult(query)))
+  const products = dedupeMercadonaProducts(results.flatMap(result => result.products))
+  const selected = results.find(result => result.freshness === 'fresh') ?? results[0]
+  const hasDemo = results.some(result => result.source === 'demo')
+  const hasReal = results.some(result => result.source === 'mercadona')
+  return {
+    ...selected, products, source: hasDemo && hasReal ? 'mixed' : selected.source,
+    completeness: results.some(result => result.completeness === 'partial') ? 'partial' : selected.completeness,
+    freshness: hasDemo && hasReal ? 'demo' : results.some(result => result.freshness === 'stale') ? 'stale' : selected.freshness,
+  }
+}
+
 // Share a canonical snapshot for search/detail/import so evidence cannot vary by path.
 const productSnapshots = new Map<string, { at: number; product: Promise<MercadonaProduct | null> }>()
-export async function getMercadonaProduct(id: string): Promise<MercadonaProduct | null> {
+export async function getMercadonaProduct(id: string, knownNutrition?: NutritionalData): Promise<MercadonaProduct | null> {
   const numericId = id.startsWith('mercadona_') ? id.slice('mercadona_'.length) : id
   const demo = getDemoMercadonaProduct(id)
   if (demo) return demo
   const cached = productSnapshots.get(numericId)
-  if (cached && Date.now() - cached.at < CATALOG_TTL_MS) return cached.product
-  const product = resolveMercadonaProduct(numericId)
+  if (cached && !knownNutrition && Date.now() - cached.at < CATALOG_TTL_MS) return cached.product
+  const product = resolveMercadonaProduct(numericId, knownNutrition)
   productSnapshots.set(numericId, { at: Date.now(), product })
-  const result = await product
-  if (!result) productSnapshots.delete(numericId)
-  return result
+  try {
+    const result = await product
+    if (!result) productSnapshots.delete(numericId)
+    return result
+  } catch (error) {
+    productSnapshots.delete(numericId)
+    throw error
+  }
 }
 
-async function resolveMercadonaProduct(id: string): Promise<MercadonaProduct | null> {
-  const fromCatalog = (await loadCatalog().catch(() => [])).find(p => String(p.id) === id)
+async function resolveMercadonaProduct(id: string, knownNutrition?: NutritionalData): Promise<MercadonaProduct | null> {
+  const fromCatalog = catalogCache?.hits.find(p => String(p.id) === id)
   let detail: RawHit | undefined
-  try { detail = (await fetchJson(`/products/${encodeURIComponent(id)}/`)) as RawHit } catch { /* Catalog snapshot still provides an honest estimate. */ }
+  try { detail = (await fetchJson(`/products/${encodeURIComponent(id)}/`)) as RawHit } catch (error) {
+    if (!fromCatalog) throw error
+  }
   if (!detail && !fromCatalog) return null
   const [product] = normalizeMercadonaProducts([{ ...fromCatalog, ...detail, categories: fromCatalog?.categories ?? detail?.categories }])
-  const nutrition = product.ean ? await fetchNutritionByEan(product.ean) : null
+  const nutrition = knownNutrition ?? (product.ean ? await fetchNutritionByEan(product.ean) : null)
   const netCarbs = nutrition?.availableCarbsPer100g ?? null
   const classification = classifyProduct({ name: product.name, category: product.category as ProductCategory, netCarbs })
   return { ...product, nutrition, netCarbsPer100g: netCarbs, classification, ketoScore: classification.score }

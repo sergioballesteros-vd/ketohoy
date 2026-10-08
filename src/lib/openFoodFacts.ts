@@ -13,13 +13,20 @@ export function nutritionNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
+export class OpenFoodFactsError extends Error {
+  constructor(readonly kind: 'timeout' | 'provider_error') {
+    super(`Open Food Facts ${kind}`)
+    this.name = 'OpenFoodFactsError'
+  }
+}
+
 export async function fetchNutritionByEan(ean: string): Promise<NutritionalData | null> {
   try {
     const res = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${ean}.json`,
       { headers: { 'User-Agent': 'KetoHoy/1.0 (keto-mercadona)' }, signal: AbortSignal.timeout(10_000) }
     )
-    if (!res.ok) return null
+    if (!res.ok) throw new OpenFoodFactsError('provider_error')
     const data = await res.json()
     if (data.status !== 1) return null
     const n = data.product?.nutriments
@@ -35,8 +42,10 @@ export async function fetchNutritionByEan(ean: string): Promise<NutritionalData 
       sugars:   nutritionNumber(n['sugars_100g']),
       fiber:    nutritionNumber(n['fiber_100g']),
     }
-  } catch {
-    return null
+  } catch (error) {
+    if (error instanceof OpenFoodFactsError) throw error
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new OpenFoodFactsError('timeout')
+    throw new OpenFoodFactsError('provider_error')
   }
 }
 

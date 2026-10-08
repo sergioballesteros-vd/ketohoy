@@ -2,30 +2,26 @@ import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { ChevronLeft, Check } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { hasAcceptedCurrentTerms } from '@/lib/terms'
 import { redirect } from 'next/navigation'
-import { ensureRecipeImage } from '@/lib/recipeImage'
 import { ingredientAvailability, ingredientAvailabilityLabel, recipeAvailability, recipeAvailabilityLabel } from '@/lib/recipeAvailability'
 import { appUrl } from '@/lib/appUrl'
 import { ToneLabel } from '@/components/ui'
+import { RecipeImage, RecipeImageAttribution } from '@/components/RecipeImage'
+import { recipeMetadataImage } from '@/lib/recipeImages'
+import { normalizeInternalReturnTo } from '@/lib/returnTo'
 import AddMissingButton from './AddMissingButton'
 
 const getRecipe = cache(async (id: string) => {
-  try {
-    const recipe = await db.recipe.findUnique({
-      where: { id },
-      include: { ingredients: { include: { product: true } } },
-    })
-    if (!recipe) return null
-    const imageUrl = await ensureRecipeImage(recipe.id, recipe.title, recipe.imageUrl)
-    return imageUrl === recipe.imageUrl ? recipe : { ...recipe, imageUrl }
-  } catch {
-    return null
-  }
+  const recipe = await db.recipe.findUnique({
+    where: { id },
+    include: { ingredients: { include: { product: true } } },
+  })
+  if (!recipe) return null
+  return recipe
 })
 
 const difficultyLabel: Record<string, string> = { very_easy: 'Muy fácil', easy: 'Fácil', medium: 'Media' }
@@ -40,13 +36,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!recipe) return {}
   const description = recipe.description || `Receta keto de ${recipe.title}: ingredientes y preparación paso a paso.`
   const path = `/recipes/${recipe.id}`
+  const image = recipeMetadataImage(recipe.title)
   return {
     title: recipe.title,
     description,
     alternates: { canonical: path },
     robots: { index: true, follow: true },
-    openGraph: { type: 'article', title: recipe.title, description, url: path, images: recipe.imageUrl ? [recipe.imageUrl] : undefined },
-    twitter: { card: recipe.imageUrl ? 'summary_large_image' : 'summary', title: recipe.title, description },
+    openGraph: { type: 'article', title: recipe.title, description, url: path, images: image ? [image] : undefined },
+    twitter: { card: image ? 'summary_large_image' : 'summary', title: recipe.title, description },
   }
 }
 
@@ -56,7 +53,8 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
   if (!recipe) notFound()
 
   const user = await getSessionUser()
-  if (user && !hasAcceptedCurrentTerms(user)) redirect('/accept-terms')
+  const recipePath = normalizeInternalReturnTo(`/recipes/${recipe.id}`)
+  if (user && !hasAcceptedCurrentTerms(user)) redirect(`/accept-terms?${new URLSearchParams({ returnTo: recipePath })}`)
   const pantry = user ? await db.pantryItem.findMany({ where: { userId: user.id }, include: { product: true } }) : []
   const availability = recipeAvailability(recipe.ingredients, pantry, user?.id ?? '')
   const mealTypes: string[] = JSON.parse(recipe.mealTypes)
@@ -71,7 +69,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
     '@type': 'Recipe',
     name: recipe.title,
     description: recipe.description || undefined,
-    image: recipe.imageUrl ?? undefined,
+    image: recipeMetadataImage(recipe.title),
     url: `${appUrl()}/recipes/${recipe.id}`,
     author: { '@type': 'Organization', name: 'KetoHoy' },
     datePublished: recipe.createdAt.toISOString(),
@@ -96,11 +94,8 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
         <ChevronLeft size={18} /> Recetas
       </Link>
 
-      {recipe.imageUrl && (
-        <div className="relative mt-2 aspect-[16/9] overflow-hidden rounded-xl bg-forest-800">
-          <Image src={recipe.imageUrl} alt="" fill sizes="(min-width: 672px) 640px, 100vw" className="object-cover" priority />
-        </div>
-      )}
+      <RecipeImage title={recipe.title} className="mt-2 aspect-[16/9] rounded-xl" sizes="(min-width: 672px) 640px, 100vw" priority />
+      <RecipeImageAttribution title={recipe.title} />
 
       <h1 className="mt-4 text-[26px] leading-tight font-semibold text-forest-50">{recipe.title}</h1>
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-forest-300">
@@ -193,7 +188,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ i
             <p className="font-semibold text-forest-50">Guarda tu despensa</p>
             <p className="mt-1 text-sm text-forest-300">Entra o crea una cuenta para añadir los ingredientes que faltan a la lista de compra.</p>
             <Link
-              href="/login"
+              href={`/login?${new URLSearchParams({ returnTo: recipePath })}`}
               className="mt-4 flex h-12 items-center justify-center rounded-lg bg-[#a3e635] font-semibold text-forest-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a3e635]"
             >
               Crear cuenta o entrar

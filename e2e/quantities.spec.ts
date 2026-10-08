@@ -23,7 +23,12 @@ for (const width of [320,390,768,1280]) {
     await page.setViewportSize({ width, height: 844 })
     if (width === 320) await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(`/recipes/${recipeId}`)
+    const addResponse = page.waitForResponse(response =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === `/api/recipes/${recipeId}/add-to-shopping-list`,
+    )
     await page.getByRole('button',{ name: /Añadir.*lista/ }).click()
+    expect((await addResponse).status()).toBe(200)
     const generated = await (await page.request.get('/api/shopping-list')).json()
     const need = generated.find((i: {name:string}) => i.name === name)
     expect(need).toMatchObject({ requiredQuantity: 300, requiredUnit: 'g', originalIngredientText: '300 g', purchaseQuantity: null })

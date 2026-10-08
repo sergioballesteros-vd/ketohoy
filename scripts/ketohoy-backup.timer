@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up KetoHoy SQLite every six hours
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 UTC
+OnCalendar=*-*-* 06:00:00 UTC
+OnCalendar=*-*-* 12:00:00 UTC
+OnCalendar=*-*-* 18:00:00 UTC
+Persistent=true
+Unit=ketohoy-backup.service
+
+[Install]
+WantedBy=timers.target

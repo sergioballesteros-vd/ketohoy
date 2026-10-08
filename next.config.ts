@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
     ]
     return [
       { source: '/:path*', headers: security },
+      { source: '/offline-shopping-list.html', headers: [{ key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'" }] },
       // Personal pages must not be stored by the browser/back-forward cache: after logout, "Back"
       // has to re-hit the server (which redirects to /login) instead of replaying a private page.
       { source: '/((?!_next/static|_next/image|.*\\..*).*)', headers: [{ key: 'Cache-Control', value: 'no-store' }] },

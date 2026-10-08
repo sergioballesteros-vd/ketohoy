@@ -72,7 +72,10 @@ for(const width of [320,390,768,1280]) test(`KH-027 aggregated shopping, retry, 
     expect(before.find((r:{name:string})=>r.name===`Pollo ${id}`).sourceContributions).toContain('slotId')
     expect(recipeRequests).toBe(0)
     // A failed operation gives recoverable feedback and no premature success.
+    const refreshedPlan=page.waitForResponse(response=>response.url().endsWith('/api/weekly-plan')&&response.request().method()==='GET')
     await page.goto('/weekly-plan')
+    expect((await refreshedPlan).status()).toBe(200)
+    await expect(button).toBeVisible()
     await page.unroute('**/api/weekly-plan/shopping-list')
     await page.route('**/api/weekly-plan/shopping-list',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Fallo temporal de prueba'})}))
     await button.click();await expect(page.locator('main').getByRole('alert')).toContainText('Fallo temporal de prueba')
@@ -100,7 +103,9 @@ for(const width of [320,390,768,1280]) test(`KH-027 aggregated shopping, retry, 
 
 test('KH-027 UI swap and regeneration synchronize sources while a manual item survives',async({page},info)=>{
   expect((await page.request.post('/api/auth/register',{data:registrationData('weekly-swap'),headers:{'X-Forwarded-For':info.testId}})).status()).toBe(201)
-  const manual=await(await page.request.post('/api/shopping-list',{data:{name:'Manual milk outside plan',quantity:2}})).json()
+  const manualResponse=await page.request.post('/api/shopping-list',{data:{name:'Manual milk outside plan',quantity:2}})
+  expect(manualResponse.status()).toBe(201)
+  const manual=await manualResponse.json()
   expect((await page.request.post('/api/weekly-plan/generate')).status()).toBe(200)
   await page.goto('/weekly-plan')
   const prepare=page.getByRole('button',{name:'Preparar compra de esta semana',exact:true})

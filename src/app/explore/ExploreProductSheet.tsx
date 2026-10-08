@@ -49,10 +49,10 @@ export default function ExploreProductSheet({ product, inCartQty, favorite, onTo
           type="button"
           onClick={onToggleFavorite}
           aria-pressed={favorite}
-          aria-label={favorite ? 'Quitar favorito' : 'Marcar favorito'}
+          aria-label={favorite ? `Quitar ${product.name} de favoritos` : `Marcar ${product.name} como favorito`}
           className={`relative hit-area flex h-10 w-10 items-center justify-center rounded-full hover:bg-forest-800 ${focusRing} ${favorite ? 'text-[#a3e635]' : 'text-forest-200'}`}
         >
-          <Heart size={20} fill={favorite ? 'currentColor' : 'none'} />
+          <Heart size={20} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
         </button>
       }
       footer={

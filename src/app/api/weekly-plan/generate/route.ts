@@ -14,7 +14,7 @@ export const POST = withErrorHandling(async () => {
   const [recipes, pantryItems, prefs] = await Promise.all([
     db.recipe.findMany({ include: { ingredients: true } }),
     db.pantryItem.findMany({ where: { userId }, include: { product: true } }),
-    db.userPreferences.findFirst({ where: { userId } }),
+    db.userPreferences.findUnique({ where: { userId } }),
   ])
 
   const preferences = {

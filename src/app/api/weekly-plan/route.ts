@@ -10,8 +10,8 @@ export const GET = withErrorHandling(async () => {
   const monday = getMonday(new Date())
 
   const [plan, pantryItems] = await Promise.all([
-    db.weeklyPlan.findFirst({
-      where: { weekStart: monday, userId },
+    db.weeklyPlan.findUnique({
+      where: { userId_weekStart: { weekStart: monday, userId } },
       include: {
         meals: {
           include: { recipe: { include: { ingredients: true } } },

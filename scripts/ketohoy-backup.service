@@ -1,0 +1,11 @@
+[Unit]
+Description=Create a consistent KetoHoy SQLite backup
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+UMask=0077
+Environment=DATABASE_URL=file:/home/ubuntu/ketohoy/dev.db
+Environment=BACKUP_DIR=/home/ubuntu/ketohoy/backups
+ExecStart=/usr/bin/python3 /home/ubuntu/ketohoy/shared/backup-db.py backup
